@@ -1,4 +1,5 @@
 using TMPro;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
@@ -10,10 +11,12 @@ public class UIGame : MonoBehaviour
     [SerializeField] private TMP_Text turnLabel;
     [SerializeField] private RectTransform mobilityBar;
     [SerializeField] private GameObject mobilityIconPrefab;
+    [SerializeField] private RectTransform abilitiesBar;
     [SerializeField] private Color mobilityAvailableColor = Color.white;
     [SerializeField] private Color mobilityConsumedColor = Color.black;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
+    private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
     private Character observedCharacter;
 
     private void Awake()
@@ -46,11 +49,27 @@ public class UIGame : MonoBehaviour
             }
         }
 
+        if (abilitiesBar == null)
+        {
+            Transform abilitiesTransform = transform.Find("Footer/Abilities");
+            if (abilitiesTransform == null)
+            {
+                abilitiesTransform = transform.Find("Abilities");
+            }
+
+            if (abilitiesTransform != null)
+            {
+                abilitiesBar = abilitiesTransform as RectTransform;
+            }
+        }
+
         if (endTurnButton != null)
         {
             endTurnButton.onClick.RemoveListener(HandleEndTurnClicked);
             endTurnButton.onClick.AddListener(HandleEndTurnClicked);
         }
+
+        CacheAbilityButtons();
     }
 
     private void OnEnable()
@@ -58,6 +77,8 @@ public class UIGame : MonoBehaviour
         if (gameTurnManager != null)
         {
             gameTurnManager.TurnChanged += HandleTurnChanged;
+            gameTurnManager.PendingAbilityChanged += HandlePendingAbilityChanged;
+            gameTurnManager.EndTurnAvailabilityChanged += HandleEndTurnAvailabilityChanged;
             HandleTurnChanged(gameTurnManager.CurrentTurn);
         }
 
@@ -69,6 +90,8 @@ public class UIGame : MonoBehaviour
         if (gameTurnManager != null)
         {
             gameTurnManager.TurnChanged -= HandleTurnChanged;
+            gameTurnManager.PendingAbilityChanged -= HandlePendingAbilityChanged;
+            gameTurnManager.EndTurnAvailabilityChanged -= HandleEndTurnAvailabilityChanged;
         }
 
         UnbindCharacter();
@@ -83,7 +106,7 @@ public class UIGame : MonoBehaviour
     {
         if (endTurnButton != null)
         {
-            endTurnButton.interactable = turnSide == TurnSide.Player;
+            endTurnButton.interactable = turnSide == TurnSide.Player && gameTurnManager != null && gameTurnManager.CanEndTurn;
         }
 
         if (turnLabel != null)
@@ -93,6 +116,7 @@ public class UIGame : MonoBehaviour
 
         BindToCurrentCharacter();
         RefreshMobilityBar();
+        RefreshAbilityButtons();
     }
 
     private void BindToCurrentCharacter()
@@ -100,7 +124,7 @@ public class UIGame : MonoBehaviour
         Character currentCharacter = null;
         if (gameTurnManager != null)
         {
-            BoardManager board = gameTurnManager.GetComponent<BoardManager>();
+            BoardManager board = gameTurnManager.Board;
             if (board != null && board.Player != null)
             {
                 currentCharacter = board.Player.ControlledCharacter;
@@ -118,9 +142,11 @@ public class UIGame : MonoBehaviour
         if (observedCharacter != null)
         {
             observedCharacter.MovementPointsChanged += HandleMovementPointsChanged;
+            observedCharacter.AbilitiesChanged += HandleAbilitiesChanged;
         }
 
         RebuildMobilityBar();
+        RefreshAbilityButtons();
     }
 
     private void UnbindCharacter()
@@ -128,6 +154,7 @@ public class UIGame : MonoBehaviour
         if (observedCharacter != null)
         {
             observedCharacter.MovementPointsChanged -= HandleMovementPointsChanged;
+            observedCharacter.AbilitiesChanged -= HandleAbilitiesChanged;
             observedCharacter = null;
         }
     }
@@ -135,6 +162,24 @@ public class UIGame : MonoBehaviour
     private void HandleMovementPointsChanged(Character character)
     {
         RefreshMobilityBar();
+    }
+
+    private void HandleAbilitiesChanged(Character character)
+    {
+        RefreshAbilityButtons();
+    }
+
+    private void HandlePendingAbilityChanged(int abilityIndex)
+    {
+        RefreshAbilityButtons();
+    }
+
+    private void HandleEndTurnAvailabilityChanged(bool isAvailable)
+    {
+        if (endTurnButton != null && gameTurnManager != null)
+        {
+            endTurnButton.interactable = gameTurnManager.CurrentTurn == TurnSide.Player && isAvailable;
+        }
     }
 
     private void RebuildMobilityBar()
@@ -177,6 +222,45 @@ public class UIGame : MonoBehaviour
         {
             bool isAvailable = index < observedCharacter.RemainingMovementPoints;
             SetMobilityIconColor(mobilityIcons[index], isAvailable ? mobilityAvailableColor : mobilityConsumedColor);
+        }
+    }
+
+    private void CacheAbilityButtons()
+    {
+        abilityButtons.Clear();
+        if (abilitiesBar == null)
+        {
+            return;
+        }
+
+        AbilityButtonUI[] buttons = abilitiesBar
+            .GetComponentsInChildren<AbilityButtonUI>(true)
+            .Where(button => button.name.StartsWith("BAbility", System.StringComparison.Ordinal))
+            .OrderBy(button => button.name)
+            .ToArray();
+
+        for (int index = 0; index < buttons.Length; index++)
+        {
+            abilityButtons.Add(buttons[index]);
+        }
+    }
+
+    private void RefreshAbilityButtons()
+    {
+        if (abilityButtons.Count == 0)
+        {
+            CacheAbilityButtons();
+        }
+
+        for (int index = 0; index < abilityButtons.Count; index++)
+        {
+            AbilityButtonUI button = abilityButtons[index];
+            if (button == null)
+            {
+                continue;
+            }
+
+            button.Setup(gameTurnManager, observedCharacter, index);
         }
     }
 

@@ -14,13 +14,27 @@ public class GameTurnManager : MonoBehaviour
     [SerializeField] private BoardManager board;
     [SerializeField] private KeyCode debugEndTurnKey = KeyCode.Space;
     [SerializeField] private float swipeThreshold = 60f;
+    [SerializeField] private float endTurnLockDuration = 6f;
+    [SerializeField] private float nextArenaDelay = 3f;
 
     private bool isEnemyTurnRunning;
     private bool isPointerTracking;
+    private bool hasStarted;
+    private bool hasPlayerActedThisTurn;
+    private bool isArenaTransitionRunning;
+    private bool canEndTurn = true;
+    private Coroutine endTurnUnlockCoroutine;
+    private Coroutine nextArenaCoroutine;
     private Vector2 pointerStartPosition;
+    private int pendingCellTargetAbilityIndex = -1;
 
     public TurnSide CurrentTurn { get; private set; } = TurnSide.Player;
+    public BoardManager Board => board;
+    public int PendingCellTargetAbilityIndex => pendingCellTargetAbilityIndex;
+    public bool CanEndTurn => canEndTurn;
     public event Action<TurnSide> TurnChanged;
+    public event Action<int> PendingAbilityChanged;
+    public event Action<bool> EndTurnAvailabilityChanged;
 
     private void Start()
     {
@@ -29,12 +43,26 @@ public class GameTurnManager : MonoBehaviour
             board = GetComponent<BoardManager>();
         }
 
+        if (board != null)
+        {
+            board.AllEnemiesDefeated += HandleAllEnemiesDefeated;
+        }
+
+        hasStarted = true;
         BeginPlayerTurn();
+    }
+
+    private void OnDestroy()
+    {
+        if (board != null)
+        {
+            board.AllEnemiesDefeated -= HandleAllEnemiesDefeated;
+        }
     }
 
     private void Update()
     {
-        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning)
+        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning)
         {
             return;
         }
@@ -50,12 +78,68 @@ public class GameTurnManager : MonoBehaviour
 
     public void RequestEndTurn()
     {
-        if (CurrentTurn != TurnSide.Player || isEnemyTurnRunning)
+        if (CurrentTurn != TurnSide.Player || isEnemyTurnRunning || isArenaTransitionRunning || !canEndTurn)
         {
             return;
         }
 
+        ClearPendingAbility();
         StartCoroutine(RunEnemyTurn());
+    }
+
+    public void RestartForNewBoard()
+    {
+        if (!hasStarted)
+        {
+            return;
+        }
+
+        StopAllCoroutines();
+        isEnemyTurnRunning = false;
+        isPointerTracking = false;
+        isArenaTransitionRunning = false;
+        nextArenaCoroutine = null;
+        ClearPendingAbility();
+        BeginPlayerTurn();
+    }
+
+    public bool RequestAbilityUse(int abilityIndex)
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (CurrentTurn != TurnSide.Player || isEnemyTurnRunning || isArenaTransitionRunning || character == null)
+        {
+            return false;
+        }
+
+        CharacterAbilityRuntime ability = character.GetAbility(abilityIndex);
+        if (ability == null || (!ability.IsActive && !ability.IsUsable(character)))
+        {
+            return false;
+        }
+
+        if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
+        {
+            if (pendingCellTargetAbilityIndex == abilityIndex)
+            {
+                ClearPendingAbility();
+            }
+            else
+            {
+                pendingCellTargetAbilityIndex = abilityIndex;
+                PendingAbilityChanged?.Invoke(pendingCellTargetAbilityIndex);
+            }
+
+            return true;
+        }
+
+        bool used = character.TryUseAbility(abilityIndex);
+        if (used)
+        {
+            RegisterPlayerAction();
+            ClearPendingAbility();
+        }
+
+        return used;
     }
 
     private void HandleDebugKeyboardInput()
@@ -63,6 +147,11 @@ public class GameTurnManager : MonoBehaviour
         if (Input.GetKeyDown(debugEndTurnKey))
         {
             RequestEndTurn();
+            return;
+        }
+
+        if (pendingCellTargetAbilityIndex >= 0)
+        {
             return;
         }
 
@@ -86,7 +175,11 @@ public class GameTurnManager : MonoBehaviour
 
         if (direction != Vector2Int.zero)
         {
-            board.Player.ControlledCharacter.TrySlide(direction);
+            bool moved = board.Player.ControlledCharacter.TrySlide(direction);
+            if (moved)
+            {
+                RegisterPlayerAction();
+            }
         }
     }
 
@@ -119,7 +212,7 @@ public class GameTurnManager : MonoBehaviour
                     }
 
                     isPointerTracking = false;
-                    TrySwipe(character, touch.position - pointerStartPosition);
+                    TryHandlePointerRelease(character, touch.position);
                     break;
                 case TouchPhase.Canceled:
                     isPointerTracking = false;
@@ -142,8 +235,19 @@ public class GameTurnManager : MonoBehaviour
         else if (Input.GetMouseButtonUp(0) && isPointerTracking)
         {
             isPointerTracking = false;
-            TrySwipe(character, (Vector2)Input.mousePosition - pointerStartPosition);
+            TryHandlePointerRelease(character, Input.mousePosition);
         }
+    }
+
+    private void TryHandlePointerRelease(Character character, Vector2 pointerEndPosition)
+    {
+        if (pendingCellTargetAbilityIndex >= 0)
+        {
+            TryUseTargetedAbility(character, pointerEndPosition);
+            return;
+        }
+
+        TrySwipe(character, pointerEndPosition - pointerStartPosition);
     }
 
     private void TrySwipe(Character character, Vector2 delta)
@@ -157,7 +261,44 @@ public class GameTurnManager : MonoBehaviour
             ? (delta.x > 0f ? Vector2Int.right : Vector2Int.left)
             : (delta.y > 0f ? Vector2Int.down : Vector2Int.up);
 
-        character.TrySlide(direction);
+        bool moved = character.TrySlide(direction);
+        if (moved)
+        {
+            RegisterPlayerAction();
+        }
+    }
+
+    private void TryUseTargetedAbility(Character character, Vector2 screenPosition)
+    {
+        if (character == null || board == null)
+        {
+            return;
+        }
+
+        Camera targetCamera = Camera.main;
+        if (targetCamera == null)
+        {
+            return;
+        }
+
+        Plane boardPlane = new Plane(board.transform.up, board.transform.position);
+        Ray ray = targetCamera.ScreenPointToRay(screenPosition);
+        if (!boardPlane.Raycast(ray, out float distance))
+        {
+            return;
+        }
+
+        Vector3 hitPoint = ray.GetPoint(distance);
+        if (!board.TryWorldToGridPosition(hitPoint, out Vector2Int targetCell))
+        {
+            return;
+        }
+
+        if (character.TryUseAbility(pendingCellTargetAbilityIndex, targetCell))
+        {
+            RegisterPlayerAction();
+            ClearPendingAbility();
+        }
     }
 
     private static bool IsPointerOverUI(Vector2 screenPosition, int fingerId)
@@ -183,6 +324,9 @@ public class GameTurnManager : MonoBehaviour
             board.Player.ResetTurn();
         }
 
+        hasPlayerActedThisTurn = false;
+        SetCanEndTurn(false);
+        StartEndTurnUnlockTimer();
         TurnChanged?.Invoke(CurrentTurn);
     }
 
@@ -190,6 +334,8 @@ public class GameTurnManager : MonoBehaviour
     {
         isEnemyTurnRunning = true;
         CurrentTurn = TurnSide.Enemy;
+        StopEndTurnUnlockTimer();
+        SetCanEndTurn(false);
         TurnChanged?.Invoke(CurrentTurn);
 
         foreach (Enemy enemy in board.SpawnedEnemies)
@@ -203,7 +349,113 @@ public class GameTurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.08f);
         }
 
-        BeginPlayerTurn();
         isEnemyTurnRunning = false;
+
+        if (isArenaTransitionRunning)
+        {
+            yield break;
+        }
+
+        BeginPlayerTurn();
+    }
+
+    private void ClearPendingAbility()
+    {
+        if (pendingCellTargetAbilityIndex < 0)
+        {
+            return;
+        }
+
+        pendingCellTargetAbilityIndex = -1;
+        PendingAbilityChanged?.Invoke(pendingCellTargetAbilityIndex);
+    }
+
+    private void RegisterPlayerAction()
+    {
+        if (CurrentTurn != TurnSide.Player || hasPlayerActedThisTurn)
+        {
+            return;
+        }
+
+        hasPlayerActedThisTurn = true;
+        StopEndTurnUnlockTimer();
+        SetCanEndTurn(true);
+    }
+
+    private void StartEndTurnUnlockTimer()
+    {
+        StopEndTurnUnlockTimer();
+        if (endTurnLockDuration <= 0f)
+        {
+            SetCanEndTurn(true);
+            return;
+        }
+
+        endTurnUnlockCoroutine = StartCoroutine(UnlockEndTurnAfterDelay());
+    }
+
+    private void StopEndTurnUnlockTimer()
+    {
+        if (endTurnUnlockCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(endTurnUnlockCoroutine);
+        endTurnUnlockCoroutine = null;
+    }
+
+    private IEnumerator UnlockEndTurnAfterDelay()
+    {
+        yield return new WaitForSeconds(endTurnLockDuration);
+        endTurnUnlockCoroutine = null;
+
+        if (CurrentTurn == TurnSide.Player && !hasPlayerActedThisTurn)
+        {
+            SetCanEndTurn(true);
+        }
+    }
+
+    private void SetCanEndTurn(bool value)
+    {
+        if (canEndTurn == value)
+        {
+            return;
+        }
+
+        canEndTurn = value;
+        EndTurnAvailabilityChanged?.Invoke(canEndTurn);
+    }
+
+    private void HandleAllEnemiesDefeated()
+    {
+        if (!hasStarted || isArenaTransitionRunning || board == null)
+        {
+            return;
+        }
+
+        isArenaTransitionRunning = true;
+        isPointerTracking = false;
+        StopEndTurnUnlockTimer();
+        ClearPendingAbility();
+        SetCanEndTurn(false);
+
+        if (nextArenaCoroutine != null)
+        {
+            StopCoroutine(nextArenaCoroutine);
+        }
+
+        nextArenaCoroutine = StartCoroutine(LoadNextArenaAfterDelay());
+    }
+
+    private IEnumerator LoadNextArenaAfterDelay()
+    {
+        yield return new WaitForSeconds(nextArenaDelay);
+        nextArenaCoroutine = null;
+
+        if (board != null)
+        {
+            board.GenerateBoard();
+        }
     }
 }

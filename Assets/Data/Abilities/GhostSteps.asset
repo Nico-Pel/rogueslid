@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4fa08274cbd4e50c8e06a906894dd34, type: 3}
+  m_Name: GhostSteps
+  m_EditorClassIdentifier: 
+  abilityName: Ghost Steps
+  icon: {fileID: 1356344920, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  usesPerTurn: 0
+  usesPerCombat: 0
+  cooldownTurns: 0
+  consumesMovementPoint: 0
+  isToggle: 1
+  traversalDamage: 3

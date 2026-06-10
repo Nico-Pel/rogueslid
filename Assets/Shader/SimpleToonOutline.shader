@@ -10,6 +10,8 @@ Shader "RTSLords/Simple Toon Outline"
         _BlueStrength ("Blue Replace Strength", Range(0, 1)) = 1
         _BlueShadingInfluence ("Blue Source Shading", Range(0, 1)) = 0.2
         _BlueMinBrightness ("Blue Min Brightness", Range(0, 2)) = 0.9
+        _FlashColor ("Flash Color", Color) = (1,1,1,1)
+        _FlashAmount ("Flash Amount", Range(0, 1)) = 0
         _ToonSteps ("Toon Steps", Range(2, 6)) = 3
         _ShadowStrength ("Shadow Strength", Range(0.2, 1)) = 0.55
         _OutlineColor ("Outline Color", Color) = (0.08,0.08,0.08,1)
@@ -77,6 +79,8 @@ Shader "RTSLords/Simple Toon Outline"
         half _BlueStrength;
         half _BlueShadingInfluence;
         half _BlueMinBrightness;
+        fixed4 _FlashColor;
+        half _FlashAmount;
         half _ToonSteps;
         half _ShadowStrength;
 
@@ -97,6 +101,7 @@ Shader "RTSLords/Simple Toon Outline"
             remapValue = max(remapValue, _BlueMinBrightness);
             fixed3 replacedBlue = saturate(_BlueReplaceColor.rgb * remapValue);
             c.rgb = lerp(c.rgb, replacedBlue, saturate(blueMask));
+            c.rgb = lerp(c.rgb, _FlashColor.rgb, saturate(_FlashAmount));
 
             o.Albedo = c.rgb;
             o.Alpha = c.a;

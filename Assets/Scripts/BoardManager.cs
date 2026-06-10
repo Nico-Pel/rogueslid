@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -53,17 +54,24 @@ public class BoardManager : MonoBehaviour
 
     [Header("Board")]
     [SerializeField] private Texture2D arenaLayout;
+    [SerializeField] private List<Texture2D> arenaLayouts = new List<Texture2D>();
     [SerializeField] private bool generateOnStart = true;
     [SerializeField] private float cellSizeX = 1f;
     [SerializeField] private float cellSizeZ = 1f;
     [SerializeField] private int originColumn = 3;
     [SerializeField] private int originRow = 4;
     [SerializeField] private float spawnHeight = 0.08f;
+    [SerializeField] private float optionalObstacleChance = 0.33f;
+    [SerializeField] private bool allowMirrorOnYAxis = true;
+    [SerializeField] [Range(0f, 1f)] private float mirrorOnYAxisChance = 0.5f;
 
     [Header("Prefabs")]
+    [SerializeField] private GameObject playerCharacterPrefab;
     [SerializeField] private List<GameObject> obstacles = new List<GameObject>();
     [SerializeField] private List<GameObject> enemies = new List<GameObject>();
-    [SerializeField] private List<GameObject> playerCharacters = new List<GameObject>();
+
+    [Header("Spawn Rules")]
+    [SerializeField] private int enemySpawnCount = 3;
 
     private BoardCell[,] cells;
     private Transform generatedRoot;
@@ -71,17 +79,24 @@ public class BoardManager : MonoBehaviour
     private Transform enemiesRoot;
     private Transform playersRoot;
     private Player player;
+    private readonly List<Enemy> spawnedEnemies = new List<Enemy>();
+    private Texture2D currentArenaLayout;
+    private bool currentArenaMirroredOnYAxis;
 
     public int Width => BoardWidth;
     public int Height => BoardHeight;
     public BoardCell[,] Cells => cells;
+    public Player Player => player;
+    public IReadOnlyList<Enemy> SpawnedEnemies => spawnedEnemies;
+    public event Action AllEnemiesDefeated;
 
     private enum ArenaMarker
     {
         Empty,
         Obstacle,
-        Enemy,
-        PlayerStart
+        OptionalObstacle,
+        EnemySpawn,
+        PlayerSpawn
     }
 
     private void Awake()
@@ -95,55 +110,66 @@ public class BoardManager : MonoBehaviour
     [ContextMenu("Generate Board")]
     public void GenerateBoard()
     {
-        if (arenaLayout == null)
+        Texture2D selectedArenaLayout = SelectArenaLayout();
+        if (selectedArenaLayout == null)
         {
-            Debug.LogError("BoardManager requires an arena layout texture.", this);
+            Debug.LogError("BoardManager requires at least one arena layout texture.", this);
             return;
         }
 
-        if (!arenaLayout.isReadable)
+        if (!selectedArenaLayout.isReadable)
         {
-            Debug.LogError("Arena texture must be readable. Enable Read/Write on the imported texture.", arenaLayout);
+            Debug.LogError("Arena texture must be readable. Enable Read/Write on the imported texture.", selectedArenaLayout);
             return;
         }
 
-        if (arenaLayout.width != BoardWidth || arenaLayout.height != BoardHeight)
-        {
-            Debug.LogWarning(
-                $"Arena texture should be {BoardWidth}x{BoardHeight}, but is {arenaLayout.width}x{arenaLayout.height}. " +
-                "Generation continues with the expected board size.",
-                arenaLayout);
-        }
+        currentArenaLayout = selectedArenaLayout;
+        currentArenaMirroredOnYAxis = allowMirrorOnYAxis && UnityEngine.Random.value < mirrorOnYAxisChance;
+        arenaLayout = currentArenaLayout;
 
         EnsureGeneratedRoots();
         ClearGeneratedContent();
         InitializeCells();
 
-        List<Vector2Int> playerSpawnPoints = new List<Vector2Int>();
+        List<Vector2Int> playerSpawnCandidates = new List<Vector2Int>();
+        List<Vector2Int> enemySpawnCandidates = new List<Vector2Int>();
 
         for (int row = 0; row < BoardHeight; row++)
         {
             for (int column = 0; column < BoardWidth; column++)
             {
                 BoardCell cell = cells[column, row];
-                ArenaMarker marker = GetMarkerForCell(column, row);
+                ArenaMarker marker = GetMarkerForCell(column, row, currentArenaLayout, currentArenaMirroredOnYAxis);
 
                 switch (marker)
                 {
                     case ArenaMarker.Obstacle:
                         SpawnObstacle(cell);
                         break;
-                    case ArenaMarker.Enemy:
-                        SpawnEnemy(cell);
+                    case ArenaMarker.OptionalObstacle:
+                        if (UnityEngine.Random.value < optionalObstacleChance)
+                        {
+                            SpawnObstacle(cell);
+                        }
                         break;
-                    case ArenaMarker.PlayerStart:
-                        playerSpawnPoints.Add(cell.GridPosition);
+                    case ArenaMarker.EnemySpawn:
+                        enemySpawnCandidates.Add(cell.GridPosition);
+                        break;
+                    case ArenaMarker.PlayerSpawn:
+                        playerSpawnCandidates.Add(cell.GridPosition);
                         break;
                 }
             }
         }
 
-        SpawnPlayerCharacters(playerSpawnPoints);
+        SpawnPlayerCharacter(playerSpawnCandidates);
+        SpawnEnemies(enemySpawnCandidates);
+
+        if (Application.isPlaying)
+        {
+            GameTurnManager turnManager = GetComponent<GameTurnManager>();
+            turnManager?.RestartForNewBoard();
+        }
     }
 
     public bool TryGetCell(Vector2Int gridPosition, out BoardCell cell)
@@ -154,7 +180,7 @@ public class BoardManager : MonoBehaviour
             return false;
         }
 
-        if (gridPosition.x < 0 || gridPosition.x >= BoardWidth || gridPosition.y < 0 || gridPosition.y >= BoardHeight)
+        if (!IsInsideBoard(gridPosition))
         {
             cell = null;
             return false;
@@ -169,6 +195,287 @@ public class BoardManager : MonoBehaviour
         float x = (gridPosition.x - originColumn) * cellSizeX;
         float z = (originRow - gridPosition.y) * cellSizeZ;
         return transform.TransformPoint(new Vector3(x, 0f, z));
+    }
+
+    public bool IsInsideBoard(Vector2Int gridPosition)
+    {
+        return gridPosition.x >= 0 && gridPosition.x < BoardWidth && gridPosition.y >= 0 && gridPosition.y < BoardHeight;
+    }
+
+    public bool IsCellWalkable(Vector2Int gridPosition)
+    {
+        return TryGetCell(gridPosition, out BoardCell cell) && cell.Walkable && !cell.IsOccupied;
+    }
+
+    public Vector2Int GetSlideDestination(Vector2Int startPosition, Vector2Int direction)
+    {
+        return GetSlideDestination(startPosition, direction, false, null);
+    }
+
+    public Vector2Int GetSlideDestination(
+        Vector2Int startPosition,
+        Vector2Int direction,
+        bool allowUnitTraversal,
+        List<Enemy> traversedEnemies)
+    {
+        traversedEnemies?.Clear();
+        List<Enemy> pendingTraversedEnemies = allowUnitTraversal ? new List<Enemy>() : null;
+
+        if (direction == Vector2Int.zero)
+        {
+            return startPosition;
+        }
+
+        Vector2Int lastFreeCell = startPosition;
+        Vector2Int next = startPosition + direction;
+
+        while (TryGetCell(next, out BoardCell cell))
+        {
+            bool isRockOrBlockedTile = cell.Type == BoardCellType.Rock || (!cell.Walkable && !cell.IsOccupied);
+            if (isRockOrBlockedTile)
+            {
+                break;
+            }
+
+            if (cell.IsOccupied)
+            {
+                if (allowUnitTraversal
+                    && cell.OccupantKind == BoardOccupantKind.Enemy
+                    && TryGetEnemy(next, out Enemy traversedEnemy))
+                {
+                    pendingTraversedEnemies?.Add(traversedEnemy);
+                    next += direction;
+                    continue;
+                }
+
+                break;
+            }
+
+            if (pendingTraversedEnemies != null && pendingTraversedEnemies.Count > 0)
+            {
+                traversedEnemies?.AddRange(pendingTraversedEnemies);
+                pendingTraversedEnemies.Clear();
+            }
+
+            lastFreeCell = next;
+            next += direction;
+        }
+
+        return lastFreeCell;
+    }
+
+    public bool MoveOccupant(Vector2Int from, Vector2Int to, BoardOccupantKind occupantKind)
+    {
+        if (!TryGetCell(from, out BoardCell fromCell) || !TryGetCell(to, out BoardCell toCell))
+        {
+            return false;
+        }
+
+        if (from == to || fromCell.Occupant == null || !toCell.Walkable || toCell.IsOccupied)
+        {
+            return false;
+        }
+
+        GameObject occupant = fromCell.Occupant;
+        fromCell.ClearOccupant();
+        toCell.SetOccupant(occupant, occupantKind, false);
+        return true;
+    }
+
+    public int GetPathDistance(Vector2Int start, Vector2Int goal, bool allowOccupiedGoal = false)
+    {
+        if (!IsInsideBoard(start) || !IsInsideBoard(goal))
+        {
+            return int.MaxValue;
+        }
+
+        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, int> distances = new Dictionary<Vector2Int, int>();
+        frontier.Enqueue(start);
+        distances[start] = 0;
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (frontier.Count > 0)
+        {
+            Vector2Int current = frontier.Dequeue();
+            if (current == goal)
+            {
+                return distances[current];
+            }
+
+            foreach (Vector2Int direction in directions)
+            {
+                Vector2Int next = current + direction;
+                if (!IsInsideBoard(next) || distances.ContainsKey(next))
+                {
+                    continue;
+                }
+
+                bool canVisit = IsCellWalkable(next) || (allowOccupiedGoal && next == goal);
+                if (!canVisit)
+                {
+                    continue;
+                }
+
+                distances[next] = distances[current] + 1;
+                frontier.Enqueue(next);
+            }
+        }
+
+        return int.MaxValue;
+    }
+
+    public int GetManhattanDistance(Vector2Int a, Vector2Int b)
+    {
+        return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+    }
+
+    public bool HasLineOfSight(Vector2Int from, Vector2Int to)
+    {
+        if (!IsInsideBoard(from) || !IsInsideBoard(to))
+        {
+            return false;
+        }
+
+        if (from == to)
+        {
+            return true;
+        }
+
+        int currentX = from.x;
+        int currentY = from.y;
+        int targetX = to.x;
+        int targetY = to.y;
+
+        float deltaX = targetX - currentX;
+        float deltaY = targetY - currentY;
+        int stepX = deltaX > 0f ? 1 : -1;
+        int stepY = deltaY > 0f ? 1 : -1;
+
+        float tDeltaX = deltaX != 0f ? 1f / Mathf.Abs(deltaX) : float.PositiveInfinity;
+        float tDeltaY = deltaY != 0f ? 1f / Mathf.Abs(deltaY) : float.PositiveInfinity;
+        float tMaxX = deltaX != 0f ? 0.5f / Mathf.Abs(deltaX) : float.PositiveInfinity;
+        float tMaxY = deltaY != 0f ? 0.5f / Mathf.Abs(deltaY) : float.PositiveInfinity;
+
+        while (currentX != targetX || currentY != targetY)
+        {
+            int previousX = currentX;
+            int previousY = currentY;
+
+            if (tMaxX < tMaxY)
+            {
+                currentX += stepX;
+                tMaxX += tDeltaX;
+            }
+            else if (tMaxY < tMaxX)
+            {
+                currentY += stepY;
+                tMaxY += tDeltaY;
+            }
+            else
+            {
+                Vector2Int horizontalCell = new Vector2Int(currentX + stepX, currentY);
+                Vector2Int verticalCell = new Vector2Int(currentX, currentY + stepY);
+
+                if (IsSightBlockedCell(horizontalCell, to) || IsSightBlockedCell(verticalCell, to))
+                {
+                    return false;
+                }
+
+                currentX += stepX;
+                currentY += stepY;
+                tMaxX += tDeltaX;
+                tMaxY += tDeltaY;
+            }
+
+            Vector2Int currentCell = new Vector2Int(currentX, currentY);
+            if (currentCell == to)
+            {
+                break;
+            }
+
+            if (previousX != currentX && previousY != currentY)
+            {
+                Vector2Int previousHorizontal = new Vector2Int(currentX, previousY);
+                Vector2Int previousVertical = new Vector2Int(previousX, currentY);
+
+                if (IsSightBlockedCell(previousHorizontal, to) || IsSightBlockedCell(previousVertical, to))
+                {
+                    return false;
+                }
+            }
+
+            if (IsSightBlockedCell(currentCell, to))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public bool TryGetEnemy(Vector2Int gridPosition, out Enemy enemy)
+    {
+        enemy = null;
+        if (!TryGetCell(gridPosition, out BoardCell cell) || cell.OccupantKind != BoardOccupantKind.Enemy || cell.Occupant == null)
+        {
+            return false;
+        }
+
+        enemy = cell.Occupant.GetComponent<Enemy>();
+        return enemy != null;
+    }
+
+    public bool TryWorldToGridPosition(Vector3 worldPosition, out Vector2Int gridPosition)
+    {
+        Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
+        int column = Mathf.RoundToInt((localPosition.x / cellSizeX) + originColumn);
+        int row = Mathf.RoundToInt(originRow - (localPosition.z / cellSizeZ));
+        gridPosition = new Vector2Int(column, row);
+        return IsInsideBoard(gridPosition);
+    }
+
+    public void RemoveEnemy(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return;
+        }
+
+        spawnedEnemies.Remove(enemy);
+
+        Vector2Int enemyPosition = enemy.GridPosition;
+        if (TryGetCell(enemyPosition, out BoardCell cell) && cell.Occupant == enemy.gameObject)
+        {
+            cell.ClearOccupant();
+        }
+
+        if (Application.isPlaying && spawnedEnemies.Count == 0)
+        {
+            AllEnemiesDefeated?.Invoke();
+        }
+    }
+
+    private bool IsSightBlockedCell(Vector2Int gridPosition, Vector2Int targetCell)
+    {
+        if (gridPosition == targetCell)
+        {
+            return false;
+        }
+
+        if (!TryGetCell(gridPosition, out BoardCell cell))
+        {
+            return true;
+        }
+
+        return cell.Type == BoardCellType.Rock || cell.OccupantKind == BoardOccupantKind.Obstacle;
     }
 
     private void InitializeCells()
@@ -193,24 +500,57 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private ArenaMarker GetMarkerForCell(int column, int row)
+    private Texture2D SelectArenaLayout()
     {
-        Color pixel = arenaLayout.GetPixel(column, (BoardHeight - 1) - row);
+        if (arenaLayouts != null && arenaLayouts.Count > 0)
+        {
+            List<Texture2D> validArenas = new List<Texture2D>();
+            for (int index = 0; index < arenaLayouts.Count; index++)
+            {
+                if (arenaLayouts[index] != null)
+                {
+                    validArenas.Add(arenaLayouts[index]);
+                }
+            }
 
+            if (validArenas.Count > 0)
+            {
+                return validArenas[UnityEngine.Random.Range(0, validArenas.Count)];
+            }
+        }
+
+        return arenaLayout;
+    }
+
+    private ArenaMarker GetMarkerForCell(int column, int row, Texture2D layout, bool mirrorOnYAxis)
+    {
+        int sampledColumn = mirrorOnYAxis ? (BoardWidth - 1) - column : column;
+        Color pixel = layout.GetPixel(sampledColumn, (BoardHeight - 1) - row);
         float max = Mathf.Max(pixel.r, pixel.g, pixel.b);
+
         if (max < 0.2f)
         {
             return ArenaMarker.Obstacle;
         }
 
+        bool isGray = Mathf.Abs(pixel.r - pixel.g) < 0.08f
+            && Mathf.Abs(pixel.g - pixel.b) < 0.08f
+            && pixel.r > 0.2f
+            && pixel.r < 0.8f;
+
+        if (isGray)
+        {
+            return ArenaMarker.OptionalObstacle;
+        }
+
         if (pixel.g > 0.45f && pixel.g > pixel.r * 1.2f && pixel.g > pixel.b * 1.2f)
         {
-            return ArenaMarker.PlayerStart;
+            return ArenaMarker.PlayerSpawn;
         }
 
         if (pixel.r > 0.45f && pixel.r > pixel.g * 1.2f && pixel.r > pixel.b * 1.2f)
         {
-            return ArenaMarker.Enemy;
+            return ArenaMarker.EnemySpawn;
         }
 
         return ArenaMarker.Empty;
@@ -223,42 +563,50 @@ public class BoardManager : MonoBehaviour
         cell.SetOccupant(obstacle, BoardOccupantKind.Obstacle, false);
     }
 
-    private void SpawnEnemy(BoardCell cell)
+    private void SpawnPlayerCharacter(List<Vector2Int> spawnCandidates)
     {
-        GameObject enemyObject = InstantiateFromList(enemies, $"Enemy_{cell.GridPosition.x}_{cell.GridPosition.y}", enemiesRoot, cell.WorldPosition + Vector3.up * spawnHeight);
-        Enemy enemy = GetOrAddComponent<Enemy>(enemyObject);
-        enemy.Assign(cell.GridPosition, this);
-        cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy, false);
-    }
-
-    private void SpawnPlayerCharacters(List<Vector2Int> spawnPoints)
-    {
-        if (spawnPoints.Count == 0)
+        if (spawnCandidates.Count == 0)
         {
+            Debug.LogWarning("No player spawn marker found in arena layout.", this);
             return;
         }
 
+        Vector2Int spawnPoint = spawnCandidates[UnityEngine.Random.Range(0, spawnCandidates.Count)];
         GameObject playerObject = new GameObject("Player");
         playerObject.transform.SetParent(playersRoot, false);
         player = playerObject.AddComponent<Player>();
 
-        for (int index = 0; index < spawnPoints.Count; index++)
+        GameObject characterObject = InstantiateOrCreate(
+            playerCharacterPrefab,
+            "PlayerCharacter",
+            playerObject.transform,
+            cells[spawnPoint.x, spawnPoint.y].WorldPosition + Vector3.up * spawnHeight);
+
+        Character character = GetOrAddComponent<Character>(characterObject);
+        character.Assign(player, spawnPoint, this);
+        player.AssignCharacter(character);
+        cells[spawnPoint.x, spawnPoint.y].SetOccupant(characterObject, BoardOccupantKind.PlayerCharacter, false);
+    }
+
+    private void SpawnEnemies(List<Vector2Int> spawnCandidates)
+    {
+        if (spawnCandidates.Count == 0 || enemySpawnCount <= 0)
         {
-            Vector2Int spawnPoint = spawnPoints[index];
+            return;
+        }
+
+        Shuffle(spawnCandidates);
+        int count = Mathf.Min(enemySpawnCount, spawnCandidates.Count);
+
+        for (int index = 0; index < count; index++)
+        {
+            Vector2Int spawnPoint = spawnCandidates[index];
             BoardCell cell = cells[spawnPoint.x, spawnPoint.y];
-
-            GameObject prefab = playerCharacters.Count > 0
-                ? playerCharacters[Mathf.Min(index, playerCharacters.Count - 1)]
-                : null;
-
-            string fallbackName = $"Character_{index + 1}_{spawnPoint.x}_{spawnPoint.y}";
-            GameObject characterObject = InstantiateOrCreate(prefab, fallbackName, playerObject.transform, cell.WorldPosition + Vector3.up * spawnHeight);
-
-            Character character = GetOrAddComponent<Character>(characterObject);
-            character.Assign(player, index, spawnPoint, this);
-            player.RegisterCharacter(character);
-
-            cell.SetOccupant(characterObject, BoardOccupantKind.PlayerCharacter, false);
+            GameObject enemyObject = InstantiateFromList(enemies, $"Enemy_{spawnPoint.x}_{spawnPoint.y}", enemiesRoot, cell.WorldPosition + Vector3.up * spawnHeight);
+            Enemy enemy = GetOrAddComponent<Enemy>(enemyObject);
+            enemy.Assign(spawnPoint, this);
+            spawnedEnemies.Add(enemy);
+            cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy, false);
         }
     }
 
@@ -275,6 +623,7 @@ public class BoardManager : MonoBehaviour
         ClearChildren(obstaclesRoot);
         ClearChildren(enemiesRoot);
         ClearChildren(playersRoot);
+        spawnedEnemies.Clear();
         player = null;
     }
 
@@ -309,7 +658,7 @@ public class BoardManager : MonoBehaviour
 
     private GameObject InstantiateFromList(List<GameObject> prefabs, string fallbackName, Transform parent, Vector3 position)
     {
-        GameObject prefab = prefabs.Count > 0 ? prefabs[Random.Range(0, prefabs.Count)] : null;
+        GameObject prefab = prefabs.Count > 0 ? prefabs[UnityEngine.Random.Range(0, prefabs.Count)] : null;
         return InstantiateOrCreate(prefab, fallbackName, parent, position);
     }
 
@@ -340,5 +689,14 @@ public class BoardManager : MonoBehaviour
         }
 
         return component;
+    }
+
+    private static void Shuffle<T>(IList<T> list)
+    {
+        for (int index = list.Count - 1; index > 0; index--)
+        {
+            int swapIndex = UnityEngine.Random.Range(0, index + 1);
+            (list[index], list[swapIndex]) = (list[swapIndex], list[index]);
+        }
     }
 }

@@ -28,7 +28,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0.17884178, y: -0, z: -0, w: 0.9838779}
   m_LocalPosition: {x: -0.0017432664, y: 0.48458248, z: -0.08080081}
-  m_LocalScale: {x: 0.75251, y: 1.0854273, z: 0.7866133}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2467519677488624119}
@@ -195,7 +195,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0.01, z: 0}
-  m_LocalScale: {x: 1.3801, y: 0.8969684, z: 1.3801}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3302336828678577897}
@@ -261,6 +261,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: hpFillBar
+      value: 
+      objectReference: {fileID: 1578293956684712627}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: partyIndex
       value: 0
       objectReference: {fileID: 0}
@@ -276,6 +280,14 @@ PrefabInstance:
       propertyPath: movementPointsPerTurn
       value: 4
       objectReference: {fileID: 0}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: startingAbilities.Array.data[1]
+      value: 
+      objectReference: {fileID: 11400000, guid: 1b8e4c6b80ff72940c24aed4ac810178, type: 2}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: startingAbilities.Array.data[2]
+      value: 
+      objectReference: {fileID: 11400000, guid: 0a7d3b5a7fee6183fb139dc39bc70067, type: 2}
     - target: {fileID: 1654653390129865545, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -328,6 +340,17 @@ PrefabInstance:
       addedObject: {fileID: 2467519677488624119}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+--- !u!114 &1578293956684712627 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6708919912438632488, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+  m_PrefabInstance: {fileID: 5259613792272489115}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!4 &6776620691815119314 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1654653390129865545, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
