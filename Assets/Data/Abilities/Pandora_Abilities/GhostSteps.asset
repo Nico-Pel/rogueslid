@@ -19,4 +19,4 @@ MonoBehaviour:
   cooldownTurns: 0
   consumesMovementPoint: 0
   isToggle: 1
-  traversalDamage: 3
+  traversalDamage: 2

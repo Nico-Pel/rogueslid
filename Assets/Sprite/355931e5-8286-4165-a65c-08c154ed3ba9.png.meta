@@ -123,7 +123,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_0
+      name: pandora_icon_1
       rect:
         serializedVersion: 2
         x: 46
@@ -131,7 +131,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -144,7 +144,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_1
+      name: pandora_icon_2
       rect:
         serializedVersion: 2
         x: 351
@@ -152,7 +152,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -165,15 +165,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_2
+      name: pandora_icon_3
       rect:
         serializedVersion: 2
-        x: 654
+        x: 653
         y: 959
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -186,15 +186,15 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_3
+      name: pandora_icon_4
       rect:
         serializedVersion: 2
         x: 957
-        y: 959
+        y: 960
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -207,7 +207,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_4
+      name: pandora_icon_5
       rect:
         serializedVersion: 2
         x: 45
@@ -215,7 +215,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -228,7 +228,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_5
+      name: pandora_icon_7
       rect:
         serializedVersion: 2
         x: 651
@@ -236,7 +236,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -249,7 +249,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_6
+      name: pandora_icon_9
       rect:
         serializedVersion: 2
         x: 47
@@ -257,7 +257,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -270,7 +270,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_7
+      name: pandora_icon_10
       rect:
         serializedVersion: 2
         x: 350
@@ -278,7 +278,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -291,7 +291,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_8
+      name: pandora_icon_11
       rect:
         serializedVersion: 2
         x: 653
@@ -299,7 +299,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -312,7 +312,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_9
+      name: pandora_icon_12
       rect:
         serializedVersion: 2
         x: 958
@@ -320,7 +320,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -333,7 +333,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_10
+      name: pandora_icon_14
       rect:
         serializedVersion: 2
         x: 350
@@ -341,7 +341,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -354,7 +354,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_11
+      name: pandora_icon_15
       rect:
         serializedVersion: 2
         x: 653
@@ -362,7 +362,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -375,7 +375,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: 355931e5-8286-4165-a65c-08c154ed3ba9_12
+      name: pandora_icon_16
       rect:
         serializedVersion: 2
         x: 957
@@ -383,7 +383,7 @@ TextureImporter:
         width: 246
         height: 246
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -406,19 +406,19 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      355931e5-8286-4165-a65c-08c154ed3ba9_0: 1889169128
-      355931e5-8286-4165-a65c-08c154ed3ba9_1: -767586726
-      355931e5-8286-4165-a65c-08c154ed3ba9_10: 13578382
-      355931e5-8286-4165-a65c-08c154ed3ba9_11: 1062007952
-      355931e5-8286-4165-a65c-08c154ed3ba9_12: -306928396
-      355931e5-8286-4165-a65c-08c154ed3ba9_2: 1356344920
-      355931e5-8286-4165-a65c-08c154ed3ba9_3: -1207557939
-      355931e5-8286-4165-a65c-08c154ed3ba9_4: -1795509447
-      355931e5-8286-4165-a65c-08c154ed3ba9_5: -290366765
-      355931e5-8286-4165-a65c-08c154ed3ba9_6: 226231244
-      355931e5-8286-4165-a65c-08c154ed3ba9_7: -1019488996
-      355931e5-8286-4165-a65c-08c154ed3ba9_8: 1612797062
-      355931e5-8286-4165-a65c-08c154ed3ba9_9: 1607689151
+      pandora_icon_1: 1889169128
+      pandora_icon_10: -1019488996
+      pandora_icon_11: 1612797062
+      pandora_icon_12: 1607689151
+      pandora_icon_14: 13578382
+      pandora_icon_15: 1062007952
+      pandora_icon_16: -306928396
+      pandora_icon_2: -767586726
+      pandora_icon_3: 1356344920
+      pandora_icon_4: -1207557939
+      pandora_icon_5: -1795509447
+      pandora_icon_7: -290366765
+      pandora_icon_9: 226231244
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
