@@ -14,8 +14,15 @@ public class NighttimeMenaceAbility : AbilityDefinition
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
     {
-        return character != null
+        bool success = character != null
             && targetCell.HasValue
             && character.TryTeleportTo(targetCell.Value);
+
+        if (success)
+        {
+            PlayConfiguredFx(character);
+        }
+
+        return success;
     }
 }

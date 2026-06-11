@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Spinning Blades", fileName = "SpinningBlades")]
 public class SpinningBladesAbility : AbilityDefinition
@@ -14,6 +15,7 @@ public class SpinningBladesAbility : AbilityDefinition
         }
 
         bool hitAtLeastOneEnemy = false;
+        List<Enemy> hitEnemies = new List<Enemy>();
 
         for (int offsetX = -1; offsetX <= 1; offsetX++)
         {
@@ -32,7 +34,13 @@ public class SpinningBladesAbility : AbilityDefinition
 
                 character.DealDamageToEnemy(enemy, baseDamage, true);
                 hitAtLeastOneEnemy = true;
+                hitEnemies.Add(enemy);
             }
+        }
+
+        if (hitAtLeastOneEnemy)
+        {
+            PlayConfiguredFx(character, hitEnemies);
         }
 
         return hitAtLeastOneEnemy;

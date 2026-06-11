@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public enum AbilityTargetingMode
 {
@@ -6,11 +7,54 @@ public enum AbilityTargetingMode
     FreeCell
 }
 
+public enum AbilityFxSpawnAnchor
+{
+    Caster,
+    EachHitTarget
+}
+
+public enum AbilityFxOffsetReference
+{
+    World,
+    CasterRotation,
+    TargetRotation
+}
+
+public enum AbilityTrailApplicationMode
+{
+    Disabled,
+    OnActivation,
+    WhileActive
+}
+
+[System.Serializable]
+public class AbilityFxSpawnConfig
+{
+    [SerializeField] private GameObject fxPrefab;
+    [Min(0f)]
+    [SerializeField] private float spawnDelay;
+    [Min(0f)]
+    [SerializeField] private float destroyAfterSeconds = 1f;
+    [SerializeField] private AbilityFxSpawnAnchor spawnAnchor = AbilityFxSpawnAnchor.Caster;
+    [SerializeField] private AbilityFxOffsetReference offsetReference = AbilityFxOffsetReference.CasterRotation;
+    [SerializeField] private Vector3 positionOffset;
+    [SerializeField] private bool parentToAnchor;
+
+    public GameObject FxPrefab => fxPrefab;
+    public float SpawnDelay => spawnDelay;
+    public float DestroyAfterSeconds => destroyAfterSeconds;
+    public AbilityFxSpawnAnchor SpawnAnchor => spawnAnchor;
+    public AbilityFxOffsetReference OffsetReference => offsetReference;
+    public Vector3 PositionOffset => positionOffset;
+    public bool ParentToAnchor => parentToAnchor;
+}
+
 public abstract class AbilityDefinition : ScriptableObject
 {
     [Header("Identity")]
     [SerializeField] private string abilityName;
     [SerializeField] private Sprite icon;
+    [SerializeField] private AnimationClip attackAnimationClip;
 
     [Header("Usage")]
     [Min(0)]
@@ -22,13 +66,28 @@ public abstract class AbilityDefinition : ScriptableObject
     [SerializeField] private bool consumesMovementPoint;
     [SerializeField] private bool isToggle;
 
+    [Header("FX")]
+    [SerializeField] private List<AbilityFxSpawnConfig> fxSpawns = new List<AbilityFxSpawnConfig>();
+
+    [Header("Trail")]
+    [SerializeField] private AbilityTrailApplicationMode trailColorMode;
+    [SerializeField] private Color trailMaterialColor = Color.white;
+    [Min(0f)]
+    [SerializeField] private float temporaryTrailColorDuration = 0.5f;
+    [SerializeField] private AbilityTrailApplicationMode trailReplacementMode;
+    [SerializeField] private GameObject replacementTrailPrefab;
+    [Min(0f)]
+    [SerializeField] private float temporaryTrailReplacementDuration = 0.5f;
+
     public string AbilityName => string.IsNullOrWhiteSpace(abilityName) ? name : abilityName;
     public Sprite Icon => icon;
+    public AnimationClip AttackAnimationClip => attackAnimationClip;
     public int UsesPerTurn => usesPerTurn;
     public int UsesPerCombat => usesPerCombat;
     public int CooldownTurns => cooldownTurns;
     public bool ConsumesMovementPoint => consumesMovementPoint;
     public bool IsToggle => isToggle;
+    public IReadOnlyList<AbilityFxSpawnConfig> FxSpawns => fxSpawns;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
 
     public virtual bool CanActivate(Character character, CharacterAbilityRuntime runtime)
@@ -81,5 +140,102 @@ public abstract class AbilityDefinition : ScriptableObject
         return string.Empty;
     }
 
+    protected void PlayConfiguredFx(Character character, IEnumerable<Enemy> hitTargets = null)
+    {
+        if (character == null || fxSpawns == null || fxSpawns.Count == 0)
+        {
+            return;
+        }
+
+        character.PlayAbilityFx(fxSpawns, hitTargets);
+    }
+
+    public virtual void PlayActivationAnimation(Character character)
+    {
+        if (character == null || attackAnimationClip == null)
+        {
+            return;
+        }
+
+        character.PlayAttackAnimation(attackAnimationClip);
+    }
+
+    public virtual void PlayTraversalFx(Character character, IEnumerable<Enemy> hitTargets)
+    {
+        PlayConfiguredFx(character, hitTargets);
+    }
+
+    public virtual void OnAbilityActivated(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (character == null)
+        {
+            return;
+        }
+
+        ApplyTrailColorEffect(character, runtime);
+        ApplyTrailReplacementEffect(character, runtime);
+    }
+
+    public virtual void OnAbilityDeactivated(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (character == null)
+        {
+            return;
+        }
+
+        if (trailColorMode == AbilityTrailApplicationMode.WhileActive)
+        {
+            character.ClearTrailColorOverride(this);
+        }
+
+        if (trailReplacementMode == AbilityTrailApplicationMode.WhileActive)
+        {
+            character.ClearTrailReplacementOverride(this);
+        }
+    }
+
     public abstract bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell);
+
+    private void ApplyTrailColorEffect(Character character, CharacterAbilityRuntime runtime)
+    {
+        switch (ResolveTrailMode(trailColorMode, runtime))
+        {
+            case AbilityTrailApplicationMode.OnActivation:
+                character.PlayTemporaryTrailColor(trailMaterialColor, temporaryTrailColorDuration);
+                break;
+            case AbilityTrailApplicationMode.WhileActive:
+                character.SetTrailColorOverride(this, trailMaterialColor);
+                break;
+        }
+    }
+
+    private void ApplyTrailReplacementEffect(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (replacementTrailPrefab == null)
+        {
+            return;
+        }
+
+        switch (ResolveTrailMode(trailReplacementMode, runtime))
+        {
+            case AbilityTrailApplicationMode.OnActivation:
+                character.PlayTemporaryTrailReplacement(replacementTrailPrefab, temporaryTrailReplacementDuration);
+                break;
+            case AbilityTrailApplicationMode.WhileActive:
+                character.SetTrailReplacementOverride(this, replacementTrailPrefab);
+                break;
+        }
+    }
+
+    private AbilityTrailApplicationMode ResolveTrailMode(AbilityTrailApplicationMode mode, CharacterAbilityRuntime runtime)
+    {
+        if (mode != AbilityTrailApplicationMode.WhileActive)
+        {
+            return mode;
+        }
+
+        return runtime != null && runtime.IsActive
+            ? AbilityTrailApplicationMode.WhileActive
+            : AbilityTrailApplicationMode.OnActivation;
+    }
 }

@@ -14,9 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   abilityName: Spinning blades
   icon: {fileID: -767586726, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  attackAnimationClip: {fileID: 7400000, guid: b38d7f7a102c24e0ca2516e2429bfbf1, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 0
   consumesMovementPoint: 0
   isToggle: 0
+  fxSpawns:
+  - fxPrefab: {fileID: 6163134623645628608, guid: daef018f4b5534fd5a80d729e554c9df, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 1
+    spawnAnchor: 0
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 0
   baseDamage: 5

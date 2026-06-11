@@ -1,5 +1,6 @@
 using DG.Tweening;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,6 +20,12 @@ public class Character : MonoBehaviour
     [SerializeField] private float moveDuration = 0.18f;
     [SerializeField] private float spawnHeight = 0.08f;
     [SerializeField] private Image hpFillBar;
+    [SerializeField] private Animator characterAnimator;
+    [SerializeField] private TrailRenderer characterTrail;
+    [SerializeField] private string dashingBoolParameter = "Dashing";
+    [SerializeField] private string attackTriggerParameter = "Attack";
+    [SerializeField] private string attackPlaceholderClipName = "Attack_Spiral";
+    [SerializeField] private bool orientTowardsDashDirection = true;
 
     private Renderer[] renderers;
     private Color[] baseColors;
@@ -27,6 +34,16 @@ public class Character : MonoBehaviour
     private readonly List<CharacterAbilityRuntime> abilities = new List<CharacterAbilityRuntime>();
     private readonly List<Enemy> traversedEnemiesBuffer = new List<Enemy>();
     private RendererBlinkFeedback blinkFeedback;
+    private AnimatorOverrideController animatorOverrideController;
+    private AnimationClip attackPlaceholderClip;
+    private Material runtimeTrailMaterial;
+    private Color defaultTrailMaterialColor = Color.white;
+    private GameObject defaultTrailObject;
+    private GameObject activeReplacementTrailInstance;
+    private AbilityDefinition activeTrailColorOwner;
+    private AbilityDefinition activeTrailReplacementOwner;
+    private Coroutine temporaryTrailColorCoroutine;
+    private Coroutine temporaryTrailReplacementCoroutine;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -56,11 +73,14 @@ public class Character : MonoBehaviour
         gridPosition = spawnGridPosition;
         currentHealth = maxHealth;
         CacheRenderers();
+        CacheAnimator();
+        CacheTrail();
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
         CacheHpBar();
         InitializeAbilities();
         SnapToGrid();
         ResetTurn();
+        SetDashingAnimation(false);
         RefreshHpBar();
         NotifyMovementPointsChanged();
         NotifyAbilitiesChanged();
@@ -100,6 +120,11 @@ public class Character : MonoBehaviour
         if (!Board.MoveOccupant(gridPosition, destination, BoardOccupantKind.PlayerCharacter))
         {
             return false;
+        }
+
+        if (orientTowardsDashDirection)
+        {
+            FaceDashDirection(direction);
         }
 
         gridPosition = destination;
@@ -190,6 +215,191 @@ public class Character : MonoBehaviour
         return finalDamage;
     }
 
+    public void PlayAttackAnimation(AnimationClip attackAnimationClip)
+    {
+        if (attackAnimationClip == null)
+        {
+            return;
+        }
+
+        CacheAnimator();
+        if (characterAnimator == null)
+        {
+            return;
+        }
+
+        EnsureAnimatorOverrideController();
+        if (animatorOverrideController == null || attackPlaceholderClip == null)
+        {
+            return;
+        }
+
+        animatorOverrideController[attackPlaceholderClip] = attackAnimationClip;
+        characterAnimator.ResetTrigger(attackTriggerParameter);
+        characterAnimator.SetTrigger(attackTriggerParameter);
+    }
+
+    public void PlayAbilityFx(IReadOnlyList<AbilityFxSpawnConfig> fxConfigs, IEnumerable<Enemy> hitTargets = null)
+    {
+        if (fxConfigs == null || fxConfigs.Count == 0)
+        {
+            return;
+        }
+
+        List<Enemy> uniqueTargets = null;
+        if (hitTargets != null)
+        {
+            uniqueTargets = new List<Enemy>();
+            HashSet<Enemy> seenTargets = new HashSet<Enemy>();
+            foreach (Enemy target in hitTargets)
+            {
+                if (target == null || !seenTargets.Add(target))
+                {
+                    continue;
+                }
+
+                uniqueTargets.Add(target);
+            }
+        }
+
+        for (int index = 0; index < fxConfigs.Count; index++)
+        {
+            AbilityFxSpawnConfig fxConfig = fxConfigs[index];
+            if (fxConfig == null || fxConfig.FxPrefab == null)
+            {
+                continue;
+            }
+
+            if (fxConfig.SpawnAnchor == AbilityFxSpawnAnchor.Caster)
+            {
+                StartCoroutine(SpawnAbilityFxRoutine(fxConfig, transform, null));
+                continue;
+            }
+
+            if (uniqueTargets == null)
+            {
+                continue;
+            }
+
+            for (int targetIndex = 0; targetIndex < uniqueTargets.Count; targetIndex++)
+            {
+                Enemy target = uniqueTargets[targetIndex];
+                if (target == null)
+                {
+                    continue;
+                }
+
+                StartCoroutine(SpawnAbilityFxRoutine(fxConfig, target.transform, target));
+            }
+        }
+    }
+
+    public void PlayTemporaryTrailColor(Color trailColor, float duration)
+    {
+        CacheTrail();
+        if (runtimeTrailMaterial == null)
+        {
+            return;
+        }
+
+        if (temporaryTrailColorCoroutine != null)
+        {
+            StopCoroutine(temporaryTrailColorCoroutine);
+        }
+
+        runtimeTrailMaterial.color = trailColor;
+        if (duration > 0f)
+        {
+            temporaryTrailColorCoroutine = StartCoroutine(ResetTemporaryTrailColorAfterDelay(duration));
+        }
+    }
+
+    public void SetTrailColorOverride(AbilityDefinition owner, Color trailColor)
+    {
+        CacheTrail();
+        if (runtimeTrailMaterial == null)
+        {
+            return;
+        }
+
+        activeTrailColorOwner = owner;
+        if (temporaryTrailColorCoroutine != null)
+        {
+            StopCoroutine(temporaryTrailColorCoroutine);
+            temporaryTrailColorCoroutine = null;
+        }
+
+        runtimeTrailMaterial.color = trailColor;
+    }
+
+    public void ClearTrailColorOverride(AbilityDefinition owner)
+    {
+        CacheTrail();
+        if (runtimeTrailMaterial == null || activeTrailColorOwner != owner)
+        {
+            return;
+        }
+
+        activeTrailColorOwner = null;
+        runtimeTrailMaterial.color = defaultTrailMaterialColor;
+    }
+
+    public void PlayTemporaryTrailReplacement(GameObject replacementTrailPrefab, float duration)
+    {
+        CacheTrail();
+        if (defaultTrailObject == null || replacementTrailPrefab == null)
+        {
+            return;
+        }
+
+        if (temporaryTrailReplacementCoroutine != null)
+        {
+            StopCoroutine(temporaryTrailReplacementCoroutine);
+        }
+
+        ClearActiveReplacementTrailInstance();
+        CreateReplacementTrailInstance(replacementTrailPrefab);
+        defaultTrailObject.SetActive(false);
+
+        if (duration > 0f)
+        {
+            temporaryTrailReplacementCoroutine = StartCoroutine(ResetTemporaryTrailReplacementAfterDelay(duration));
+        }
+    }
+
+    public void SetTrailReplacementOverride(AbilityDefinition owner, GameObject replacementTrailPrefab)
+    {
+        CacheTrail();
+        if (defaultTrailObject == null || replacementTrailPrefab == null)
+        {
+            return;
+        }
+
+        activeTrailReplacementOwner = owner;
+        if (temporaryTrailReplacementCoroutine != null)
+        {
+            StopCoroutine(temporaryTrailReplacementCoroutine);
+            temporaryTrailReplacementCoroutine = null;
+        }
+
+        ClearActiveReplacementTrailInstance();
+        CreateReplacementTrailInstance(replacementTrailPrefab);
+        defaultTrailObject.SetActive(false);
+    }
+
+    public void ClearTrailReplacementOverride(AbilityDefinition owner)
+    {
+        CacheTrail();
+        if (defaultTrailObject == null || activeTrailReplacementOwner != owner)
+        {
+            return;
+        }
+
+        activeTrailReplacementOwner = null;
+        ClearActiveReplacementTrailInstance();
+        defaultTrailObject.SetActive(true);
+    }
+
     public void SetSelected(bool isSelected)
     {
         CacheRenderers();
@@ -231,6 +441,7 @@ public class Character : MonoBehaviour
 
         moveTween?.Kill();
         IsMoving = true;
+        SetDashingAnimation(true);
         Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
         moveTween = transform.DOMove(targetPosition, moveDuration)
             .SetEase(Ease.OutQuad)
@@ -238,6 +449,7 @@ public class Character : MonoBehaviour
             {
                 IsMoving = false;
                 moveTween = null;
+                SetDashingAnimation(false);
             });
     }
 
@@ -262,6 +474,31 @@ public class Character : MonoBehaviour
     {
         moveTween?.Kill();
         IsMoving = false;
+        SetDashingAnimation(false);
+        if (temporaryTrailColorCoroutine != null)
+        {
+            StopCoroutine(temporaryTrailColorCoroutine);
+            temporaryTrailColorCoroutine = null;
+        }
+
+        if (temporaryTrailReplacementCoroutine != null)
+        {
+            StopCoroutine(temporaryTrailReplacementCoroutine);
+            temporaryTrailReplacementCoroutine = null;
+        }
+
+        if (runtimeTrailMaterial != null)
+        {
+            runtimeTrailMaterial.color = defaultTrailMaterialColor;
+        }
+
+        activeTrailColorOwner = null;
+        activeTrailReplacementOwner = null;
+        ClearActiveReplacementTrailInstance();
+        if (defaultTrailObject != null)
+        {
+            defaultTrailObject.SetActive(true);
+        }
     }
 
     private void CacheHpBar()
@@ -329,6 +566,7 @@ public class Character : MonoBehaviour
         }
 
         int traversalDamage = 0;
+        List<CharacterAbilityRuntime> traversalAbilities = new List<CharacterAbilityRuntime>();
         for (int index = 0; index < abilities.Count; index++)
         {
             CharacterAbilityRuntime runtime = abilities[index];
@@ -337,7 +575,14 @@ public class Character : MonoBehaviour
                 continue;
             }
 
-            traversalDamage = Mathf.Max(traversalDamage, runtime.Definition.GetTraversalDamage(this, runtime));
+            int runtimeTraversalDamage = runtime.Definition.GetTraversalDamage(this, runtime);
+            if (runtimeTraversalDamage <= 0)
+            {
+                continue;
+            }
+
+            traversalDamage = Mathf.Max(traversalDamage, runtimeTraversalDamage);
+            traversalAbilities.Add(runtime);
         }
 
         if (traversalDamage <= 0)
@@ -356,6 +601,67 @@ public class Character : MonoBehaviour
 
             enemy.TakeDamage(traversalDamage);
         }
+
+        if (damagedEnemies.Count == 0)
+        {
+            return;
+        }
+
+        for (int index = 0; index < traversalAbilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = traversalAbilities[index];
+            runtime.Definition?.PlayTraversalFx(this, damagedEnemies);
+        }
+    }
+
+    private IEnumerator SpawnAbilityFxRoutine(AbilityFxSpawnConfig fxConfig, Transform anchor, Enemy target)
+    {
+        if (fxConfig == null || fxConfig.FxPrefab == null || anchor == null)
+        {
+            yield break;
+        }
+
+        if (fxConfig.SpawnDelay > 0f)
+        {
+            yield return new WaitForSeconds(fxConfig.SpawnDelay);
+        }
+
+        if (anchor == null)
+        {
+            yield break;
+        }
+
+        Quaternion referenceRotation = GetAbilityFxReferenceRotation(fxConfig, target);
+        Vector3 spawnPosition = anchor.position + referenceRotation * fxConfig.PositionOffset;
+        Quaternion defaultFxRotation = fxConfig.FxPrefab.transform.rotation;
+        Vector3 defaultFxScale = fxConfig.FxPrefab.transform.localScale;
+        GameObject spawnedFx = Instantiate(fxConfig.FxPrefab, spawnPosition, defaultFxRotation);
+
+        if (fxConfig.ParentToAnchor && anchor != null)
+        {
+            spawnedFx.transform.SetParent(anchor, true);
+        }
+
+        spawnedFx.transform.rotation = defaultFxRotation;
+        spawnedFx.transform.localScale = defaultFxScale;
+
+        if (fxConfig.DestroyAfterSeconds > 0f)
+        {
+            Destroy(spawnedFx, fxConfig.DestroyAfterSeconds);
+        }
+    }
+
+    private Quaternion GetAbilityFxReferenceRotation(AbilityFxSpawnConfig fxConfig, Enemy target)
+    {
+        switch (fxConfig.OffsetReference)
+        {
+            case AbilityFxOffsetReference.CasterRotation:
+                return transform.rotation;
+            case AbilityFxOffsetReference.TargetRotation:
+                return target != null ? target.transform.rotation : transform.rotation;
+            default:
+                return Quaternion.identity;
+        }
     }
 
     private void NotifyMovementPointsChanged()
@@ -366,5 +672,177 @@ public class Character : MonoBehaviour
     private void NotifyAbilitiesChanged()
     {
         AbilitiesChanged?.Invoke(this);
+    }
+
+    private void CacheAnimator()
+    {
+        if (characterAnimator == null)
+        {
+            characterAnimator = GetComponentInChildren<Animator>(true);
+        }
+    }
+
+    private void CacheTrail()
+    {
+        if (characterTrail == null)
+        {
+            characterTrail = GetComponentInChildren<TrailRenderer>(true);
+        }
+
+        if (characterTrail == null)
+        {
+            return;
+        }
+
+        defaultTrailObject = characterTrail.gameObject;
+        if (runtimeTrailMaterial == null)
+        {
+            runtimeTrailMaterial = characterTrail.material;
+            if (runtimeTrailMaterial != null)
+            {
+                defaultTrailMaterialColor = runtimeTrailMaterial.color;
+            }
+        }
+    }
+
+    private void EnsureAnimatorOverrideController()
+    {
+        if (characterAnimator == null)
+        {
+            return;
+        }
+
+        if (animatorOverrideController == null)
+        {
+            RuntimeAnimatorController currentController = characterAnimator.runtimeAnimatorController;
+            if (currentController == null)
+            {
+                return;
+            }
+
+            if (currentController is AnimatorOverrideController existingOverrideController)
+            {
+                animatorOverrideController = existingOverrideController;
+            }
+            else
+            {
+                animatorOverrideController = new AnimatorOverrideController(currentController);
+                characterAnimator.runtimeAnimatorController = animatorOverrideController;
+            }
+        }
+
+        if (attackPlaceholderClip != null)
+        {
+            return;
+        }
+
+        AnimationClip[] animationClips = animatorOverrideController.animationClips;
+        for (int index = 0; index < animationClips.Length; index++)
+        {
+            AnimationClip clip = animationClips[index];
+            if (clip == null)
+            {
+                continue;
+            }
+
+            if (clip.name == attackPlaceholderClipName)
+            {
+                attackPlaceholderClip = clip;
+                return;
+            }
+        }
+
+        for (int index = 0; index < animationClips.Length; index++)
+        {
+            AnimationClip clip = animationClips[index];
+            if (clip != null && clip.name.IndexOf("Attack", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                attackPlaceholderClip = clip;
+                return;
+            }
+        }
+    }
+
+    private void SetDashingAnimation(bool isDashing)
+    {
+        CacheAnimator();
+        if (characterAnimator == null || string.IsNullOrWhiteSpace(dashingBoolParameter))
+        {
+            return;
+        }
+
+        characterAnimator.SetBool(dashingBoolParameter, isDashing);
+    }
+
+    private void FaceDashDirection(Vector2Int direction)
+    {
+        if (direction == Vector2Int.zero)
+        {
+            return;
+        }
+
+        Vector3 worldDirection = new Vector3(direction.x, 0f, -direction.y);
+        worldDirection = Board != null ? Board.transform.TransformDirection(worldDirection) : worldDirection;
+        worldDirection.y = 0f;
+
+        if (worldDirection.sqrMagnitude <= Mathf.Epsilon)
+        {
+            return;
+        }
+
+        transform.rotation = Quaternion.LookRotation(worldDirection.normalized, Vector3.up);
+    }
+
+    private IEnumerator ResetTemporaryTrailColorAfterDelay(float duration)
+    {
+        yield return new WaitForSeconds(duration);
+        temporaryTrailColorCoroutine = null;
+
+        if (runtimeTrailMaterial != null && activeTrailColorOwner == null)
+        {
+            runtimeTrailMaterial.color = defaultTrailMaterialColor;
+        }
+    }
+
+    private IEnumerator ResetTemporaryTrailReplacementAfterDelay(float duration)
+    {
+        yield return new WaitForSeconds(duration);
+        temporaryTrailReplacementCoroutine = null;
+
+        if (activeTrailReplacementOwner != null)
+        {
+            yield break;
+        }
+
+        ClearActiveReplacementTrailInstance();
+        if (defaultTrailObject != null)
+        {
+            defaultTrailObject.SetActive(true);
+        }
+    }
+
+    private void CreateReplacementTrailInstance(GameObject replacementTrailPrefab)
+    {
+        if (defaultTrailObject == null || replacementTrailPrefab == null)
+        {
+            return;
+        }
+
+        Transform defaultTrailTransform = defaultTrailObject.transform;
+        Transform parent = defaultTrailTransform.parent;
+        activeReplacementTrailInstance = Instantiate(replacementTrailPrefab, parent);
+        activeReplacementTrailInstance.transform.localPosition = defaultTrailTransform.localPosition;
+        activeReplacementTrailInstance.transform.localRotation = defaultTrailTransform.localRotation;
+    }
+
+    private void ClearActiveReplacementTrailInstance()
+    {
+        if (activeReplacementTrailInstance == null)
+        {
+            return;
+        }
+
+        Destroy(activeReplacementTrailInstance);
+        activeReplacementTrailInstance = null;
     }
 }

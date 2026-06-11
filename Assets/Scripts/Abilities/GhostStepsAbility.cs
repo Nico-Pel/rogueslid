@@ -18,6 +18,12 @@ public class GhostStepsAbility : AbilityDefinition
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
     {
-        return character != null && runtime != null;
+        if (character == null || runtime == null)
+        {
+            return false;
+        }
+
+        PlayConfiguredFx(character);
+        return true;
     }
 }

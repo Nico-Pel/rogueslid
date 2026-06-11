@@ -14,9 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   abilityName: Ghost Steps
   icon: {fileID: 1356344920, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  attackAnimationClip: {fileID: 0}
   usesPerTurn: 0
   usesPerCombat: 0
   cooldownTurns: 0
   consumesMovementPoint: 0
   isToggle: 1
+  fxSpawns:
+  - fxPrefab: {fileID: 8103697321985338180, guid: 2d135e9b93e3146d1aead9355ad41680, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 1
+    spawnAnchor: 0
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0.5, z: 0}
+    parentToAnchor: 0
+  trailColorMode: 2
+  trailMaterialColor: {r: 0.43125343, g: 0, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
   traversalDamage: 2

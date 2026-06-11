@@ -82,6 +82,7 @@ public class CharacterAbilityRuntime
         if (Definition.IsToggle && IsActive)
         {
             IsActive = false;
+            Definition.OnAbilityDeactivated(character, this);
             return true;
         }
 
@@ -121,6 +122,9 @@ public class CharacterAbilityRuntime
         {
             IsActive = true;
         }
+
+        Definition.PlayActivationAnimation(character);
+        Definition.OnAbilityActivated(character, this);
 
         return true;
     }

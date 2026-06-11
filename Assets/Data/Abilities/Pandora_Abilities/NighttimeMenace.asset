@@ -14,8 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   abilityName: Nighttime Menace
   icon: {fileID: -306928396, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  attackAnimationClip: {fileID: 7400000, guid: 8a1c979f827d24949911a01112be6137, type: 2}
   usesPerTurn: 0
   usesPerCombat: 0
   cooldownTurns: 2
   consumesMovementPoint: 0
   isToggle: 0
+  fxSpawns: []
