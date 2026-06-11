@@ -20,16 +20,20 @@ public class Character : MonoBehaviour
     [SerializeField] private float moveDuration = 0.18f;
     [SerializeField] private float spawnHeight = 0.08f;
     [SerializeField] private Image hpFillBar;
+    [SerializeField] private Transform characterBody;
     [SerializeField] private Animator characterAnimator;
     [SerializeField] private TrailRenderer characterTrail;
     [SerializeField] private string dashingBoolParameter = "Dashing";
     [SerializeField] private string attackTriggerParameter = "Attack";
     [SerializeField] private string attackPlaceholderClipName = "Attack_Spiral";
     [SerializeField] private bool orientTowardsDashDirection = true;
+    [SerializeField] private float dashBodyRotateDuration = 0.1f;
+    [SerializeField] private float dashBodyResetDuration = 0.2f;
 
     private Renderer[] renderers;
     private Color[] baseColors;
     private Tween moveTween;
+    private Tween bodyRotationTween;
     private int remainingMovementPoints;
     private readonly List<CharacterAbilityRuntime> abilities = new List<CharacterAbilityRuntime>();
     private readonly List<Enemy> traversedEnemiesBuffer = new List<Enemy>();
@@ -44,6 +48,7 @@ public class Character : MonoBehaviour
     private AbilityDefinition activeTrailReplacementOwner;
     private Coroutine temporaryTrailColorCoroutine;
     private Coroutine temporaryTrailReplacementCoroutine;
+    private readonly Quaternion defaultBodyLocalRotation = Quaternion.identity;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -73,6 +78,7 @@ public class Character : MonoBehaviour
         gridPosition = spawnGridPosition;
         currentHealth = maxHealth;
         CacheRenderers();
+        CacheBody();
         CacheAnimator();
         CacheTrail();
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
@@ -449,6 +455,7 @@ public class Character : MonoBehaviour
             {
                 IsMoving = false;
                 moveTween = null;
+                ResetBodyRotation();
                 SetDashingAnimation(false);
             });
     }
@@ -473,7 +480,9 @@ public class Character : MonoBehaviour
     private void OnDisable()
     {
         moveTween?.Kill();
+        bodyRotationTween?.Kill();
         IsMoving = false;
+        SnapBodyRotationToDefault();
         SetDashingAnimation(false);
         if (temporaryTrailColorCoroutine != null)
         {
@@ -682,6 +691,14 @@ public class Character : MonoBehaviour
         }
     }
 
+    private void CacheBody()
+    {
+        if (characterBody == null)
+        {
+            characterBody = transform.Find("Pandora");
+        }
+    }
+
     private void CacheTrail()
     {
         if (characterTrail == null)
@@ -790,7 +807,41 @@ public class Character : MonoBehaviour
             return;
         }
 
-        transform.rotation = Quaternion.LookRotation(worldDirection.normalized, Vector3.up);
+        CacheBody();
+        Transform targetBody = characterBody != null ? characterBody : transform;
+        Quaternion targetRotation = Quaternion.LookRotation((-worldDirection).normalized, Vector3.up);
+
+        bodyRotationTween?.Kill();
+        bodyRotationTween = targetBody.DORotateQuaternion(targetRotation, dashBodyRotateDuration)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() => bodyRotationTween = null);
+    }
+
+    private void ResetBodyRotation()
+    {
+        CacheBody();
+        Transform targetBody = characterBody != null ? characterBody : transform;
+        if (targetBody == null)
+        {
+            return;
+        }
+
+        bodyRotationTween?.Kill();
+        bodyRotationTween = targetBody.DOLocalRotateQuaternion(defaultBodyLocalRotation, dashBodyResetDuration)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() => bodyRotationTween = null);
+    }
+
+    private void SnapBodyRotationToDefault()
+    {
+        CacheBody();
+        Transform targetBody = characterBody != null ? characterBody : transform;
+        if (targetBody == null)
+        {
+            return;
+        }
+
+        targetBody.localRotation = defaultBodyLocalRotation;
     }
 
     private IEnumerator ResetTemporaryTrailColorAfterDelay(float duration)

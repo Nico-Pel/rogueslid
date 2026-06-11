@@ -1370,6 +1370,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1578293956684712627}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: characterBody
+      value: 
+      objectReference: {fileID: 8922063283189531563}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: characterAnimator
       value: 
       objectReference: {fileID: 8747255651980216887}

@@ -1970,7 +1970,7 @@ Transform:
   m_GameObject: {fileID: 1697850512}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.04786453, y: 0.007999993, z: -0.048124813}
+  m_LocalPosition: {x: 0, y: 0.007999993, z: -0.048124813}
   m_LocalScale: {x: 0.7, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2158,6 +2158,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8e151e92f364e6f883bc5be3167d9fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  arenaCount: 1
   arenaLayout: {fileID: 2800000, guid: 5972763937f2e40749f1f2a026933883, type: 3}
   arenaLayouts:
   - {fileID: 2800000, guid: 5972763937f2e40749f1f2a026933883, type: 3}
@@ -2186,10 +2187,19 @@ MonoBehaviour:
   - {fileID: 4167226560171851869, guid: 6dd35e2c197b74b7296e0fb32a65d8a9, type: 3}
   - {fileID: 8881005637722542872, guid: e0f95da3587384bda918beb16d127642, type: 3}
   - {fileID: 1362559067858712702, guid: 036589cf8f07348d7b825e99226f9d3c, type: 3}
-  enemies:
-  - {fileID: 2433636361208229482, guid: 41573dec7f1f3402ca627ff1402282f1, type: 3}
-  - {fileID: 2433636361208229482, guid: 559d230ea069b4ffab739e17342840a0, type: 3}
-  enemySpawnCount: 3
+  enemyPoolsByArenaCount:
+  - pools:
+    - {fileID: 11400000, guid: 4eee32db599e45ed9642a665f59ffe73, type: 2}
+    - {fileID: 11400000, guid: b32754482b904ad8868655acbc7123df, type: 2}
+    minArenaCount: 1
+    maxArenaCount: 1
+  - pools:
+    - {fileID: 11400000, guid: d0fe480256104e8395eb8127c94e94be, type: 2}
+    - {fileID: 11400000, guid: bf05ef2fcdc34a61950d13208e0ea994, type: 2}
+    - {fileID: 11400000, guid: 959ff7254cd8445a8432fad8f5ee5398, type: 2}
+    - {fileID: 11400000, guid: 74638361c3ac4f4c91c3b9b6f4e6165b, type: 2}
+    minArenaCount: 2
+    maxArenaCount: 1000
 --- !u!114 &919132149174273995
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2356,7 +2366,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 73cd8d521d8a045d49a036fcc3b6ce61, type: 2}
-  - {fileID: 2100953421541490755, guid: 4ea209e4588c3450c9248c6d57deb68a, type: 3}
+  - {fileID: 2100000, guid: cfda2f86283db47f3bfb85059dce0bad, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

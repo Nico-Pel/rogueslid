@@ -21,3 +21,9 @@ MonoBehaviour:
   consumesMovementPoint: 0
   isToggle: 0
   fxSpawns: []
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 1
+  replacementTrailPrefab: {fileID: 8103697321985338180, guid: 2d135e9b93e3146d1aead9355ad41680, type: 3}
+  temporaryTrailReplacementDuration: 1

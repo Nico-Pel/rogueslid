@@ -455,7 +455,7 @@ public class GameTurnManager : MonoBehaviour
 
         if (board != null)
         {
-            board.GenerateBoard();
+            board.GenerateNextArena();
         }
     }
 }
