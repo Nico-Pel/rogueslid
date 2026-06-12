@@ -134,6 +134,8 @@ public class AbilityButtonUI : MonoBehaviour
             return;
         }
 
+        SoundManager.Instance?.PlayClick();
+
         int runtimeIndex = character.GetRuntimeIndexForSlot(abilitySlotIndex);
         if (runtimeIndex < 0)
         {

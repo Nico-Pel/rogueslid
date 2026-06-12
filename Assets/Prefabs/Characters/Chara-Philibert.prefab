@@ -269,10 +269,6 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
-      propertyPath: moveDuration
-      value: 0.18
-      objectReference: {fileID: 0}
-    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: slidesPerTurn
       value: 2
       objectReference: {fileID: 0}

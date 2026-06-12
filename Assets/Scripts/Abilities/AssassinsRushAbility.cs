@@ -6,6 +6,11 @@ public class AssassinsRushAbility : AbilityDefinition
 {
     [Min(1)]
     [SerializeField] private int baseRange = 3;
+    [Header("Taste Of Blood FX")]
+    [SerializeField] private GameObject tasteOfBloodBoostFxPrefab;
+    [SerializeField] private GameObject tasteOfBloodAuraFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float tasteOfBloodBoostFxDuration = 1f;
     [SerializeField] private List<UpgradedSecondaryEffectEntry> secondaryEffects = new List<UpgradedSecondaryEffectEntry>();
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
@@ -69,7 +74,8 @@ public class AssassinsRushAbility : AbilityDefinition
         int tasteStacks = character.GetUpgradeStacks(AbilityUpgradeKey.AssassinsRushTasteOfBlood);
         if (tasteStacks > 0)
         {
-            character.AddTemporaryTurnBonusDamage(tasteStacks);
+            character.AddNextAttackBonusDamage(tasteStacks, tasteOfBloodAuraFxPrefab);
+            character.PlayFeedbackFx(tasteOfBloodBoostFxPrefab, destroyAfterSeconds: tasteOfBloodBoostFxDuration);
         }
 
         AbilityExecutionContext context = new AbilityExecutionContext(this, runtime, originCell, targetCell.Value);

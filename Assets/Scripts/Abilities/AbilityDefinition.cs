@@ -54,6 +54,19 @@ public class AbilityFxSpawnConfig
     public AbilityFxOffsetReference OffsetReference => offsetReference;
     public Vector3 PositionOffset => positionOffset;
     public bool ParentToAnchor => parentToAnchor;
+
+    public AbilityFxSpawnConfig CreateRuntimeCopy(GameObject prefabOverride = null)
+    {
+        AbilityFxSpawnConfig runtimeCopy = new AbilityFxSpawnConfig();
+        runtimeCopy.fxPrefab = prefabOverride != null ? prefabOverride : fxPrefab;
+        runtimeCopy.spawnDelay = spawnDelay;
+        runtimeCopy.destroyAfterSeconds = destroyAfterSeconds;
+        runtimeCopy.spawnAnchor = spawnAnchor;
+        runtimeCopy.offsetReference = offsetReference;
+        runtimeCopy.positionOffset = positionOffset;
+        runtimeCopy.parentToAnchor = parentToAnchor;
+        return runtimeCopy;
+    }
 }
 
 public abstract class AbilityDefinition : ScriptableObject

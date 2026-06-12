@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d1dbce06a244d9194ea07f4e9b4630c, type: 3}
+  m_Name: StruckByFear_SingleTargetDamage
+  m_EditorClassIdentifier: 
+  characterAnimationClip: {fileID: 0}
+  fxSpawns:
+  - fxPrefab: {fileID: 8704435054583446438, guid: fce90706add9c40bf8756231e7d73226, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 0
+    spawnAnchor: 1
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0.25, z: 0}
+  damage: 1
+  addBonusDamage: 0
+  countsAsAbilityDamage: 1

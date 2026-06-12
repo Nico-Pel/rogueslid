@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03f173347cc74008bfd6bc6e3e9cd19a, type: 3}
+  m_Name: Ogre3
+  m_EditorClassIdentifier: 
+  enemyPrefabs:
+  - {fileID: 2433636361208229482, guid: d2d4347dd597048c6a0717d60b30e5fe, type: 3}
+  - {fileID: 2433636361208229482, guid: eb8f8e624232448adb732b69b5d4cee4, type: 3}
+  - {fileID: 2433636361208229482, guid: d2d4347dd597048c6a0717d60b30e5fe, type: 3}

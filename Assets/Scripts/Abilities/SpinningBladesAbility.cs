@@ -6,6 +6,9 @@ public class SpinningBladesAbility : AbilityDefinition
 {
     [Min(1)]
     [SerializeField] private int baseDamage = 5;
+    [Header("Range FX")]
+    [SerializeField] private GameObject defaultSpinFxPrefab;
+    [SerializeField] private GameObject largeSpinFxPrefab;
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
     {
@@ -35,7 +38,7 @@ public class SpinningBladesAbility : AbilityDefinition
                     continue;
                 }
 
-                character.DealDamageToEnemy(enemy, damage, true, true);
+                character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Sword);
                 hitAtLeastOneEnemy = true;
                 hitEnemies.Add(enemy);
                 if (enemy.CurrentHealth <= 0)
@@ -47,7 +50,7 @@ public class SpinningBladesAbility : AbilityDefinition
 
         if (hitAtLeastOneEnemy)
         {
-            PlayConfiguredFx(character, hitEnemies);
+            PlayRangeAwareFx(character, hitEnemies, range);
         }
 
         if (kills > 0 && character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesBloodthirst) > 0)
@@ -61,5 +64,43 @@ public class SpinningBladesAbility : AbilityDefinition
         }
 
         return hitAtLeastOneEnemy;
+    }
+
+    private void PlayRangeAwareFx(Character character, IEnumerable<Enemy> hitEnemies, int range)
+    {
+        if (character == null)
+        {
+            return;
+        }
+
+        GameObject fxOverride = null;
+        if (range > 1 && largeSpinFxPrefab != null)
+        {
+            fxOverride = largeSpinFxPrefab;
+        }
+        else if (defaultSpinFxPrefab != null)
+        {
+            fxOverride = defaultSpinFxPrefab;
+        }
+
+        if (FxSpawns == null || FxSpawns.Count == 0 || fxOverride == null)
+        {
+            PlayConfiguredFx(character, hitEnemies);
+            return;
+        }
+
+        List<AbilityFxSpawnConfig> runtimeFxConfigs = new List<AbilityFxSpawnConfig>(FxSpawns.Count);
+        for (int index = 0; index < FxSpawns.Count; index++)
+        {
+            AbilityFxSpawnConfig sourceConfig = FxSpawns[index];
+            if (sourceConfig == null)
+            {
+                continue;
+            }
+
+            runtimeFxConfigs.Add(sourceConfig.CreateRuntimeCopy(fxOverride));
+        }
+
+        character.PlayAbilityFx(runtimeFxConfigs, hitEnemies);
     }
 }

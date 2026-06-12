@@ -89,7 +89,9 @@ public class Character : MonoBehaviour
     private bool tookDamageDuringEnemyTurn;
     private bool isDying;
     private readonly HashSet<Enemy> frostCharmedEnemiesThisTurn = new HashSet<Enemy>();
-    private int temporaryTurnBonusDamage;
+    private int nextAttackBonusDamage;
+    private GameObject nextAttackBonusAuraPrefab;
+    private GameObject activeNextAttackBonusAuraInstance;
     private Enemy markedEnemy;
     private DeathMarkAbility deathMarkAbility;
 
@@ -152,7 +154,7 @@ public class Character : MonoBehaviour
         sandglassTalismanTriggeredThisCombat = false;
         tookDamageDuringEnemyTurn = false;
         frostCharmedEnemiesThisTurn.Clear();
-        temporaryTurnBonusDamage = 0;
+        ClearNextAttackBonusDamage();
         markedEnemy = null;
         deathMarkAbility = null;
         SnapToGrid();
@@ -189,7 +191,7 @@ public class Character : MonoBehaviour
         CacheBaseStatsIfNeeded();
         runRewardState = state;
         RecalculateItemDrivenStats();
-        temporaryTurnBonusDamage = 0;
+        ClearNextAttackBonusDamage();
         markedEnemy = null;
         deathMarkAbility = null;
 
@@ -212,7 +214,7 @@ public class Character : MonoBehaviour
         RecalculateItemDrivenStats();
         remainingMovementPoints = movementPointsPerTurn;
         frostCharmedEnemiesThisTurn.Clear();
-        temporaryTurnBonusDamage = 0;
+        ClearNextAttackBonusDamage();
         for (int index = 0; index < abilities.Count; index++)
         {
             abilities[index].BeginTurn(this);
@@ -321,6 +323,13 @@ public class Character : MonoBehaviour
             sandglassTalismanTriggeredThisCombat = true;
         }
 
+        if (nextAttackBonusDamage > 0
+            && runtime.Definition != null
+            && runtime.Definition.Category == AbilityCategory.BasicAttack)
+        {
+            ConsumeNextAttackBonusDamage();
+        }
+
         NotifyMovementPointsChanged();
         NotifyAbilitiesChanged();
         return true;
@@ -359,7 +368,12 @@ public class Character : MonoBehaviour
         NotifyMovementPointsChanged();
     }
 
-    public int DealDamageToEnemy(Enemy enemy, int baseDamage, bool addBonusDamage, bool isAbilityDamage = false)
+    public int DealDamageToEnemy(
+        Enemy enemy,
+        int baseDamage,
+        bool addBonusDamage,
+        bool isAbilityDamage = false,
+        DamageSoundType hitSoundType = DamageSoundType.Default)
     {
         if (enemy == null)
         {
@@ -374,13 +388,13 @@ public class Character : MonoBehaviour
             totalDamage += 2;
         }
 
-        int appliedDamage = enemy.TakeDamage(totalDamage);
+        int appliedDamage = enemy.TakeDamage(totalDamage, hitSoundType);
         if (isAbilityDamage)
         {
             HandleAbilityDamageSideEffects(enemy);
             if (enemy == markedEnemy && enemy.CurrentHealth > 0)
             {
-                int bonusMarkDamage = enemy.TakeDamage(1);
+                int bonusMarkDamage = enemy.TakeDamage(1, DamageSoundType.Default);
                 appliedDamage += bonusMarkDamage;
                 if (enemy.CurrentHealth <= 0)
                 {
@@ -396,7 +410,11 @@ public class Character : MonoBehaviour
         return appliedDamage;
     }
 
-    public int TakeDamage(int incomingDamage, Enemy sourceEnemy = null, bool wasProjectile = false)
+    public int TakeDamage(
+        int incomingDamage,
+        Enemy sourceEnemy = null,
+        bool wasProjectile = false,
+        DamageSoundType hitSoundType = DamageSoundType.Default)
     {
         if (isDying)
         {
@@ -416,6 +434,12 @@ public class Character : MonoBehaviour
 
         blinkFeedback?.Blink(Color.red, 0.5f, 0.12f);
         cam.Instance?.CamShake(finalDamage);
+        if (hitSoundType == DamageSoundType.Default && sourceEnemy != null)
+        {
+            hitSoundType = sourceEnemy.DamageSoundType;
+        }
+
+        SoundManager.Instance?.PlayDamageSound(hitSoundType, transform.position);
         RecalculateItemDrivenStats();
         RefreshHpBar();
         SyncRunStateHealth();
@@ -457,6 +481,7 @@ public class Character : MonoBehaviour
         SyncRunStateHealth();
         if (currentHealth > previousHealth)
         {
+            // SoundManager.Instance?.PlayHeal(transform.position);
             PlayProcFx(CharacterProcFxKey.Heal);
         }
     }
@@ -469,6 +494,7 @@ public class Character : MonoBehaviour
         }
 
         remainingMovementPoints += amount;
+        SoundManager.Instance?.PlayPowerUp(transform.position);
         NotifyMovementPointsChanged();
         PlayProcFx(CharacterProcFxKey.BonusMovement);
     }
@@ -562,6 +588,7 @@ public class Character : MonoBehaviour
 
         isFirstPlayerTurnOfArena = false;
         ClearDeathMark();
+        ClearNextAttackBonusDamage();
         RecalculateItemDrivenStats();
     }
 
@@ -578,14 +605,20 @@ public class Character : MonoBehaviour
         }
     }
 
-    public void AddTemporaryTurnBonusDamage(int amount)
+    public void AddNextAttackBonusDamage(int amount, GameObject auraFxPrefab = null)
     {
         if (amount <= 0)
         {
             return;
         }
 
-        temporaryTurnBonusDamage += amount;
+        nextAttackBonusDamage += amount;
+        if (auraFxPrefab != null)
+        {
+            nextAttackBonusAuraPrefab = auraFxPrefab;
+        }
+
+        RefreshNextAttackBonusAura();
         RecalculateItemDrivenStats();
         NotifyAbilitiesChanged();
     }
@@ -890,6 +923,7 @@ public class Character : MonoBehaviour
         moveTween?.Kill();
         IsMoving = true;
         SetDashingAnimation(true);
+        SoundManager.Instance?.PlayDash(transform.position);
         Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
         moveTween = transform.DOMove(targetPosition, moveDuration)
             .SetEase(Ease.Linear)
@@ -927,6 +961,7 @@ public class Character : MonoBehaviour
         moveTween?.Kill();
         bodyRotationTween?.Kill();
         IsMoving = false;
+        ClearNextAttackBonusAura();
         SnapBodyRotationToDefault();
         SetDashingAnimation(false);
         if (temporaryTrailColorCoroutine != null)
@@ -1556,6 +1591,38 @@ public class Character : MonoBehaviour
         }
     }
 
+    public void PlayFeedbackFx(
+        GameObject fxPrefab,
+        Transform targetAnchor = null,
+        Vector3? positionOffset = null,
+        float destroyAfterSeconds = 1f,
+        bool parentToAnchor = false)
+    {
+        if (fxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = targetAnchor != null ? targetAnchor : transform;
+        Vector3 offset = positionOffset ?? Vector3.zero;
+        Vector3 spawnPosition = anchor.position + offset;
+        Quaternion defaultFxRotation = fxPrefab.transform.rotation;
+        Vector3 defaultFxScale = fxPrefab.transform.localScale;
+        GameObject spawnedFx = Instantiate(fxPrefab, spawnPosition, defaultFxRotation);
+        if (parentToAnchor)
+        {
+            spawnedFx.transform.SetParent(anchor, true);
+        }
+
+        spawnedFx.transform.rotation = defaultFxRotation;
+        spawnedFx.transform.localScale = defaultFxScale;
+
+        if (destroyAfterSeconds > 0f)
+        {
+            Destroy(spawnedFx, destroyAfterSeconds);
+        }
+    }
+
     private CharacterProcFxConfig FindProcFxConfig(CharacterProcFxKey key)
     {
         for (int index = 0; index < procFxConfigs.Count; index++)
@@ -1582,7 +1649,7 @@ public class Character : MonoBehaviour
         int remainingEnemies = GetRemainingEnemyCount();
 
         int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
-        int dynamicBonusDamage = temporaryTurnBonusDamage;
+        int dynamicBonusDamage = nextAttackBonusDamage;
         int dynamicResistance = 0;
 
         if (HasItem(ItemRewardKey.DuelistsSpur) && remainingEnemies == 1)
@@ -1617,6 +1684,58 @@ public class Character : MonoBehaviour
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         RefreshHpBar();
         SyncRunStateHealth();
+    }
+
+    private void ConsumeNextAttackBonusDamage()
+    {
+        if (nextAttackBonusDamage <= 0)
+        {
+            return;
+        }
+
+        nextAttackBonusDamage = 0;
+        ClearNextAttackBonusAura();
+        RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    private void ClearNextAttackBonusDamage()
+    {
+        nextAttackBonusDamage = 0;
+        nextAttackBonusAuraPrefab = null;
+        ClearNextAttackBonusAura();
+    }
+
+    private void RefreshNextAttackBonusAura()
+    {
+        if (nextAttackBonusDamage <= 0 || nextAttackBonusAuraPrefab == null)
+        {
+            ClearNextAttackBonusAura();
+            return;
+        }
+
+        if (activeNextAttackBonusAuraInstance != null
+            && activeNextAttackBonusAuraInstance.name.StartsWith(nextAttackBonusAuraPrefab.name, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ClearNextAttackBonusAura();
+        Quaternion defaultFxRotation = nextAttackBonusAuraPrefab.transform.rotation;
+        Vector3 defaultFxScale = nextAttackBonusAuraPrefab.transform.localScale;
+        activeNextAttackBonusAuraInstance = Instantiate(nextAttackBonusAuraPrefab, transform.position, defaultFxRotation);
+        activeNextAttackBonusAuraInstance.transform.SetParent(transform, true);
+        activeNextAttackBonusAuraInstance.transform.rotation = defaultFxRotation;
+        activeNextAttackBonusAuraInstance.transform.localScale = defaultFxScale;
+    }
+
+    private void ClearNextAttackBonusAura()
+    {
+        if (activeNextAttackBonusAuraInstance != null)
+        {
+            Destroy(activeNextAttackBonusAuraInstance);
+            activeNextAttackBonusAuraInstance = null;
+        }
     }
 
     private void ClearDeathMark()

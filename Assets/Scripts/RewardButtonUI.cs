@@ -119,7 +119,11 @@ public class RewardButtonUI : MonoBehaviour
 
         if (button != null)
         {
-            button.onClick.AddListener(() => onClicked?.Invoke(rewardOffer));
+            button.onClick.AddListener(() =>
+            {
+                SoundManager.Instance?.PlayClick();
+                onClicked?.Invoke(rewardOffer);
+            });
         }
     }
 

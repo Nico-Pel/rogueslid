@@ -22,6 +22,7 @@ public class Enemy : MonoBehaviour
     [Header("Behaviour")]
     [SerializeField] private EnemyAttackPattern attackPattern = EnemyAttackPattern.AdjacentOrthogonal;
     [SerializeField] private int attackRange = 1;
+    [SerializeField] private DamageSoundType damageSoundType;
     [SerializeField] private bool directVision = true;
     [SerializeField] private bool requireAlignedShot;
     [SerializeField] private bool allowPerfectDiagonalShot;
@@ -56,20 +57,28 @@ public class Enemy : MonoBehaviour
 
     [Header("Animation")]
     [SerializeField] private Transform enemyBody;
+    [SerializeField] private Transform enemyCanvas;
     [SerializeField] private Animator enemyAnimator;
     [SerializeField] private string attackTriggerParameter = "Attack";
     [SerializeField] private bool useFlyAnimationOnObstacle;
     [SerializeField] private string flyingBoolParameter = "Flying";
+    [SerializeField] private float obstacleCanvasHeightOffset = 1f;
 
     private Tween moveTween;
     private RendererBlinkFeedback blinkFeedback;
     private bool isDying;
     private GameObject activeDeathMarkFxInstance;
+    private Vector3 defaultCanvasLocalPosition;
+    private bool hasCachedCanvasDefaultPosition;
+    private int consecutiveFleeTurns;
+    private bool fleePermanentlyDisabled;
 
     public Vector2Int GridPosition => gridPosition;
     public int Mobility => mobility;
     public int CurrentHealth => currentHealth;
     public int Resistance => resistance;
+    public EnemyAttackPattern AttackPattern => attackPattern;
+    public DamageSoundType DamageSoundType => damageSoundType;
     public bool IsMoving { get; private set; }
     public BoardManager Board { get; private set; }
     public Transform EffectAnchor => deathMarkAnchor != null ? deathMarkAnchor : transform;
@@ -89,10 +98,13 @@ public class Enemy : MonoBehaviour
         currentHealth = maxHealth;
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
         CacheBody();
+        CacheCanvas();
         CacheAnimator();
         CacheHpBar();
         RefreshHpBar();
         SnapToGrid();
+        consecutiveFleeTurns = 0;
+        fleePermanentlyDisabled = false;
         RefreshFlyingAnimationState();
     }
 
@@ -107,7 +119,7 @@ public class Enemy : MonoBehaviour
         ClearDeathMarkFx();
     }
 
-    public int TakeDamage(int incomingDamage)
+    public int TakeDamage(int incomingDamage, DamageSoundType hitSoundType = DamageSoundType.Default)
     {
         if (isDying)
         {
@@ -119,6 +131,7 @@ public class Enemy : MonoBehaviour
 
         blinkFeedback?.Blink(Color.white, 0.5f, 0.12f);
         cam.Instance?.CamShake(finalDamage);
+        SoundManager.Instance?.PlayDamageSound(hitSoundType, EffectAnchor.position);
         RefreshHpBar();
 
         if (currentHealth <= 0)
@@ -180,14 +193,23 @@ public class Enemy : MonoBehaviour
         int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
-        bool temporaryFleeMove = attackFirst && attackAlways && !ShouldUseFleeBehaviour();
+        bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        if (persistentFleeBehaviour && ShouldStopFleePermanently(target))
+        {
+            persistentFleeBehaviour = false;
+            flee = false;
+            fleePermanentlyDisabled = true;
+            consecutiveFleeTurns = 0;
+        }
+
+        bool temporaryFleeMove = attackFirst && attackAlways && !persistentFleeBehaviour;
 
         if (attackFirst)
         {
             yield return AttackIfPossible(target, attackAlways);
         }
 
-        bool useFleeBehaviour = ShouldUseFleeBehaviour() || temporaryFleeMove;
+        bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
         List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
         for (int step = 0; step < plannedPath.Count; step++)
         {
@@ -211,6 +233,15 @@ public class Enemy : MonoBehaviour
         if (!attackFirst)
         {
             yield return AttackIfPossible(target, attackAlways);
+        }
+
+        if (persistentFleeBehaviour)
+        {
+            consecutiveFleeTurns++;
+        }
+        else
+        {
+            consecutiveFleeTurns = 0;
         }
     }
 
@@ -439,6 +470,7 @@ public class Enemy : MonoBehaviour
         moveTween?.Kill();
         IsMoving = false;
         SetFlyingAnimation(false);
+        RefreshCanvasHeight(false);
         ClearDeathMarkFx();
     }
 
@@ -453,6 +485,24 @@ public class Enemy : MonoBehaviour
         if (hpFillTransform != null)
         {
             hpFillBar = hpFillTransform.GetComponent<Image>();
+        }
+    }
+
+    private void CacheCanvas()
+    {
+        if (enemyCanvas == null)
+        {
+            Transform canvasTransform = transform.Find("Canvas");
+            if (canvasTransform != null)
+            {
+                enemyCanvas = canvasTransform;
+            }
+        }
+
+        if (!hasCachedCanvasDefaultPosition && enemyCanvas != null)
+        {
+            defaultCanvasLocalPosition = enemyCanvas.localPosition;
+            hasCachedCanvasDefaultPosition = true;
         }
     }
 
@@ -485,6 +535,11 @@ public class Enemy : MonoBehaviour
 
     private bool ShouldUseFleeBehaviour()
     {
+        if (fleePermanentlyDisabled)
+        {
+            return false;
+        }
+
         if (flee)
         {
             return true;
@@ -497,6 +552,24 @@ public class Enemy : MonoBehaviour
 
         float healthPercent = (float)currentHealth / maxHealth * 100f;
         return healthPercent <= fleeThresholdPercent;
+    }
+
+    private bool ShouldStopFleePermanently(Character target)
+    {
+        if (target == null || consecutiveFleeTurns <= 1)
+        {
+            return false;
+        }
+
+        int pathDistanceToTarget = GetPathDistanceForCurrentMovementRules(gridPosition, target.GridPosition, true);
+        if (pathDistanceToTarget == int.MaxValue)
+        {
+            pathDistanceToTarget = Board != null
+                ? Board.GetManhattanDistance(gridPosition, target.GridPosition)
+                : int.MaxValue;
+        }
+
+        return pathDistanceToTarget <= 2;
     }
 
     private bool CanAttackTargetFrom(Vector2Int origin, Character target, bool ignoreRequirements)
@@ -1147,13 +1220,16 @@ public class Enemy : MonoBehaviour
 
     private void RefreshFlyingAnimationState()
     {
-        if (!useFlyAnimationOnObstacle || Board == null || !Board.TryGetCell(gridPosition, out BoardCell currentCell))
+        if (Board == null || !Board.TryGetCell(gridPosition, out BoardCell currentCell))
         {
             SetFlyingAnimation(false);
+            RefreshCanvasHeight(false);
             return;
         }
 
-        SetFlyingAnimation(currentCell.HasBlockingTerrain);
+        bool isOnObstacle = currentCell.HasBlockingTerrain;
+        SetFlyingAnimation(useFlyAnimationOnObstacle && isOnObstacle);
+        RefreshCanvasHeight(isOnObstacle);
     }
 
     private void SetFlyingAnimation(bool isFlying)
@@ -1165,6 +1241,23 @@ public class Enemy : MonoBehaviour
         }
 
         enemyAnimator.SetBool(flyingBoolParameter, isFlying);
+    }
+
+    private void RefreshCanvasHeight(bool isOnObstacle)
+    {
+        CacheCanvas();
+        if (enemyCanvas == null || !hasCachedCanvasDefaultPosition)
+        {
+            return;
+        }
+
+        Vector3 targetLocalPosition = defaultCanvasLocalPosition;
+        if (isOnObstacle)
+        {
+            targetLocalPosition.y += obstacleCanvasHeightOffset;
+        }
+
+        enemyCanvas.localPosition = targetLocalPosition;
     }
 
     private void FaceTargetForAttack(Character target)
@@ -1275,7 +1368,7 @@ public class Enemy : MonoBehaviour
                 elapsedDelay += waitDuration;
             }
 
-            target.TakeDamage(force, this, false);
+            target.TakeDamage(force, this, false, damageSoundType);
         }
 
         if (targetsInRange.Count > 0)
@@ -1297,7 +1390,7 @@ public class Enemy : MonoBehaviour
             yield return new WaitForSeconds(delay);
         }
 
-        target.TakeDamage(force, this, wasProjectile);
+        target.TakeDamage(force, this, wasProjectile, damageSoundType);
     }
 
     private float GetTargetDamageDelay(Character target)
@@ -1326,6 +1419,8 @@ public class Enemy : MonoBehaviour
         {
             yield break;
         }
+
+        SoundManager.Instance?.PlayArrowShot(EffectAnchor.position);
 
         Vector3 startPosition = transform.position + Vector3.up * projectileTravelHeight;
         Vector3 targetPosition = target.transform.position + Vector3.up * projectileTravelHeight;

@@ -173,6 +173,7 @@ public class UIGame : MonoBehaviour
 
     private void HandleEndTurnClicked()
     {
+        SoundManager.Instance?.PlayClick();
         gameTurnManager?.RequestEndTurn();
     }
 
@@ -312,6 +313,7 @@ public class UIGame : MonoBehaviour
 
     private void HandleIgnoreRewardsClicked()
     {
+        SoundManager.Instance?.PlayClick();
         Action ignoredCallback = onRewardsIgnored;
         HideRewards();
         ignoredCallback?.Invoke();

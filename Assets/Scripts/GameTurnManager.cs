@@ -14,9 +14,11 @@ public class GameTurnManager : MonoBehaviour
 {
     [SerializeField] private BoardManager board;
     [SerializeField] private UIGame uiGame;
+    [SerializeField] private SoundManager soundManager;
     [SerializeField] private KeyCode debugEndTurnKey = KeyCode.Space;
     [SerializeField] private float swipeThreshold = 60f;
     [SerializeField] private float endTurnLockDuration = 6f;
+    [SerializeField] private float enemyTurnStartDelay = 0.5f;
     [SerializeField] private float rewardMenuDelay = 2f;
 
     private bool isEnemyTurnRunning;
@@ -53,12 +55,22 @@ public class GameTurnManager : MonoBehaviour
             uiGame = FindFirstObjectByType<UIGame>();
         }
 
+        if (soundManager == null)
+        {
+            soundManager = GetComponent<SoundManager>();
+            if (soundManager == null)
+            {
+                soundManager = FindFirstObjectByType<SoundManager>();
+            }
+        }
+
         if (board != null)
         {
             board.AllEnemiesDefeated += HandleAllEnemiesDefeated;
         }
 
         hasStarted = true;
+        soundManager?.PlayArenaMusic();
         BeginPlayerTurn();
     }
 
@@ -113,6 +125,7 @@ public class GameTurnManager : MonoBehaviour
         nextArenaCoroutine = null;
         ClearPendingAbility();
         uiGame?.HideRewards();
+        soundManager?.PlayArenaMusic();
         BeginPlayerTurn();
     }
 
@@ -444,8 +457,21 @@ public class GameTurnManager : MonoBehaviour
         SetCanEndTurn(false);
         TurnChanged?.Invoke(CurrentTurn);
 
-        foreach (Enemy enemy in board.SpawnedEnemies)
+        if (enemyTurnStartDelay > 0f)
         {
+            yield return new WaitForSeconds(enemyTurnStartDelay);
+        }
+
+        if (board == null)
+        {
+            isEnemyTurnRunning = false;
+            yield break;
+        }
+
+        List<Enemy> enemiesToPlay = new List<Enemy>(board.SpawnedEnemies);
+        for (int index = 0; index < enemiesToPlay.Count; index++)
+        {
+            Enemy enemy = enemiesToPlay[index];
             if (enemy == null)
             {
                 continue;
@@ -547,6 +573,7 @@ public class GameTurnManager : MonoBehaviour
         StopEndTurnUnlockTimer();
         ClearPendingAbility();
         SetCanEndTurn(false);
+        soundManager?.PlayVictoryJingle();
 
         if (nextArenaCoroutine != null)
         {

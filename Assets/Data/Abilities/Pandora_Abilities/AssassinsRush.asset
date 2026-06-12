@@ -34,6 +34,9 @@ MonoBehaviour:
   replacementTrailPrefab: {fileID: 0}
   temporaryTrailReplacementDuration: 0.5
   baseRange: 3
+  tasteOfBloodBoostFxPrefab: {fileID: 2407364176693153571, guid: a66daf307f4864f2183ba9b16b78556e, type: 3}
+  tasteOfBloodAuraFxPrefab: {fileID: 2407364176693153571, guid: 6c2f66f9a3f2b4aefb027b6ff8fd569f, type: 3}
+  tasteOfBloodBoostFxDuration: 1
   secondaryEffects:
   - requiresUpgrade: 1
     requiredUpgradeKey: 14

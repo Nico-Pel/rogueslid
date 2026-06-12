@@ -35,3 +35,5 @@ MonoBehaviour:
     positionOffset: {x: 0, y: 0, z: 0}
     parentToAnchor: 0
   baseDamage: 5
+  defaultSpinFxPrefab: {fileID: 6163134623645628608, guid: 1e914563f58864674b4873f04547d1aa, type: 3}
+  largeSpinFxPrefab: {fileID: 6163134623645628608, guid: 284854e152b04453daa208c83d7fd714, type: 3}

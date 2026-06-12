@@ -3254,6 +3254,7 @@ GameObject:
   - component: {fileID: 543450653714603379}
   - component: {fileID: 919132149174273994}
   - component: {fileID: 919132149174273995}
+  - component: {fileID: 919132149174273996}
   m_Layer: 0
   m_Name: RogueBoard
   m_TagString: Untagged
@@ -3360,10 +3361,41 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   board: {fileID: 919132149174273994}
   uiGame: {fileID: 787303332}
+  soundManager: {fileID: 0}
   debugEndTurnKey: 32
   swipeThreshold: 60
   endTurnLockDuration: 6
+  enemyTurnStartDelay: 0.5
   rewardMenuDelay: 2
+--- !u!114 &919132149174273996
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 919132149174273993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33c98db3d9ef43ff998d94d2ae51f55f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  arenaMusic: {fileID: 8300000, guid: b156696c87ad14685a1ddb108fcf308e, type: 3}
+  victoryJingle: {fileID: 8300000, guid: 413cec5e978d04588929c7f21524ba8a, type: 3}
+  musicVolume: 0.7
+  jingleVolume: 1
+  loopArenaMusic: 1
+  sfxVolumeMultiplier: 1
+  uiVolumeMultiplier: 1
+  defaultHitSound: {fileID: 8300000, guid: 5cbc825536f5f461291210d3016fa398, type: 3}
+  arrowShotSound: {fileID: 8300000, guid: 3e2b5196850854af8a9fc8cae19d1b2e, type: 3}
+  arrowHitSound: {fileID: 8300000, guid: 4b8de38eb61194886b40b46e09c730f9, type: 3}
+  swordHitSound: {fileID: 8300000, guid: cbe729039313744999bc31b785b1a50c, type: 3}
+  powerUpSound: {fileID: 8300000, guid: 7699deac5c3184bfa953c9f7cc3efa04, type: 3}
+  healSound: {fileID: 8300000, guid: 5e84a6be0378e4213a6a226a07c27c3c, type: 3}
+  dashSound: {fileID: 8300000, guid: cf9f0d6d9d2f2469099e94bd7f54556c, type: 3}
+  clickSound: {fileID: 8300000, guid: dbb503ecf204241e591457e12a8b7260, type: 3}
+  dashVolume: 0.2
+  clickVolume: 1
 --- !u!1001 &2487473349530823402
 PrefabInstance:
   m_ObjectHideFlags: 0
