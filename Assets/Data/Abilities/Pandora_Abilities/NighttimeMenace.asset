@@ -14,7 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   abilityName: Nighttime Menace
   icon: {fileID: -306928396, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  category: 1
   attackAnimationClip: {fileID: 7400000, guid: 8a1c979f827d24949911a01112be6137, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: c2020000000000000000000000000008, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000009, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000010, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000011, type: 2}
   usesPerTurn: 0
   usesPerCombat: 0
   cooldownTurns: 2
@@ -27,3 +33,13 @@ MonoBehaviour:
   trailReplacementMode: 1
   replacementTrailPrefab: {fileID: 8103697321985338180, guid: 2d135e9b93e3146d1aead9355ad41680, type: 3}
   temporaryTrailReplacementDuration: 1
+  baseRange: 3
+  secondaryEffects:
+  - requiresUpgrade: 1
+    requiredUpgradeKey: 8
+    timing: 0
+    effect: {fileID: 11400000, guid: ad2f098eb1824be989a9d8b76f913f9b, type: 2}
+  - requiresUpgrade: 1
+    requiredUpgradeKey: 7
+    timing: 1
+    effect: {fileID: 11400000, guid: 1938915dd9324bd9b2d1ad366e56d749, type: 2}

@@ -28,8 +28,13 @@ public class CharacterAbilityRuntime
         IsActive = false;
     }
 
-    public void BeginTurn()
+    public void BeginTurn(Character character)
     {
+        if (IsActive && Definition != null && !Definition.KeepsActiveStateBetweenTurns)
+        {
+            Deactivate(character);
+        }
+
         UsesThisTurn = 0;
         if (RemainingCooldown > 0)
         {
@@ -72,6 +77,17 @@ public class CharacterAbilityRuntime
         return Definition.CanActivate(character, this);
     }
 
+    public void Deactivate(Character character)
+    {
+        if (!IsActive)
+        {
+            return;
+        }
+
+        IsActive = false;
+        Definition?.OnAbilityDeactivated(character, this);
+    }
+
     public bool TryUse(Character character, Vector2Int? targetCell)
     {
         if (Definition == null || character == null)
@@ -81,8 +97,7 @@ public class CharacterAbilityRuntime
 
         if (Definition.IsToggle && IsActive)
         {
-            IsActive = false;
-            Definition.OnAbilityDeactivated(character, this);
+            Deactivate(character);
             return true;
         }
 
@@ -127,5 +142,31 @@ public class CharacterAbilityRuntime
         Definition.OnAbilityActivated(character, this);
 
         return true;
+    }
+
+    public void RefundTurnUse(int amount = 1)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        UsesThisTurn = Mathf.Max(0, UsesThisTurn - amount);
+    }
+
+    public void ResetAvailability()
+    {
+        UsesThisTurn = 0;
+        RemainingCooldown = 0;
+    }
+
+    public void ReduceCooldown(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        RemainingCooldown = Mathf.Max(0, RemainingCooldown - amount);
     }
 }

@@ -27,6 +27,13 @@ public enum AbilityTrailApplicationMode
     WhileActive
 }
 
+public enum AbilityCategory
+{
+    BasicAttack,
+    MobilitySkill,
+    SpecialPower
+}
+
 [System.Serializable]
 public class AbilityFxSpawnConfig
 {
@@ -54,7 +61,9 @@ public abstract class AbilityDefinition : ScriptableObject
     [Header("Identity")]
     [SerializeField] private string abilityName;
     [SerializeField] private Sprite icon;
+    [SerializeField] private AbilityCategory category = AbilityCategory.BasicAttack;
     [SerializeField] private AnimationClip attackAnimationClip;
+    [SerializeField] private List<AbilityUpgradeRewardDefinition> linkedUpgradeRewards = new List<AbilityUpgradeRewardDefinition>();
 
     [Header("Usage")]
     [Min(0)]
@@ -81,7 +90,9 @@ public abstract class AbilityDefinition : ScriptableObject
 
     public string AbilityName => string.IsNullOrWhiteSpace(abilityName) ? name : abilityName;
     public Sprite Icon => icon;
+    public AbilityCategory Category => category;
     public AnimationClip AttackAnimationClip => attackAnimationClip;
+    public IReadOnlyList<AbilityUpgradeRewardDefinition> LinkedUpgradeRewards => linkedUpgradeRewards;
     public int UsesPerTurn => usesPerTurn;
     public int UsesPerCombat => usesPerCombat;
     public int CooldownTurns => cooldownTurns;
@@ -89,6 +100,7 @@ public abstract class AbilityDefinition : ScriptableObject
     public bool IsToggle => isToggle;
     public IReadOnlyList<AbilityFxSpawnConfig> FxSpawns => fxSpawns;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
+    public virtual bool KeepsActiveStateBetweenTurns => true;
 
     public virtual bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
@@ -105,7 +117,12 @@ public abstract class AbilityDefinition : ScriptableObject
         return false;
     }
 
-    public virtual int GetTraversalDamage(Character character, CharacterAbilityRuntime runtime)
+    public virtual bool LimitsNextSlideToOneCell(Character character, CharacterAbilityRuntime runtime)
+    {
+        return false;
+    }
+
+    public virtual int GetTraversalDamage(Character character, CharacterAbilityRuntime runtime, int traversedEnemyCount)
     {
         return 0;
     }
@@ -195,6 +212,33 @@ public abstract class AbilityDefinition : ScriptableObject
     }
 
     public abstract bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell);
+
+    protected void ExecuteUnlockedSecondaryEffects(
+        Character character,
+        CharacterAbilityRuntime runtime,
+        AbilityExecutionContext context,
+        IReadOnlyList<UpgradedSecondaryEffectEntry> secondaryEffects,
+        SecondaryEffectTiming timing)
+    {
+        if (character == null || secondaryEffects == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < secondaryEffects.Count; index++)
+        {
+            UpgradedSecondaryEffectEntry entry = secondaryEffects[index];
+            if (entry == null
+                || entry.Timing != timing
+                || !entry.IsUnlocked(character)
+                || entry.Effect == null)
+            {
+                continue;
+            }
+
+            entry.Effect.Execute(character, context);
+        }
+    }
 
     private void ApplyTrailColorEffect(Character character, CharacterAbilityRuntime runtime)
     {

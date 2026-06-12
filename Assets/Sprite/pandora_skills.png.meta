@@ -395,6 +395,27 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: pandora_icon_8
+      rect:
+        serializedVersion: 2
+        x: 957
+        y: 657
+        width: 246
+        height: 246
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6af0f917daee24f5f9fcc34a7146f6dc
+      internalID: 1039267727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     physicsShape: []
     bones: []
@@ -418,6 +439,7 @@ TextureImporter:
       pandora_icon_4: -1207557939
       pandora_icon_5: -1795509447
       pandora_icon_7: -290366765
+      pandora_icon_8: 1039267727
       pandora_icon_9: 226231244
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0

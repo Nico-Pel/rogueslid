@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f17ef1f3d3d4862a9d7a0d16e9f1a11, type: 3}
+  m_Name: SideStep
+  m_EditorClassIdentifier: 
+  abilityName: Side Step
+  icon: {fileID: 2026301262, guid: 82815694f6d7e4eba94663ced4be4c1b, type: 3}
+  category: 1
+  attackAnimationClip: {fileID: 0}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  consumesMovementPoint: 0
+  isToggle: 1
+  fxSpawns: []
+  trailColorMode: 2
+  trailMaterialColor: {r: 0, g: 0.7398896, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5

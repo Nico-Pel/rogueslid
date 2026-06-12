@@ -14,7 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   abilityName: Spinning blades
   icon: {fileID: -767586726, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  category: 0
   attackAnimationClip: {fileID: 7400000, guid: b38d7f7a102c24e0ca2516e2429bfbf1, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: c2020000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000002, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000003, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000004, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 0

@@ -239,18 +239,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2336061308c409e93c02d9896b38684, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  characterData: {fileID: 11400000, guid: 714f7747ab4b4364bc7fe1091dbfb1c5, type: 2}
   maxHealth: 10
   currentHealth: 10
   bonusDamage: 0
   resistance: 0
   movementPointsPerTurn: 2
-  startingAbilities:
-  - {fileID: 11400000, guid: f61c2a496edf5072ea028cb28ab6ff56, type: 2}
-  - {fileID: 11400000, guid: 0a7d3b5a7fee6183fb139dc39bc70067, type: 2}
-  - {fileID: 11400000, guid: 1b8e4c6b80ff72940c24aed4ac810178, type: 2}
   gridPosition: {x: 0, y: 0}
   moveDuration: 0.18
   spawnHeight: 0.08
+  deathDestroyDelay: 0.12
+  fxDeathPrefab: {fileID: 1613332221360154513, guid: 06dec1a7e28374079a426a3ff1907f97, type: 3}
 --- !u!114 &9088583848115428104
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,7 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   abilityName: Ghost Steps
   icon: {fileID: 1356344920, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  category: 2
   attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: c2020000000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000006, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000007, type: 2}
   usesPerTurn: 0
   usesPerCombat: 0
   cooldownTurns: 0

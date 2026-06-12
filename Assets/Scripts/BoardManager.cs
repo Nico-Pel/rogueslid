@@ -100,6 +100,9 @@ public class BoardManager : MonoBehaviour
     [Header("Spawn Rules")]
     [SerializeField] private List<EnemyPoolAvailability> enemyPoolsByArenaCount = new List<EnemyPoolAvailability>();
 
+    [Header("Rewards")]
+    [SerializeField] private List<ItemRewardDefinition> itemRewardDefinitions = new List<ItemRewardDefinition>();
+
     private BoardCell[,] cells;
     private Transform generatedRoot;
     private Transform obstaclesRoot;
@@ -110,6 +113,7 @@ public class BoardManager : MonoBehaviour
     private Texture2D currentArenaLayout;
     private bool currentArenaMirroredOnYAxis;
     private bool hasGeneratedBoardThisSession;
+    private PlayerRunRewardState runRewardState = new PlayerRunRewardState();
 
     public int Width => BoardWidth;
     public int Height => BoardHeight;
@@ -117,6 +121,7 @@ public class BoardManager : MonoBehaviour
     public Player Player => player;
     public IReadOnlyList<Enemy> SpawnedEnemies => spawnedEnemies;
     public int ArenaCount => arenaCount;
+    public PlayerRunRewardState RunRewardState => runRewardState;
     public event Action AllEnemiesDefeated;
 
     private enum ArenaMarker
@@ -208,6 +213,7 @@ public class BoardManager : MonoBehaviour
     {
         arenaCount = 1;
         hasGeneratedBoardThisSession = false;
+        runRewardState = new PlayerRunRewardState();
     }
 
     public void GenerateNextArena()
@@ -514,6 +520,11 @@ public class BoardManager : MonoBehaviour
             cell.ClearOccupant();
         }
 
+        if (player != null && player.ControlledCharacter != null)
+        {
+            player.ControlledCharacter.HandleEnemyCountChanged(spawnedEnemies.Count);
+        }
+
         if (Application.isPlaying && spawnedEnemies.Count == 0)
         {
             AllEnemiesDefeated?.Invoke();
@@ -640,6 +651,8 @@ public class BoardManager : MonoBehaviour
 
         Character character = GetOrAddComponent<Character>(characterObject);
         character.Assign(player, spawnPoint, this);
+        EnsureRunRewardStateInitialized(character);
+        character.ApplyRunRewardState(runRewardState);
         player.AssignCharacter(character);
         cells[spawnPoint.x, spawnPoint.y].SetOccupant(characterObject, BoardOccupantKind.PlayerCharacter);
     }
@@ -840,6 +853,210 @@ public class BoardManager : MonoBehaviour
         {
             int swapIndex = UnityEngine.Random.Range(0, index + 1);
             (list[index], list[swapIndex]) = (list[swapIndex], list[index]);
+        }
+    }
+
+    public List<RewardOffer> GenerateRewardChoices()
+    {
+        EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+        List<RewardOffer> powerOffers = BuildAvailablePowerOffers();
+        List<RewardOffer> itemOffers = BuildAvailableItemOffers();
+        List<RewardOffer> choices = new List<RewardOffer>();
+
+        int desiredPowerCount = UnityEngine.Random.value < 0.5f ? 2 : 1;
+        int desiredItemCount = 3 - desiredPowerCount;
+
+        AddRandomUniqueRewards(choices, powerOffers, desiredPowerCount);
+        AddRandomUniqueRewards(choices, itemOffers, desiredItemCount);
+
+        if (choices.Count < 3)
+        {
+            AddRandomUniqueRewards(choices, powerOffers, 3 - choices.Count);
+        }
+
+        if (choices.Count < 3)
+        {
+            AddRandomUniqueRewards(choices, itemOffers, 3 - choices.Count);
+        }
+
+        Shuffle(choices);
+        return choices;
+    }
+
+    public void ApplyReward(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null)
+        {
+            return;
+        }
+
+        EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+        if (rewardOffer.Definition != null)
+        {
+            rewardOffer.Definition.Apply(runRewardState);
+        }
+        else
+        {
+            switch (rewardOffer.Kind)
+            {
+                case RewardOfferKind.AbilityUnlock:
+                    runRewardState.UnlockAbility(rewardOffer.Ability);
+                    break;
+                case RewardOfferKind.AbilityUpgrade:
+                    runRewardState.AddUpgrade(rewardOffer.UpgradeKey);
+                    break;
+                case RewardOfferKind.Item:
+                    runRewardState.AddItem(rewardOffer.ItemKey);
+                    break;
+            }
+        }
+
+        if (player != null && player.ControlledCharacter != null)
+        {
+            player.ControlledCharacter.ApplyRunRewardState(runRewardState);
+        }
+    }
+
+    public ItemRewardDefinition GetItemRewardDefinition(ItemRewardKey itemKey)
+    {
+        for (int index = 0; index < itemRewardDefinitions.Count; index++)
+        {
+            ItemRewardDefinition itemRewardDefinition = itemRewardDefinitions[index];
+            if (itemRewardDefinition != null && itemRewardDefinition.ItemKey == itemKey)
+            {
+                return itemRewardDefinition;
+            }
+        }
+
+        return null;
+    }
+
+    private void EnsureRunRewardStateInitialized(Character character)
+    {
+        if (runRewardState == null)
+        {
+            runRewardState = new PlayerRunRewardState();
+        }
+
+        if (runRewardState.IsInitialized || character == null)
+        {
+            return;
+        }
+
+        runRewardState.InitializeFrom(character.GetCurrentAbilityDefinitions(), character.CurrentHealth);
+    }
+
+    private List<RewardOffer> BuildAvailablePowerOffers()
+    {
+        List<RewardOffer> offers = new List<RewardOffer>();
+        Character character = player != null ? player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        if (characterData == null)
+        {
+            return offers;
+        }
+
+        AddRewardOffers(offers, characterData.UnlockableAbilityRewards);
+
+        HashSet<AbilityDefinition> trackedAbilities = new HashSet<AbilityDefinition>();
+        AddAbilityUpgradeOffers(offers, characterData.GetAllPotentialAbilities(), trackedAbilities);
+        return offers;
+    }
+
+    private List<RewardOffer> BuildAvailableItemOffers()
+    {
+        List<RewardOffer> offers = new List<RewardOffer>();
+        AddRewardOffers(offers, itemRewardDefinitions);
+        return offers;
+    }
+
+    private void AddRewardOffers<TRewardDefinition>(List<RewardOffer> offers, IReadOnlyList<TRewardDefinition> rewardDefinitions)
+        where TRewardDefinition : RewardDefinition
+    {
+        if (rewardDefinitions == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < rewardDefinitions.Count; index++)
+        {
+            RewardDefinition rewardDefinition = rewardDefinitions[index];
+            if (rewardDefinition == null || !rewardDefinition.CanOffer(runRewardState))
+            {
+                continue;
+            }
+
+            offers.Add(rewardDefinition.CreateOffer());
+        }
+    }
+
+    private void AddAbilityUpgradeOffers(
+        List<RewardOffer> offers,
+        IReadOnlyList<AbilityDefinition> abilities,
+        HashSet<AbilityDefinition> trackedAbilities)
+    {
+        if (abilities == null)
+        {
+            return;
+        }
+
+        for (int abilityIndex = 0; abilityIndex < abilities.Count; abilityIndex++)
+        {
+            AbilityDefinition ability = abilities[abilityIndex];
+            if (ability == null || !trackedAbilities.Add(ability))
+            {
+                continue;
+            }
+
+            IReadOnlyList<AbilityUpgradeRewardDefinition> linkedUpgradeRewards = ability.LinkedUpgradeRewards;
+            if (linkedUpgradeRewards == null)
+            {
+                continue;
+            }
+
+            for (int rewardIndex = 0; rewardIndex < linkedUpgradeRewards.Count; rewardIndex++)
+            {
+                AbilityUpgradeRewardDefinition rewardDefinition = linkedUpgradeRewards[rewardIndex];
+                if (rewardDefinition == null || !rewardDefinition.CanOffer(runRewardState))
+                {
+                    continue;
+                }
+
+                offers.Add(rewardDefinition.CreateOffer());
+            }
+        }
+    }
+
+    private void AddRandomUniqueRewards(List<RewardOffer> target, List<RewardOffer> source, int desiredCount)
+    {
+        if (desiredCount <= 0 || source == null || source.Count == 0)
+        {
+            return;
+        }
+
+        List<RewardOffer> workingSource = new List<RewardOffer>(source);
+        Shuffle(workingSource);
+
+        for (int index = 0; index < workingSource.Count && desiredCount > 0; index++)
+        {
+            RewardOffer rewardOffer = workingSource[index];
+            bool alreadyAdded = false;
+            for (int targetIndex = 0; targetIndex < target.Count; targetIndex++)
+            {
+                if (target[targetIndex].Id == rewardOffer.Id)
+                {
+                    alreadyAdded = true;
+                    break;
+                }
+            }
+
+            if (alreadyAdded)
+            {
+                continue;
+            }
+
+            target.Add(rewardOffer);
+            desiredCount--;
         }
     }
 }

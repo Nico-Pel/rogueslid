@@ -8,17 +8,19 @@ using UnityEngine.UI;
 public class Character : MonoBehaviour
 {
     [Header("Core Stats")]
-    [SerializeField] private int maxHealth = 10;
+    [SerializeField] private CharacterData characterData;
+    [SerializeField] [ReadOnly] private int maxHealth = 10;
     [SerializeField] [ReadOnly] private int currentHealth = 10;
-    [SerializeField] private int bonusDamage;
-    [SerializeField] private int resistance;
-    [SerializeField] private int movementPointsPerTurn = 2;
-    [SerializeField] private List<AbilityDefinition> startingAbilities = new List<AbilityDefinition>();
+    [SerializeField] [ReadOnly] private int bonusDamage;
+    [SerializeField] [ReadOnly] private int resistance;
+    [SerializeField] [ReadOnly] private int movementPointsPerTurn = 2;
 
     [Header("Board")]
     [SerializeField] private Vector2Int gridPosition;
     [SerializeField] private float moveDuration = 0.18f;
     [SerializeField] private float spawnHeight = 0.08f;
+    [SerializeField] private float deathDestroyDelay = 0.12f;
+    [SerializeField] private GameObject fxDeathPrefab;
     [SerializeField] private Image hpFillBar;
     [SerializeField] private Transform characterBody;
     [SerializeField] private Animator characterAnimator;
@@ -49,6 +51,21 @@ public class Character : MonoBehaviour
     private Coroutine temporaryTrailColorCoroutine;
     private Coroutine temporaryTrailReplacementCoroutine;
     private readonly Quaternion defaultBodyLocalRotation = Quaternion.identity;
+    private PlayerRunRewardState runRewardState;
+    private bool baseStatsCached;
+    private int baseMaxHealth;
+    private int baseBonusDamage;
+    private int baseResistance;
+    private int baseMovementPointsPerTurn;
+    private bool isFirstPlayerTurnOfArena;
+    private bool luckyCoinUsedThisCombat;
+    private bool sandglassTalismanTriggeredThisCombat;
+    private bool tookDamageDuringEnemyTurn;
+    private bool isDying;
+    private readonly HashSet<Enemy> frostCharmedEnemiesThisTurn = new HashSet<Enemy>();
+    private int temporaryTurnBonusDamage;
+    private Enemy markedEnemy;
+    private DeathMarkAbility deathMarkAbility;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -61,13 +78,31 @@ public class Character : MonoBehaviour
     public bool IsMoving { get; private set; }
     public Player Owner { get; private set; }
     public BoardManager Board { get; private set; }
+    public CharacterData Data => characterData;
+    public string CharacterName => characterData != null ? characterData.CharacterName : name;
+    public string CharacterDescription => characterData != null ? characterData.Description : string.Empty;
+    public Sprite CharacterPortrait => characterData != null ? characterData.Portrait : null;
+
+    public AbilityCategory GetAbilitySlotCategory(int slotIndex)
+    {
+        switch (slotIndex)
+        {
+            case 1:
+                return AbilityCategory.MobilitySkill;
+            case 2:
+                return AbilityCategory.SpecialPower;
+            default:
+                return AbilityCategory.BasicAttack;
+        }
+    }
     public event Action<Character> MovementPointsChanged;
     public event Action<Character> AbilitiesChanged;
     public IReadOnlyList<CharacterAbilityRuntime> Abilities => abilities;
+    public PlayerRunRewardState RunRewardState => runRewardState;
 
     private void OnValidate()
     {
-        maxHealth = Mathf.Max(1, maxHealth);
+        ApplyCharacterDataDefinition();
         currentHealth = maxHealth;
     }
 
@@ -75,6 +110,8 @@ public class Character : MonoBehaviour
     {
         Owner = owner;
         Board = board;
+        ApplyCharacterDataDefinition();
+        CacheBaseStatsIfNeeded();
         gridPosition = spawnGridPosition;
         currentHealth = maxHealth;
         CacheRenderers();
@@ -84,6 +121,14 @@ public class Character : MonoBehaviour
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
         CacheHpBar();
         InitializeAbilities();
+        isFirstPlayerTurnOfArena = true;
+        luckyCoinUsedThisCombat = false;
+        sandglassTalismanTriggeredThisCombat = false;
+        tookDamageDuringEnemyTurn = false;
+        frostCharmedEnemiesThisTurn.Clear();
+        temporaryTurnBonusDamage = 0;
+        markedEnemy = null;
+        deathMarkAbility = null;
         SnapToGrid();
         ResetTurn();
         SetDashingAnimation(false);
@@ -92,12 +137,59 @@ public class Character : MonoBehaviour
         NotifyAbilitiesChanged();
     }
 
-    public void ResetTurn()
+    public List<AbilityDefinition> GetCurrentAbilityDefinitions()
     {
-        remainingMovementPoints = movementPointsPerTurn;
+        List<AbilityDefinition> currentDefinitions = new List<AbilityDefinition>();
         for (int index = 0; index < abilities.Count; index++)
         {
-            abilities[index].BeginTurn();
+            AbilityDefinition definition = abilities[index].Definition;
+            if (definition != null)
+            {
+                currentDefinitions.Add(definition);
+            }
+        }
+
+        if (currentDefinitions.Count == 0)
+        {
+            currentDefinitions.AddRange(GetStartingAbilityDefinitions());
+        }
+
+        return currentDefinitions;
+    }
+
+    public void ApplyRunRewardState(PlayerRunRewardState state)
+    {
+        ApplyCharacterDataDefinition();
+        CacheBaseStatsIfNeeded();
+        runRewardState = state;
+        RecalculateItemDrivenStats();
+        temporaryTurnBonusDamage = 0;
+        markedEnemy = null;
+        deathMarkAbility = null;
+
+        InitializeAbilities(runRewardState != null ? runRewardState.GetEquippedAbilities() : GetStartingAbilityDefinitions());
+
+        int targetHealth = runRewardState != null && runRewardState.CurrentHealth >= 0
+            ? runRewardState.CurrentHealth
+            : maxHealth;
+        currentHealth = Mathf.Clamp(targetHealth, 0, maxHealth);
+        SyncRunStateHealth();
+
+        ResetTurn();
+        RefreshHpBar();
+        NotifyMovementPointsChanged();
+        NotifyAbilitiesChanged();
+    }
+
+    public void ResetTurn()
+    {
+        RecalculateItemDrivenStats();
+        remainingMovementPoints = movementPointsPerTurn;
+        frostCharmedEnemiesThisTurn.Clear();
+        temporaryTurnBonusDamage = 0;
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            abilities[index].BeginTurn(this);
         }
 
         NotifyMovementPointsChanged();
@@ -112,11 +204,14 @@ public class Character : MonoBehaviour
         }
 
         traversedEnemiesBuffer.Clear();
-        Vector2Int destination = Board.GetSlideDestination(
-            gridPosition,
-            direction,
-            CanTraverseUnits(),
-            traversedEnemiesBuffer);
+        bool allowUnitTraversal = CanTraverseUnits();
+        Vector2Int destination = ShouldLimitNextSlideToOneCell()
+            ? GetSingleStepDestination(direction)
+            : Board.GetSlideDestination(
+                gridPosition,
+                direction,
+                allowUnitTraversal,
+                traversedEnemiesBuffer);
 
         if (destination == gridPosition)
         {
@@ -137,6 +232,7 @@ public class Character : MonoBehaviour
         remainingMovementPoints--;
         NotifyMovementPointsChanged();
         ApplyTraversalEffects();
+        ConsumeSingleStepModifiers();
         AnimateToGrid();
         return true;
     }
@@ -144,6 +240,36 @@ public class Character : MonoBehaviour
     public CharacterAbilityRuntime GetAbility(int abilityIndex)
     {
         return abilityIndex >= 0 && abilityIndex < abilities.Count ? abilities[abilityIndex] : null;
+    }
+
+    public CharacterAbilityRuntime GetAbilityForSlot(int slotIndex)
+    {
+        AbilityCategory slotCategory = GetAbilitySlotCategory(slotIndex);
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            if (runtime?.Definition != null && runtime.Definition.Category == slotCategory)
+            {
+                return runtime;
+            }
+        }
+
+        return null;
+    }
+
+    public int GetRuntimeIndexForSlot(int slotIndex)
+    {
+        AbilityCategory slotCategory = GetAbilitySlotCategory(slotIndex);
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            if (runtime?.Definition != null && runtime.Definition.Category == slotCategory)
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     public bool TryUseAbility(int abilityIndex, Vector2Int? targetCell = null)
@@ -158,6 +284,15 @@ public class Character : MonoBehaviour
         if (!success)
         {
             return false;
+        }
+
+        if (HasItem(ItemRewardKey.SandglassTalisman)
+            && !sandglassTalismanTriggeredThisCombat
+            && runtime.Definition != null
+            && runtime.Definition.CooldownTurns > 0)
+        {
+            runtime.ReduceCooldown(1);
+            sandglassTalismanTriggeredThisCombat = true;
         }
 
         NotifyMovementPointsChanged();
@@ -198,27 +333,268 @@ public class Character : MonoBehaviour
         NotifyMovementPointsChanged();
     }
 
-    public int DealDamageToEnemy(Enemy enemy, int baseDamage, bool addBonusDamage)
+    public int DealDamageToEnemy(Enemy enemy, int baseDamage, bool addBonusDamage, bool isAbilityDamage = false)
     {
         if (enemy == null)
         {
             return 0;
         }
 
+        RecalculateItemDrivenStats();
         int totalDamage = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
-        return enemy.TakeDamage(totalDamage);
+        if (HasItem(ItemRewardKey.ThornedBracer)
+            && enemy.CurrentHealth <= Mathf.Max(1, totalDamage - enemy.Resistance))
+        {
+            totalDamage += 2;
+        }
+
+        int appliedDamage = enemy.TakeDamage(totalDamage);
+        if (isAbilityDamage)
+        {
+            HandleAbilityDamageSideEffects(enemy);
+            if (enemy == markedEnemy && enemy.CurrentHealth > 0)
+            {
+                int bonusMarkDamage = enemy.TakeDamage(1);
+                appliedDamage += bonusMarkDamage;
+                if (enemy.CurrentHealth <= 0)
+                {
+                    HandleEnemyKilled(enemy);
+                }
+            }
+        }
+        if (enemy.CurrentHealth <= 0)
+        {
+            HandleEnemyKilled(enemy);
+        }
+
+        return appliedDamage;
     }
 
-    public int TakeDamage(int incomingDamage)
+    public int TakeDamage(int incomingDamage, Enemy sourceEnemy = null, bool wasProjectile = false)
     {
+        if (isDying)
+        {
+            return 0;
+        }
+
+        RecalculateItemDrivenStats();
         int finalDamage = Mathf.Max(1, incomingDamage - resistance);
+        if (HasItem(ItemRewardKey.LuckyCoin) && !luckyCoinUsedThisCombat && currentHealth - finalDamage <= 0)
+        {
+            luckyCoinUsedThisCombat = true;
+            finalDamage = Mathf.Max(0, currentHealth - 1);
+        }
+
         currentHealth = Mathf.Max(0, currentHealth - finalDamage);
+        tookDamageDuringEnemyTurn = true;
 
         blinkFeedback?.Blink(Color.red, 0.5f, 0.12f);
         cam.Instance?.CamShake(finalDamage);
+        RecalculateItemDrivenStats();
         RefreshHpBar();
+        SyncRunStateHealth();
+
+        if (sourceEnemy != null)
+        {
+            if (!wasProjectile && HasItem(ItemRewardKey.ThornArmor) && IsEnemyClose(sourceEnemy))
+            {
+                DealDamageToEnemy(sourceEnemy, 1, false);
+            }
+
+            if (wasProjectile && HasItem(ItemRewardKey.Boomerang))
+            {
+                DealDamageToEnemy(sourceEnemy, 2, false);
+            }
+        }
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
 
         return finalDamage;
+    }
+
+    public void Heal(int amount)
+    {
+        if (amount <= 0 || currentHealth <= 0)
+        {
+            return;
+        }
+
+        currentHealth = Mathf.Clamp(currentHealth + amount, 0, maxHealth);
+        RecalculateItemDrivenStats();
+        RefreshHpBar();
+        SyncRunStateHealth();
+    }
+
+    public void GainMovementPoints(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        remainingMovementPoints += amount;
+        NotifyMovementPointsChanged();
+    }
+
+    public int GetUpgradeStacks(AbilityUpgradeKey upgradeKey)
+    {
+        return runRewardState != null ? runRewardState.GetUpgradeStacks(upgradeKey) : 0;
+    }
+
+    public bool HasItem(ItemRewardKey itemKey)
+    {
+        return runRewardState != null && runRewardState.HasItem(itemKey);
+    }
+
+    public void RefundAbilityTurnUse(AbilityDefinition ability, int amount = 1)
+    {
+        CharacterAbilityRuntime runtime = FindAbilityRuntime(ability);
+        runtime?.RefundTurnUse(amount);
+        NotifyAbilitiesChanged();
+    }
+
+    public void ResetAbilityAvailability(AbilityDefinition ability)
+    {
+        CharacterAbilityRuntime runtime = FindAbilityRuntime(ability);
+        runtime?.ResetAvailability();
+        NotifyAbilitiesChanged();
+    }
+
+    public void HandleEnemyCountChanged(int remainingEnemies)
+    {
+        RecalculateItemDrivenStats();
+
+        if (remainingEnemies != 1 || GetUpgradeStacks(AbilityUpgradeKey.NighttimeMenaceDeadlyDuel) <= 0)
+        {
+            return;
+        }
+
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            if (abilities[index].Definition is NighttimeMenaceAbility)
+            {
+                abilities[index].ResetAvailability();
+                NotifyAbilitiesChanged();
+                return;
+            }
+        }
+    }
+
+    public void HandlePlayerTurnEnded()
+    {
+        if (markedEnemy != null
+            && markedEnemy.CurrentHealth > 0
+            && GetUpgradeStacks(AbilityUpgradeKey.DeathMarkBleeding) > 0
+            && markedEnemy.CurrentHealth <= 2)
+        {
+            int executeDamage = markedEnemy.CurrentHealth;
+            markedEnemy.TakeDamage(executeDamage);
+            if (markedEnemy.CurrentHealth <= 0)
+            {
+                HandleEnemyKilled(markedEnemy);
+            }
+        }
+
+        if (HasItem(ItemRewardKey.CursedPuppet))
+        {
+            DamageHighestHealthEnemy(1);
+        }
+
+        if (HasItem(ItemRewardKey.SacredChalice))
+        {
+            Heal(1);
+        }
+
+        if (HasItem(ItemRewardKey.SwiftAnklet) && remainingMovementPoints >= 2)
+        {
+            Heal(1);
+        }
+
+        isFirstPlayerTurnOfArena = false;
+        ClearDeathMark();
+        RecalculateItemDrivenStats();
+    }
+
+    public void BeginEnemyTurn()
+    {
+        tookDamageDuringEnemyTurn = false;
+    }
+
+    public void HandleEnemyTurnEnded()
+    {
+        if (HasItem(ItemRewardKey.GuardMedal) && !tookDamageDuringEnemyTurn)
+        {
+            Heal(1);
+        }
+    }
+
+    public void AddTemporaryTurnBonusDamage(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        temporaryTurnBonusDamage += amount;
+        RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    public void ApplyDeathMark(Enemy enemy, DeathMarkAbility sourceAbility)
+    {
+        if (markedEnemy != null && markedEnemy != enemy)
+        {
+            markedEnemy.SetDeathMarkActive(false);
+        }
+
+        markedEnemy = enemy;
+        deathMarkAbility = sourceAbility;
+        markedEnemy?.SetDeathMarkActive(true);
+    }
+
+    public int DamageEnemiesAround(Vector2Int centerCell, int range, int damage, bool includeDiagonals = true)
+    {
+        if (Board == null || range <= 0 || damage <= 0)
+        {
+            return 0;
+        }
+
+        int hits = 0;
+        HashSet<Enemy> hitEnemies = new HashSet<Enemy>();
+        for (int offsetX = -range; offsetX <= range; offsetX++)
+        {
+            for (int offsetY = -range; offsetY <= range; offsetY++)
+            {
+                if (offsetX == 0 && offsetY == 0)
+                {
+                    continue;
+                }
+
+                if (!includeDiagonals && offsetX != 0 && offsetY != 0)
+                {
+                    continue;
+                }
+
+                if (Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)) > range)
+                {
+                    continue;
+                }
+
+                Vector2Int targetCell = centerCell + new Vector2Int(offsetX, offsetY);
+                if (!Board.TryGetEnemy(targetCell, out Enemy enemy) || enemy == null || !hitEnemies.Add(enemy))
+                {
+                    continue;
+                }
+
+                DealDamageToEnemy(enemy, damage, false, true);
+                hits++;
+            }
+        }
+
+        return hits;
     }
 
     public void PlayAttackAnimation(AnimationClip attackAnimationClip)
@@ -297,6 +673,25 @@ public class Character : MonoBehaviour
 
                 StartCoroutine(SpawnAbilityFxRoutine(fxConfig, target.transform, target));
             }
+        }
+    }
+
+    public void PlaySecondaryEffectFx(IReadOnlyList<SecondaryEffectFxSpawnConfig> fxConfigs, AbilityExecutionContext context)
+    {
+        if (fxConfigs == null || fxConfigs.Count == 0 || Board == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < fxConfigs.Count; index++)
+        {
+            SecondaryEffectFxSpawnConfig fxConfig = fxConfigs[index];
+            if (fxConfig == null || fxConfig.FxPrefab == null)
+            {
+                continue;
+            }
+
+            StartCoroutine(SpawnSecondaryEffectFxRoutine(fxConfig, context));
         }
     }
 
@@ -535,13 +930,14 @@ public class Character : MonoBehaviour
         hpFillBar.fillAmount = Mathf.Clamp01(fillRatio);
     }
 
-    private void InitializeAbilities()
+    private void InitializeAbilities(IReadOnlyList<AbilityDefinition> abilityDefinitions = null)
     {
         abilities.Clear();
 
-        for (int index = 0; index < startingAbilities.Count; index++)
+        IReadOnlyList<AbilityDefinition> sourceAbilities = abilityDefinitions ?? GetStartingAbilityDefinitions();
+        for (int index = 0; index < sourceAbilities.Count; index++)
         {
-            AbilityDefinition definition = startingAbilities[index];
+            AbilityDefinition definition = sourceAbilities[index];
             if (definition == null)
             {
                 continue;
@@ -567,6 +963,47 @@ public class Character : MonoBehaviour
         return false;
     }
 
+    private bool ShouldLimitNextSlideToOneCell()
+    {
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            if (runtime.Definition != null && runtime.Definition.LimitsNextSlideToOneCell(this, runtime))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private Vector2Int GetSingleStepDestination(Vector2Int direction)
+    {
+        Vector2Int targetCell = gridPosition + direction;
+        if (!Board.IsCellWalkable(targetCell))
+        {
+            return gridPosition;
+        }
+
+        return targetCell;
+    }
+
+    private void ConsumeSingleStepModifiers()
+    {
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            if (runtime.Definition == null || !runtime.Definition.LimitsNextSlideToOneCell(this, runtime))
+            {
+                continue;
+            }
+
+            runtime.Deactivate(this);
+        }
+
+        NotifyAbilitiesChanged();
+    }
+
     private void ApplyTraversalEffects()
     {
         if (traversedEnemiesBuffer.Count == 0)
@@ -584,7 +1021,7 @@ public class Character : MonoBehaviour
                 continue;
             }
 
-            int runtimeTraversalDamage = runtime.Definition.GetTraversalDamage(this, runtime);
+            int runtimeTraversalDamage = runtime.Definition.GetTraversalDamage(this, runtime, traversedEnemiesBuffer.Count);
             if (runtimeTraversalDamage <= 0)
             {
                 continue;
@@ -608,7 +1045,7 @@ public class Character : MonoBehaviour
                 continue;
             }
 
-            enemy.TakeDamage(traversalDamage);
+            DealDamageToEnemy(enemy, traversalDamage, false, true);
         }
 
         if (damagedEnemies.Count == 0)
@@ -620,6 +1057,15 @@ public class Character : MonoBehaviour
         {
             CharacterAbilityRuntime runtime = traversalAbilities[index];
             runtime.Definition?.PlayTraversalFx(this, damagedEnemies);
+        }
+
+        if (damagedEnemies.Count > 0)
+        {
+            float refundChance = 0.05f * GetUpgradeStacks(AbilityUpgradeKey.GhostStepsAdrenaline);
+            if (refundChance > 0f && UnityEngine.Random.value < refundChance)
+            {
+                GainMovementPoints(1);
+            }
         }
     }
 
@@ -660,6 +1106,36 @@ public class Character : MonoBehaviour
         }
     }
 
+    private IEnumerator SpawnSecondaryEffectFxRoutine(SecondaryEffectFxSpawnConfig fxConfig, AbilityExecutionContext context)
+    {
+        if (fxConfig == null || fxConfig.FxPrefab == null || Board == null)
+        {
+            yield break;
+        }
+
+        if (fxConfig.SpawnDelay > 0f)
+        {
+            yield return new WaitForSeconds(fxConfig.SpawnDelay);
+        }
+
+        Vector2Int anchorCell = ResolveSecondaryEffectAnchorCell(context, fxConfig.SpawnAnchor);
+        Vector3 anchorWorldPosition = Board.GridToWorldPosition(anchorCell) + Vector3.up * spawnHeight;
+        Quaternion referenceRotation = fxConfig.OffsetReference == SecondaryEffectOffsetReference.CharacterRotation
+            ? transform.rotation
+            : Quaternion.identity;
+        Vector3 spawnPosition = anchorWorldPosition + referenceRotation * fxConfig.PositionOffset;
+        Quaternion defaultFxRotation = fxConfig.FxPrefab.transform.rotation;
+        Vector3 defaultFxScale = fxConfig.FxPrefab.transform.localScale;
+        GameObject spawnedFx = Instantiate(fxConfig.FxPrefab, spawnPosition, defaultFxRotation);
+        spawnedFx.transform.rotation = defaultFxRotation;
+        spawnedFx.transform.localScale = defaultFxScale;
+
+        if (fxConfig.DestroyAfterSeconds > 0f)
+        {
+            Destroy(spawnedFx, fxConfig.DestroyAfterSeconds);
+        }
+    }
+
     private Quaternion GetAbilityFxReferenceRotation(AbilityFxSpawnConfig fxConfig, Enemy target)
     {
         switch (fxConfig.OffsetReference)
@@ -670,6 +1146,19 @@ public class Character : MonoBehaviour
                 return target != null ? target.transform.rotation : transform.rotation;
             default:
                 return Quaternion.identity;
+        }
+    }
+
+    private Vector2Int ResolveSecondaryEffectAnchorCell(AbilityExecutionContext context, SecondaryEffectAnchor anchor)
+    {
+        switch (anchor)
+        {
+            case SecondaryEffectAnchor.OriginCell:
+                return context.OriginCell;
+            case SecondaryEffectAnchor.TargetCell:
+                return context.TargetCell;
+            default:
+                return GridPosition;
         }
     }
 
@@ -689,6 +1178,46 @@ public class Character : MonoBehaviour
         {
             characterAnimator = GetComponentInChildren<Animator>(true);
         }
+    }
+
+    private void CacheBaseStatsIfNeeded()
+    {
+        ApplyCharacterDataDefinition();
+        if (baseStatsCached)
+        {
+            return;
+        }
+
+        baseMaxHealth = maxHealth;
+        baseBonusDamage = bonusDamage;
+        baseResistance = resistance;
+        baseMovementPointsPerTurn = movementPointsPerTurn;
+        baseStatsCached = true;
+    }
+
+    private void ApplyCharacterDataDefinition()
+    {
+        if (characterData == null)
+        {
+            return;
+        }
+
+        maxHealth = characterData.MaxHealth;
+        bonusDamage = characterData.BonusDamage;
+        resistance = characterData.Resistance;
+        movementPointsPerTurn = characterData.MovementPointsPerTurn;
+        if (baseStatsCached)
+        {
+            baseMaxHealth = maxHealth;
+            baseBonusDamage = bonusDamage;
+            baseResistance = resistance;
+            baseMovementPointsPerTurn = movementPointsPerTurn;
+        }
+    }
+
+    private IReadOnlyList<AbilityDefinition> GetStartingAbilityDefinitions()
+    {
+        return characterData != null ? characterData.StartingAbilities : Array.Empty<AbilityDefinition>();
     }
 
     private void CacheBody()
@@ -842,6 +1371,254 @@ public class Character : MonoBehaviour
         }
 
         targetBody.localRotation = defaultBodyLocalRotation;
+    }
+
+    private CharacterAbilityRuntime FindAbilityRuntime(AbilityDefinition ability)
+    {
+        if (ability == null)
+        {
+            return null;
+        }
+
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            if (abilities[index].Definition == ability)
+            {
+                return abilities[index];
+            }
+        }
+
+        return null;
+    }
+
+    private void HandleEnemyKilled(Enemy enemy)
+    {
+        if (HasItem(ItemRewardKey.BloodAmulet))
+        {
+            Heal(2);
+        }
+
+        if (HasItem(ItemRewardKey.RavenFeather))
+        {
+            GainMovementPoints(1);
+        }
+
+        if (enemy != null && enemy == markedEnemy)
+        {
+            if (GetUpgradeStacks(AbilityUpgradeKey.DeathMarkHuntingBonus) > 0)
+            {
+                Heal(2);
+            }
+
+            if (GetUpgradeStacks(AbilityUpgradeKey.DeathMarkCycleOfDeath) > 0 && deathMarkAbility != null)
+            {
+                ResetAbilityAvailability(deathMarkAbility);
+            }
+
+            ClearDeathMark();
+        }
+
+        if (Board != null && Board.SpawnedEnemies.Count == 1)
+        {
+            HandleEnemyCountChanged(1);
+        }
+    }
+
+    private bool IsEnemyClose(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return false;
+        }
+
+        return Mathf.Max(
+                   Mathf.Abs(enemy.GridPosition.x - gridPosition.x),
+                   Mathf.Abs(enemy.GridPosition.y - gridPosition.y))
+               <= 1;
+    }
+
+    private void SyncRunStateHealth()
+    {
+        runRewardState?.SetCurrentHealth(currentHealth);
+    }
+
+    private void HandleAbilityDamageSideEffects(Enemy enemy)
+    {
+        if (enemy == null || !HasItem(ItemRewardKey.FrostCharm) || !frostCharmedEnemiesThisTurn.Add(enemy))
+        {
+            return;
+        }
+
+        enemy.ApplyMobilityPenaltyNextTurn(1);
+    }
+
+    private void DamageHighestHealthEnemy(int damage)
+    {
+        if (Board == null || damage <= 0)
+        {
+            return;
+        }
+
+        Enemy targetEnemy = null;
+        int highestHealth = int.MinValue;
+        for (int index = 0; index < Board.SpawnedEnemies.Count; index++)
+        {
+            Enemy enemy = Board.SpawnedEnemies[index];
+            if (enemy == null)
+            {
+                continue;
+            }
+
+            if (enemy.CurrentHealth > highestHealth)
+            {
+                highestHealth = enemy.CurrentHealth;
+                targetEnemy = enemy;
+            }
+        }
+
+        if (targetEnemy != null)
+        {
+            DealDamageToEnemy(targetEnemy, damage, false);
+        }
+    }
+
+    private void RecalculateItemDrivenStats()
+    {
+        int staticMaxHealth = baseMaxHealth + (runRewardState != null ? runRewardState.GetBonusMaxHealth() : 0);
+        int staticBonusDamage = baseBonusDamage + (runRewardState != null ? runRewardState.GetBonusDamage() : 0);
+        int staticResistance = baseResistance + (runRewardState != null ? runRewardState.GetBonusResistance() : 0);
+        int staticMovementPoints = baseMovementPointsPerTurn + (runRewardState != null ? runRewardState.GetBonusMovementPoints() : 0);
+
+        bool isAtBaseFullHealth = currentHealth >= staticMaxHealth;
+        int adjacentEnemyCount = CountAdjacentEnemies();
+        int remainingEnemies = GetRemainingEnemyCount();
+
+        int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
+        int dynamicBonusDamage = temporaryTurnBonusDamage;
+        int dynamicResistance = 0;
+
+        if (HasItem(ItemRewardKey.DuelistsSpur) && remainingEnemies == 1)
+        {
+            dynamicBonusDamage += 1;
+        }
+
+        if (HasItem(ItemRewardKey.WarBanner) && isFirstPlayerTurnOfArena)
+        {
+            dynamicBonusDamage += 2;
+        }
+
+        if (HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth)
+        {
+            dynamicBonusDamage += 1;
+        }
+
+        if (HasItem(ItemRewardKey.IronGreaves) && isAtBaseFullHealth)
+        {
+            dynamicResistance += 2;
+        }
+
+        if (HasItem(ItemRewardKey.MoonLantern) && adjacentEnemyCount >= 2)
+        {
+            dynamicResistance += 1;
+        }
+
+        maxHealth = staticMaxHealth + dynamicMaxHealth;
+        bonusDamage = staticBonusDamage + dynamicBonusDamage;
+        resistance = staticResistance + dynamicResistance;
+        movementPointsPerTurn = staticMovementPoints;
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+        RefreshHpBar();
+        SyncRunStateHealth();
+    }
+
+    private void ClearDeathMark()
+    {
+        if (markedEnemy != null)
+        {
+            markedEnemy.SetDeathMarkActive(false);
+        }
+
+        markedEnemy = null;
+        deathMarkAbility = null;
+    }
+
+    private void Die()
+    {
+        if (isDying)
+        {
+            return;
+        }
+
+        isDying = true;
+        SpawnDeathFx();
+        moveTween?.Kill();
+        bodyRotationTween?.Kill();
+        IsMoving = false;
+
+        if (Board != null && Board.TryGetCell(gridPosition, out BoardCell cell) && cell.Occupant == gameObject)
+        {
+            cell.ClearOccupant();
+        }
+
+        Destroy(gameObject, deathDestroyDelay);
+    }
+
+    private void SpawnDeathFx()
+    {
+        if (fxDeathPrefab == null)
+        {
+            return;
+        }
+
+        GameObject deathFx = Instantiate(fxDeathPrefab, transform.position, fxDeathPrefab.transform.rotation);
+        deathFx.transform.localScale = fxDeathPrefab.transform.localScale;
+    }
+
+    private int CountAdjacentEnemies()
+    {
+        if (Board == null || Board.Cells == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 1; y++)
+            {
+                if (x == 0 && y == 0)
+                {
+                    continue;
+                }
+
+                Vector2Int targetCell = gridPosition + new Vector2Int(x, y);
+                if (Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private int GetRemainingEnemyCount()
+    {
+        if (Board == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        for (int index = 0; index < Board.SpawnedEnemies.Count; index++)
+        {
+            if (Board.SpawnedEnemies[index] != null)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private IEnumerator ResetTemporaryTrailColorAfterDelay(float duration)

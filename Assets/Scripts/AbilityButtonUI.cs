@@ -6,18 +6,26 @@ public class AbilityButtonUI : MonoBehaviour
 {
     [SerializeField] private Button button;
     [SerializeField] private Image abilityImage;
+    [SerializeField] private GameObject componentsRoot;
+    [SerializeField] private GameObject emptyRoot;
+    [SerializeField] private Image abilityTypeImage;
     [SerializeField] private TMP_Text countLabel;
     [SerializeField] private GameObject countRoot;
     [SerializeField] private GameObject activeIndicator;
     [SerializeField] private Color availableColor = Color.white;
     [SerializeField] private Color disabledColor = new Color(1f, 1f, 1f, 0.5f);
+    [SerializeField] private Sprite basicAttackTypeSprite;
+    [SerializeField] private Sprite mobilityTypeSprite;
+    [SerializeField] private Sprite specialPowerTypeSprite;
 
     private GameTurnManager gameTurnManager;
     private Character character;
-    private int abilityIndex = -1;
+    private int abilitySlotIndex = -1;
     private ActiveIndicator activeIndicatorEffect;
 
-    public int AbilityIndex => abilityIndex;
+    public int AbilityIndex => abilitySlotIndex;
+    public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
+    public Sprite TypeSprite => abilityTypeImage != null ? abilityTypeImage.sprite : null;
 
     private void Awake()
     {
@@ -34,14 +42,14 @@ public class AbilityButtonUI : MonoBehaviour
     {
         gameTurnManager = turnManager;
         character = boundCharacter;
-        abilityIndex = index;
+        abilitySlotIndex = index;
         Refresh();
     }
 
     public void Clear()
     {
         character = null;
-        abilityIndex = -1;
+        abilitySlotIndex = -1;
         Refresh();
     }
 
@@ -49,23 +57,36 @@ public class AbilityButtonUI : MonoBehaviour
     {
         CacheReferences();
 
-        CharacterAbilityRuntime runtime = character != null ? character.GetAbility(abilityIndex) : null;
+        CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
+        int runtimeIndex = character != null ? character.GetRuntimeIndexForSlot(abilitySlotIndex) : -1;
         bool hasAbility = runtime != null && runtime.Definition != null;
-        gameObject.SetActive(hasAbility);
-
-        if (!hasAbility)
-        {
-            return;
-        }
+        SetEmptyState(!hasAbility);
 
         bool isPlayerTurn = gameTurnManager != null && gameTurnManager.CurrentTurn == TurnSide.Player;
-        bool isUsable = isPlayerTurn && runtime.IsUsable(character);
-        bool isTargetingThis = gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == abilityIndex;
-        bool showUnlimitedCount = runtime.Definition.UsesPerTurn > 0 || runtime.Definition.UsesPerCombat > 0 || runtime.RemainingCooldown > 0;
+        bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character);
+        bool isTargetingThis = hasAbility && gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex;
+        bool showUnlimitedCount = hasAbility
+            && (runtime.Definition.UsesPerTurn > 0 || runtime.Definition.UsesPerCombat > 0 || runtime.RemainingCooldown > 0);
 
         if (button != null)
         {
             button.interactable = isUsable;
+        }
+
+        if (!hasAbility)
+        {
+            if (activeIndicator != null)
+            {
+                activeIndicator.SetActive(false);
+                activeIndicatorEffect?.SetBlinking(false);
+            }
+
+            if (countRoot != null)
+            {
+                countRoot.SetActive(false);
+            }
+
+            return;
         }
 
         if (runtime.Definition.Icon != null)
@@ -80,6 +101,12 @@ public class AbilityButtonUI : MonoBehaviour
         if (abilityImage != null)
         {
             abilityImage.color = targetColor;
+        }
+
+        if (abilityTypeImage != null)
+        {
+            abilityTypeImage.sprite = GetCategorySprite(runtime.Definition.Category);
+            abilityTypeImage.enabled = abilityTypeImage.sprite != null;
         }
 
         if (activeIndicator != null)
@@ -102,7 +129,18 @@ public class AbilityButtonUI : MonoBehaviour
 
     private void HandleClicked()
     {
-        gameTurnManager?.RequestAbilityUse(abilityIndex);
+        if (character == null)
+        {
+            return;
+        }
+
+        int runtimeIndex = character.GetRuntimeIndexForSlot(abilitySlotIndex);
+        if (runtimeIndex < 0)
+        {
+            return;
+        }
+
+        gameTurnManager?.RequestAbilityUse(runtimeIndex);
     }
 
     private void CacheReferences()
@@ -115,6 +153,29 @@ public class AbilityButtonUI : MonoBehaviour
         if (abilityImage == null)
         {
             abilityImage = transform.Find("Mask/iAbility")?.GetComponent<Image>();
+        }
+
+        if (componentsRoot == null)
+        {
+            Transform componentsTransform = transform.Find("Components");
+            if (componentsTransform != null)
+            {
+                componentsRoot = componentsTransform.gameObject;
+            }
+        }
+
+        if (emptyRoot == null)
+        {
+            Transform emptyTransform = transform.Find("Empty");
+            if (emptyTransform != null)
+            {
+                emptyRoot = emptyTransform.gameObject;
+            }
+        }
+
+        if (abilityTypeImage == null)
+        {
+            abilityTypeImage = transform.Find("iType")?.GetComponent<Image>();
         }
 
         if (countRoot == null)
@@ -152,6 +213,37 @@ public class AbilityButtonUI : MonoBehaviour
             {
                 activeIndicatorEffect = activeIndicator.AddComponent<ActiveIndicator>();
             }
+        }
+    }
+
+    private Sprite GetCategorySprite(AbilityCategory category)
+    {
+        switch (category)
+        {
+            case AbilityCategory.MobilitySkill:
+                return mobilityTypeSprite;
+            case AbilityCategory.SpecialPower:
+                return specialPowerTypeSprite;
+            default:
+                return basicAttackTypeSprite;
+        }
+    }
+
+    private void SetEmptyState(bool isEmpty)
+    {
+        if (abilityImage != null)
+        {
+            abilityImage.enabled = !isEmpty;
+        }
+
+        if (componentsRoot != null)
+        {
+            componentsRoot.SetActive(!isEmpty);
+        }
+
+        if (emptyRoot != null)
+        {
+            emptyRoot.SetActive(isEmpty);
         }
     }
 }

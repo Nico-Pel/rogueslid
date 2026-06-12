@@ -44,6 +44,9 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float moveDuration = 0.16f;
     [SerializeField] private float spawnHeight = 0.08f;
     [SerializeField] private float deathDestroyDelay = 0.12f;
+    [SerializeField] private GameObject fxDeathPrefab;
+    [SerializeField] private Transform deathMarkAnchor;
+    [SerializeField] private GameObject fxDeathMarkPrefab;
     [SerializeField] private Image hpFillBar;
 
     [Header("Projectile")]
@@ -57,12 +60,17 @@ public class Enemy : MonoBehaviour
 
     private Tween moveTween;
     private RendererBlinkFeedback blinkFeedback;
+    private bool isDying;
+    private GameObject activeDeathMarkFxInstance;
 
     public Vector2Int GridPosition => gridPosition;
     public int Mobility => mobility;
     public int CurrentHealth => currentHealth;
+    public int Resistance => resistance;
     public bool IsMoving { get; private set; }
     public BoardManager Board { get; private set; }
+
+    private int pendingMobilityPenalty;
 
     private void OnValidate()
     {
@@ -82,8 +90,24 @@ public class Enemy : MonoBehaviour
         SnapToGrid();
     }
 
+    public void SetDeathMarkActive(bool isActive)
+    {
+        if (isActive)
+        {
+            EnsureDeathMarkFx();
+            return;
+        }
+
+        ClearDeathMarkFx();
+    }
+
     public int TakeDamage(int incomingDamage)
     {
+        if (isDying)
+        {
+            return 0;
+        }
+
         int finalDamage = Mathf.Max(1, incomingDamage - resistance);
         currentHealth = Mathf.Max(0, currentHealth - finalDamage);
 
@@ -197,6 +221,9 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
+        int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
+        pendingMobilityPenalty = 0;
+
         bool temporaryFleeMove = attackFirst && attackAlways && !ShouldUseFleeBehaviour();
 
         if (attackFirst)
@@ -205,7 +232,7 @@ public class Enemy : MonoBehaviour
         }
 
         bool useFleeBehaviour = ShouldUseFleeBehaviour() || temporaryFleeMove;
-        for (int step = 0; step < mobility; step++)
+        for (int step = 0; step < effectiveMobility; step++)
         {
             if (!useFleeBehaviour
                 && CanAttackTargetFrom(gridPosition, target, false)
@@ -214,7 +241,7 @@ public class Enemy : MonoBehaviour
                 break;
             }
 
-            int remainingMovesAfterThisStep = mobility - step - 1;
+            int remainingMovesAfterThisStep = effectiveMobility - step - 1;
             bool moved = TryMoveOneStep(target, useFleeBehaviour, remainingMovesAfterThisStep);
             if (!moved)
             {
@@ -229,6 +256,33 @@ public class Enemy : MonoBehaviour
         {
             yield return AttackIfPossible(target, attackAlways);
         }
+    }
+
+    public void ApplyMobilityPenaltyNextTurn(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        pendingMobilityPenalty += amount;
+    }
+
+    public bool TryForcedMoveTo(Vector2Int targetCell)
+    {
+        if (Board == null || targetCell == gridPosition)
+        {
+            return false;
+        }
+
+        if (!Board.MoveOccupant(gridPosition, targetCell, BoardOccupantKind.Enemy))
+        {
+            return false;
+        }
+
+        gridPosition = targetCell;
+        AnimateToGrid();
+        return true;
     }
 
     private void SnapToGrid()
@@ -264,6 +318,7 @@ public class Enemy : MonoBehaviour
     {
         moveTween?.Kill();
         IsMoving = false;
+        ClearDeathMarkFx();
     }
 
     private void CacheHpBar()
@@ -640,7 +695,7 @@ public class Enemy : MonoBehaviour
             yield return FireProjectileAt(target);
         }
 
-        yield return ApplyDamageToTarget(target);
+        yield return ApplyDamageToTarget(target, attackPattern == EnemyAttackPattern.Projectile);
         yield return new WaitForSeconds(0.08f);
     }
 
@@ -704,7 +759,7 @@ public class Enemy : MonoBehaviour
                 elapsedDelay += waitDuration;
             }
 
-            target.TakeDamage(force);
+            target.TakeDamage(force, this, false);
         }
 
         if (targetsInRange.Count > 0)
@@ -713,7 +768,7 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    private IEnumerator ApplyDamageToTarget(Character target)
+    private IEnumerator ApplyDamageToTarget(Character target, bool wasProjectile)
     {
         if (target == null)
         {
@@ -726,7 +781,7 @@ public class Enemy : MonoBehaviour
             yield return new WaitForSeconds(delay);
         }
 
-        target.TakeDamage(force);
+        target.TakeDamage(force, this, wasProjectile);
     }
 
     private float GetTargetDamageDelay(Character target)
@@ -775,11 +830,53 @@ public class Enemy : MonoBehaviour
 
     private void Die()
     {
+        if (isDying)
+        {
+            return;
+        }
+
+        isDying = true;
+        ClearDeathMarkFx();
+        SpawnDeathFx();
         if (Board != null)
         {
             Board.RemoveEnemy(this);
         }
 
         Destroy(gameObject, deathDestroyDelay);
+    }
+
+    private void SpawnDeathFx()
+    {
+        if (fxDeathPrefab == null)
+        {
+            return;
+        }
+
+        GameObject deathFx = Instantiate(fxDeathPrefab, transform.position, fxDeathPrefab.transform.rotation);
+        deathFx.transform.localScale = fxDeathPrefab.transform.localScale;
+    }
+
+    private void EnsureDeathMarkFx()
+    {
+        if (activeDeathMarkFxInstance != null || fxDeathMarkPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = deathMarkAnchor != null ? deathMarkAnchor : transform;
+        activeDeathMarkFxInstance = Instantiate(fxDeathMarkPrefab, anchor.position, fxDeathMarkPrefab.transform.rotation, anchor);
+        activeDeathMarkFxInstance.transform.localScale = fxDeathMarkPrefab.transform.localScale;
+    }
+
+    private void ClearDeathMarkFx()
+    {
+        if (activeDeathMarkFxInstance == null)
+        {
+            return;
+        }
+
+        Destroy(activeDeathMarkFxInstance);
+        activeDeathMarkFxInstance = null;
     }
 }

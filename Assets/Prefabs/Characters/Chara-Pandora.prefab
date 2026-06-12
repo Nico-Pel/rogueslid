@@ -1370,18 +1370,6 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1578293956684712627}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
-      propertyPath: characterBody
-      value: 
-      objectReference: {fileID: 8922063283189531563}
-    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
-      propertyPath: characterAnimator
-      value: 
-      objectReference: {fileID: 8747255651980216887}
-    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
-      propertyPath: characterTrail
-      value: 
-      objectReference: {fileID: 4385933384365382425}
-    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: partyIndex
       value: 0
       objectReference: {fileID: 0}
@@ -1390,9 +1378,25 @@ PrefabInstance:
       value: 0.18
       objectReference: {fileID: 0}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: characterBody
+      value: 
+      objectReference: {fileID: 8922063283189531563}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: fxDeathPrefab
+      value: 
+      objectReference: {fileID: 7451067184974426327, guid: 06dec1a7e28374079a426a3ff1907f97, type: 3}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: slidesPerTurn
       value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: characterTrail
+      value: 
+      objectReference: {fileID: 4385933384365382425}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: characterAnimator
+      value: 
+      objectReference: {fileID: 8747255651980216887}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: movementPointsPerTurn
       value: 4
@@ -1400,11 +1404,11 @@ PrefabInstance:
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: startingAbilities.Array.data[1]
       value: 
-      objectReference: {fileID: 11400000, guid: 1b8e4c6b80ff72940c24aed4ac810178, type: 2}
+      objectReference: {fileID: 11400000, guid: 364ec113b09a42ffb823f413bdad6b22, type: 2}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: startingAbilities.Array.data[2]
       value: 
-      objectReference: {fileID: 11400000, guid: 0a7d3b5a7fee6183fb139dc39bc70067, type: 2}
+      objectReference: {fileID: 0}
     - target: {fileID: 1654653390129865545, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

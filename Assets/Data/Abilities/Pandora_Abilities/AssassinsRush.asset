@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14bc78a815c549b4841cda816c02e111, type: 3}
+  m_Name: AssassinsRush
+  m_EditorClassIdentifier: 
+  abilityName: Assassin's Rush
+  icon: {fileID: -1795509447, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  category: 1
+  attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: c2020000000000000000000000000012, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000013, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000014, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000015, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseRange: 3
+  secondaryEffects:
+  - requiresUpgrade: 1
+    requiredUpgradeKey: 14
+    timing: 1
+    effect: {fileID: 11400000, guid: 349934efb1b3423385eb849f4f922cb4, type: 2}

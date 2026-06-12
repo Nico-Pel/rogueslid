@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a13f1e31a1d4a159f57c3f25d0bc002, type: 3}
+  m_Name: Reward_NighttimeMenace
+  m_EditorClassIdentifier: 
+  rewardId: reward_nighttime_menace
+  rewardTitle: Nighttime Menace
+  rewardDescription: Blink to any free tile within range 3. Nighttime Menace recovers in 2 turns.
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: 1b8e4c6b80ff72940c24aed4ac810178, type: 2}

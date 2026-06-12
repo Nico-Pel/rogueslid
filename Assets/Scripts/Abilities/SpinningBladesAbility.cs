@@ -9,17 +9,20 @@ public class SpinningBladesAbility : AbilityDefinition
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
     {
-        if (character == null || character.Board == null)
+        if (character == null || character.Board == null || runtime == null)
         {
             return false;
         }
 
         bool hitAtLeastOneEnemy = false;
         List<Enemy> hitEnemies = new List<Enemy>();
+        int kills = 0;
+        int range = 1 + character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesLongBlades);
+        int damage = baseDamage + character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesSharpening);
 
-        for (int offsetX = -1; offsetX <= 1; offsetX++)
+        for (int offsetX = -range; offsetX <= range; offsetX++)
         {
-            for (int offsetY = -1; offsetY <= 1; offsetY++)
+            for (int offsetY = -range; offsetY <= range; offsetY++)
             {
                 if (offsetX == 0 && offsetY == 0)
                 {
@@ -32,15 +35,29 @@ public class SpinningBladesAbility : AbilityDefinition
                     continue;
                 }
 
-                character.DealDamageToEnemy(enemy, baseDamage, true);
+                character.DealDamageToEnemy(enemy, damage, true, true);
                 hitAtLeastOneEnemy = true;
                 hitEnemies.Add(enemy);
+                if (enemy.CurrentHealth <= 0)
+                {
+                    kills++;
+                }
             }
         }
 
         if (hitAtLeastOneEnemy)
         {
             PlayConfiguredFx(character, hitEnemies);
+        }
+
+        if (kills > 0 && character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesBloodthirst) > 0)
+        {
+            character.RefundAbilityTurnUse(this, 1);
+        }
+
+        if (hitEnemies.Count > 1 && character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesLightningAttack) > 0)
+        {
+            character.GainMovementPoints(1);
         }
 
         return hitAtLeastOneEnemy;

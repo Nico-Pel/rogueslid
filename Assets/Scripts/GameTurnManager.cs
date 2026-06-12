@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -12,16 +13,18 @@ public enum TurnSide
 public class GameTurnManager : MonoBehaviour
 {
     [SerializeField] private BoardManager board;
+    [SerializeField] private UIGame uiGame;
     [SerializeField] private KeyCode debugEndTurnKey = KeyCode.Space;
     [SerializeField] private float swipeThreshold = 60f;
     [SerializeField] private float endTurnLockDuration = 6f;
-    [SerializeField] private float nextArenaDelay = 3f;
+    [SerializeField] private float rewardMenuDelay = 2f;
 
     private bool isEnemyTurnRunning;
     private bool isPointerTracking;
     private bool hasStarted;
     private bool hasPlayerActedThisTurn;
     private bool isArenaTransitionRunning;
+    private bool isRewardMenuOpen;
     private bool canEndTurn = true;
     private Coroutine endTurnUnlockCoroutine;
     private Coroutine nextArenaCoroutine;
@@ -43,6 +46,11 @@ public class GameTurnManager : MonoBehaviour
             board = GetComponent<BoardManager>();
         }
 
+        if (uiGame == null)
+        {
+            uiGame = FindFirstObjectByType<UIGame>();
+        }
+
         if (board != null)
         {
             board.AllEnemiesDefeated += HandleAllEnemiesDefeated;
@@ -62,7 +70,7 @@ public class GameTurnManager : MonoBehaviour
 
     private void Update()
     {
-        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning)
+        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)
         {
             return;
         }
@@ -84,6 +92,7 @@ public class GameTurnManager : MonoBehaviour
         }
 
         ClearPendingAbility();
+        board.Player?.ControlledCharacter?.HandlePlayerTurnEnded();
         StartCoroutine(RunEnemyTurn());
     }
 
@@ -98,8 +107,10 @@ public class GameTurnManager : MonoBehaviour
         isEnemyTurnRunning = false;
         isPointerTracking = false;
         isArenaTransitionRunning = false;
+        isRewardMenuOpen = false;
         nextArenaCoroutine = null;
         ClearPendingAbility();
+        uiGame?.HideRewards();
         BeginPlayerTurn();
     }
 
@@ -334,6 +345,7 @@ public class GameTurnManager : MonoBehaviour
     {
         isEnemyTurnRunning = true;
         CurrentTurn = TurnSide.Enemy;
+        board?.Player?.ControlledCharacter?.BeginEnemyTurn();
         StopEndTurnUnlockTimer();
         SetCanEndTurn(false);
         TurnChanged?.Invoke(CurrentTurn);
@@ -349,6 +361,7 @@ public class GameTurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.08f);
         }
 
+        board?.Player?.ControlledCharacter?.HandleEnemyTurnEnded();
         isEnemyTurnRunning = false;
 
         if (isArenaTransitionRunning)
@@ -435,6 +448,7 @@ public class GameTurnManager : MonoBehaviour
         }
 
         isArenaTransitionRunning = true;
+        isRewardMenuOpen = false;
         isPointerTracking = false;
         StopEndTurnUnlockTimer();
         ClearPendingAbility();
@@ -450,9 +464,43 @@ public class GameTurnManager : MonoBehaviour
 
     private IEnumerator LoadNextArenaAfterDelay()
     {
-        yield return new WaitForSeconds(nextArenaDelay);
+        yield return new WaitForSeconds(rewardMenuDelay);
         nextArenaCoroutine = null;
 
+        if (board == null)
+        {
+            yield break;
+        }
+
+        List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
+        if (rewardChoices.Count == 0)
+        {
+            CompleteArenaTransition();
+            yield break;
+        }
+
+        isRewardMenuOpen = true;
+        uiGame?.ShowRewards(rewardChoices, HandleRewardSelected, HandleRewardsIgnored);
+    }
+
+    private void HandleRewardSelected(RewardOffer rewardOffer)
+    {
+        if (board != null && rewardOffer != null)
+        {
+            board.ApplyReward(rewardOffer);
+        }
+
+        CompleteArenaTransition();
+    }
+
+    private void HandleRewardsIgnored()
+    {
+        CompleteArenaTransition();
+    }
+
+    private void CompleteArenaTransition()
+    {
+        isRewardMenuOpen = false;
         if (board != null)
         {
             board.GenerateNextArena();
