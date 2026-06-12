@@ -35,6 +35,7 @@ MonoBehaviour:
   replacementTrailPrefab: {fileID: 0}
   temporaryTrailReplacementDuration: 0.5
   baseDamage: 4
+  chainedStrikeEffect: {fileID: 11400000, guid: 26d3d0de10b3458ea05ce677d15a5582, type: 2}
   chainLineRendererPrefab: {fileID: 4280540280435078513, guid: 45f364ef811a74dd2a8148ea3604500c, type: 3}
   chainStartOffset: {x: 0, y: 0.1, z: 0}
   chainEndOffset: {x: 0, y: 0.1, z: 0}

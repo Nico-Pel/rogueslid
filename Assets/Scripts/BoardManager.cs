@@ -395,6 +395,69 @@ public class BoardManager : MonoBehaviour
         return int.MaxValue;
     }
 
+    public bool TryGetNextPathStep(Vector2Int start, Vector2Int goal, out Vector2Int nextStep, bool allowOccupiedGoal = false, bool ignoreBlockingTerrain = false)
+    {
+        nextStep = start;
+        if (!IsInsideBoard(start) || !IsInsideBoard(goal) || start == goal)
+        {
+            return false;
+        }
+
+        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
+        frontier.Enqueue(start);
+        cameFrom[start] = start;
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (frontier.Count > 0)
+        {
+            Vector2Int current = frontier.Dequeue();
+            if (current == goal)
+            {
+                break;
+            }
+
+            foreach (Vector2Int direction in directions)
+            {
+                Vector2Int next = current + direction;
+                if (!IsInsideBoard(next) || cameFrom.ContainsKey(next))
+                {
+                    continue;
+                }
+
+                bool canVisit = IsCellAvailableForMovement(next, ignoreBlockingTerrain) || (allowOccupiedGoal && next == goal);
+                if (!canVisit)
+                {
+                    continue;
+                }
+
+                cameFrom[next] = current;
+                frontier.Enqueue(next);
+            }
+        }
+
+        if (!cameFrom.ContainsKey(goal))
+        {
+            return false;
+        }
+
+        Vector2Int currentStep = goal;
+        while (cameFrom[currentStep] != start)
+        {
+            currentStep = cameFrom[currentStep];
+        }
+
+        nextStep = currentStep;
+        return true;
+    }
+
     public int GetManhattanDistance(Vector2Int a, Vector2Int b)
     {
         return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);

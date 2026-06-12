@@ -944,7 +944,7 @@ Transform:
   m_GameObject: {fileID: 7908605476123025929}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071067}
-  m_LocalPosition: {x: 2.9886699, y: 0.261, z: 0.008}
+  m_LocalPosition: {x: 0, y: 0.261, z: 0.008}
   m_LocalScale: {x: 1.0488011, y: 1.0488011, z: 1.0488011}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -979,7 +979,7 @@ Transform:
   m_GameObject: {fileID: 7995375190047823220}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1237,6 +1237,10 @@ PrefabInstance:
       value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: enemyBody
+      value: 
+      objectReference: {fileID: 7331464314856263630}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: hpFillBar
       value: 
       objectReference: {fileID: 8150807497776364976}
@@ -1256,6 +1260,10 @@ PrefabInstance:
       propertyPath: enemyAnimator
       value: 
       objectReference: {fileID: 7836768653334162408}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: lookAtTargetWhenAttacking
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4912393361358040595, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: m_LocalPosition.y
       value: 1.25

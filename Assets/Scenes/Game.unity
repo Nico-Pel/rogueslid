@@ -829,7 +829,7 @@ GameObject:
   - component: {fileID: 787303328}
   - component: {fileID: 787303332}
   m_Layer: 5
-  m_Name: Canvas
+  m_Name: UIGame
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -944,6 +944,7 @@ MonoBehaviour:
   mobilityConsumedColor: {r: 0, g: 0, b: 0, a: 1}
   rewardsMenu: {fileID: 1812770622}
   ignoreRewardsButton: {fileID: 33198323}
+  targetCellIndicatorPrefab: {fileID: 8042334540551948529, guid: 9cddbc990c5cb49099f7f828099985d9, type: 3}
 --- !u!1 &802420892
 GameObject:
   m_ObjectHideFlags: 0
@@ -3313,6 +3314,15 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 959ff7254cd8445a8432fad8f5ee5398, type: 2}
     - {fileID: 11400000, guid: 74638361c3ac4f4c91c3b9b6f4e6165b, type: 2}
     minArenaCount: 2
+    maxArenaCount: 4
+  - pools:
+    - {fileID: 11400000, guid: dd91250aba2734d1a9fd8284e0eed864, type: 2}
+    - {fileID: 11400000, guid: 4b28585239e5f47bba6f06bf1b018da6, type: 2}
+    - {fileID: 11400000, guid: e52505bb079634583a7a486ecba83ebb, type: 2}
+    - {fileID: 11400000, guid: 7e3cea25a8d6740389cf9ce26ad9b6e5, type: 2}
+    - {fileID: 11400000, guid: 95a490c0c2adb49b19316b0083cec10f, type: 2}
+    - {fileID: 11400000, guid: 34a560534c7ac40b5801937a6dd89278, type: 2}
+    minArenaCount: 5
     maxArenaCount: 1000
   itemRewardDefinitions:
   - {fileID: 11400000, guid: c2030000000000000000000000000001, type: 2}
@@ -3349,7 +3359,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   board: {fileID: 919132149174273994}
-  uiGame: {fileID: 0}
+  uiGame: {fileID: 787303332}
   debugEndTurnKey: 32
   swipeThreshold: 60
   endTurnLockDuration: 6

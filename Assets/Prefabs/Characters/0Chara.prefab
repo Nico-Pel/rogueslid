@@ -244,12 +244,42 @@ MonoBehaviour:
   currentHealth: 10
   bonusDamage: 0
   resistance: 0
-  movementPointsPerTurn: 2
+  movementPointsPerTurn: 4
   gridPosition: {x: 0, y: 0}
-  moveDuration: 0.18
-  spawnHeight: 0.08
+  moveDuration: 0.1
+  spawnHeight: 0.12
   deathDestroyDelay: 0.12
-  fxDeathPrefab: {fileID: 1613332221360154513, guid: 06dec1a7e28374079a426a3ff1907f97, type: 3}
+  fxDeathPrefab: {fileID: 7451067184974426327, guid: 06dec1a7e28374079a426a3ff1907f97, type: 3}
+  hpFillBar: {fileID: 6708919912438632488}
+  characterBody: {fileID: 0}
+  characterAnimator: {fileID: 0}
+  characterTrail: {fileID: 0}
+  dashingBoolParameter: Dashing
+  attackTriggerParameter: Attack
+  attackPlaceholderClipName: Attack_Spiral
+  orientTowardsDashDirection: 1
+  resetBodyRotationAfterSlide: 0
+  procFxConfigs:
+  - key: 0
+    fxPrefab: {fileID: 105942, guid: ff672eaca96d32c419d7a1f1b0346e8d, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 2
+  - key: 1
+    fxPrefab: {fileID: 2407364176693153571, guid: 271d75a6cdedb47168ae5dbf32bbd3e0, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 2
+  - key: 2
+    fxPrefab: {fileID: 2957013350672291843, guid: b7f6adfb4b043441c84b5a7841eed90e, type: 3}
+    positionOffset: {x: 0, y: 0.25, z: 0}
+    destroyAfterSeconds: 2
+  - key: 4
+    fxPrefab: {fileID: 4015235826899696612, guid: c5e0753db71804fe7be2f906ead7b0a1, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 2
+  - key: 3
+    fxPrefab: {fileID: 2957013350672291843, guid: b7f6adfb4b043441c84b5a7841eed90e, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 2
 --- !u!114 &9088583848115428104
 MonoBehaviour:
   m_ObjectHideFlags: 0

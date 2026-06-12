@@ -5,6 +5,30 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+public enum CharacterProcFxKey
+{
+    Heal,
+    BonusMovement,
+    Damage,
+    RetaliationHit,
+    Execute
+}
+
+[Serializable]
+public class CharacterProcFxConfig
+{
+    [SerializeField] private CharacterProcFxKey key;
+    [SerializeField] private GameObject fxPrefab;
+    [SerializeField] private Vector3 positionOffset;
+    [Min(0f)]
+    [SerializeField] private float destroyAfterSeconds = 1f;
+
+    public CharacterProcFxKey Key => key;
+    public GameObject FxPrefab => fxPrefab;
+    public Vector3 PositionOffset => positionOffset;
+    public float DestroyAfterSeconds => destroyAfterSeconds;
+}
+
 public class Character : MonoBehaviour
 {
     [Header("Core Stats")]
@@ -29,8 +53,10 @@ public class Character : MonoBehaviour
     [SerializeField] private string attackTriggerParameter = "Attack";
     [SerializeField] private string attackPlaceholderClipName = "Attack_Spiral";
     [SerializeField] private bool orientTowardsDashDirection = true;
-    [SerializeField] private float dashBodyRotateDuration = 0.1f;
-    [SerializeField] private float dashBodyResetDuration = 0.2f;
+    [SerializeField] private bool resetBodyRotationAfterSlide = true;
+    [SerializeField] private List<CharacterProcFxConfig> procFxConfigs = new List<CharacterProcFxConfig>();
+    private float dashBodyRotateDuration = 0.05f;
+    private float dashBodyResetDuration = 0.05f;
 
     private Renderer[] renderers;
     private Color[] baseColors;
@@ -399,11 +425,13 @@ public class Character : MonoBehaviour
             if (!wasProjectile && HasItem(ItemRewardKey.ThornArmor) && IsEnemyClose(sourceEnemy))
             {
                 DealDamageToEnemy(sourceEnemy, 1, false);
+                PlayProcFx(CharacterProcFxKey.RetaliationHit, sourceEnemy.EffectAnchor);
             }
 
             if (wasProjectile && HasItem(ItemRewardKey.Boomerang))
             {
                 DealDamageToEnemy(sourceEnemy, 2, false);
+                PlayProcFx(CharacterProcFxKey.RetaliationHit, sourceEnemy.EffectAnchor);
             }
         }
 
@@ -422,10 +450,15 @@ public class Character : MonoBehaviour
             return;
         }
 
+        int previousHealth = currentHealth;
         currentHealth = Mathf.Clamp(currentHealth + amount, 0, maxHealth);
         RecalculateItemDrivenStats();
         RefreshHpBar();
         SyncRunStateHealth();
+        if (currentHealth > previousHealth)
+        {
+            PlayProcFx(CharacterProcFxKey.Heal);
+        }
     }
 
     public void GainMovementPoints(int amount)
@@ -437,6 +470,12 @@ public class Character : MonoBehaviour
 
         remainingMovementPoints += amount;
         NotifyMovementPointsChanged();
+        PlayProcFx(CharacterProcFxKey.BonusMovement);
+    }
+
+    public void RefreshAbilityState()
+    {
+        NotifyAbilitiesChanged();
     }
 
     public int GetUpgradeStacks(AbilityUpgradeKey upgradeKey)
@@ -453,6 +492,13 @@ public class Character : MonoBehaviour
     {
         CharacterAbilityRuntime runtime = FindAbilityRuntime(ability);
         runtime?.RefundTurnUse(amount);
+        NotifyAbilitiesChanged();
+    }
+
+    public void GrantAbilityBonusTurnUse(AbilityDefinition ability, int amount = 1)
+    {
+        CharacterAbilityRuntime runtime = FindAbilityRuntime(ability);
+        runtime?.GrantBonusTurnUse(amount);
         NotifyAbilitiesChanged();
     }
 
@@ -490,6 +536,7 @@ public class Character : MonoBehaviour
             && GetUpgradeStacks(AbilityUpgradeKey.DeathMarkBleeding) > 0
             && markedEnemy.CurrentHealth <= 2)
         {
+            PlayProcFx(CharacterProcFxKey.Execute, markedEnemy.EffectAnchor);
             int executeDamage = markedEnemy.CurrentHealth;
             markedEnemy.TakeDamage(executeDamage);
             if (markedEnemy.CurrentHealth <= 0)
@@ -845,12 +892,15 @@ public class Character : MonoBehaviour
         SetDashingAnimation(true);
         Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
         moveTween = transform.DOMove(targetPosition, moveDuration)
-            .SetEase(Ease.OutQuad)
+            .SetEase(Ease.Linear)
             .OnComplete(() =>
             {
                 IsMoving = false;
                 moveTween = null;
-                ResetBodyRotation();
+                if (resetBodyRotationAfterSlide)
+                {
+                    ResetBodyRotation();
+                }
                 SetDashingAnimation(false);
             });
     }
@@ -998,6 +1048,7 @@ public class Character : MonoBehaviour
                 continue;
             }
 
+            runtime.ConsumePreparedActivation();
             runtime.Deactivate(this);
         }
 
@@ -1479,7 +1530,44 @@ public class Character : MonoBehaviour
         if (targetEnemy != null)
         {
             DealDamageToEnemy(targetEnemy, damage, false);
+            PlayProcFx(CharacterProcFxKey.Damage, targetEnemy.EffectAnchor);
         }
+    }
+
+    private void PlayProcFx(CharacterProcFxKey key, Transform targetAnchor = null)
+    {
+        CharacterProcFxConfig fxConfig = FindProcFxConfig(key);
+        if (fxConfig == null || fxConfig.FxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = targetAnchor != null ? targetAnchor : transform;
+        Vector3 spawnPosition = anchor.position + fxConfig.PositionOffset;
+        Quaternion defaultFxRotation = fxConfig.FxPrefab.transform.rotation;
+        Vector3 defaultFxScale = fxConfig.FxPrefab.transform.localScale;
+        GameObject spawnedFx = Instantiate(fxConfig.FxPrefab, spawnPosition, defaultFxRotation);
+        spawnedFx.transform.rotation = defaultFxRotation;
+        spawnedFx.transform.localScale = defaultFxScale;
+
+        if (fxConfig.DestroyAfterSeconds > 0f)
+        {
+            Destroy(spawnedFx, fxConfig.DestroyAfterSeconds);
+        }
+    }
+
+    private CharacterProcFxConfig FindProcFxConfig(CharacterProcFxKey key)
+    {
+        for (int index = 0; index < procFxConfigs.Count; index++)
+        {
+            CharacterProcFxConfig fxConfig = procFxConfigs[index];
+            if (fxConfig != null && fxConfig.Key == key)
+            {
+                return fxConfig;
+            }
+        }
+
+        return null;
     }
 
     private void RecalculateItemDrivenStats()

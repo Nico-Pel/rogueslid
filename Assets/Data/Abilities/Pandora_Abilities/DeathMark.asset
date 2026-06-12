@@ -27,10 +27,18 @@ MonoBehaviour:
   cooldownTurns: 2
   consumesMovementPoint: 0
   isToggle: 0
-  fxSpawns: []
+  fxSpawns:
+  - fxPrefab: {fileID: 3657197518546693389, guid: 169fcc7f3ecd3492098096923479044d, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 0
+    spawnAnchor: 1
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 0
   trailColorMode: 0
   trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
   temporaryTrailColorDuration: 0.5
   trailReplacementMode: 0
   replacementTrailPrefab: {fileID: 0}
   temporaryTrailReplacementDuration: 0.5
+  struckByFearEffect: {fileID: 11400000, guid: 07cb78ae8c3d4992b0609961cb7de423, type: 2}

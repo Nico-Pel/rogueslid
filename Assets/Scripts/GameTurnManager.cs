@@ -35,6 +35,8 @@ public class GameTurnManager : MonoBehaviour
     public BoardManager Board => board;
     public int PendingCellTargetAbilityIndex => pendingCellTargetAbilityIndex;
     public bool CanEndTurn => canEndTurn;
+    public bool IsRewardMenuOpen => isRewardMenuOpen;
+    public bool IsArenaTransitionRunning => isArenaTransitionRunning;
     public event Action<TurnSide> TurnChanged;
     public event Action<int> PendingAbilityChanged;
     public event Action<bool> EndTurnAvailabilityChanged;
@@ -252,13 +254,19 @@ public class GameTurnManager : MonoBehaviour
 
     private void TryHandlePointerRelease(Character character, Vector2 pointerEndPosition)
     {
+        Vector2 delta = pointerEndPosition - pointerStartPosition;
         if (pendingCellTargetAbilityIndex >= 0)
         {
             TryUseTargetedAbility(character, pointerEndPosition);
             return;
         }
 
-        TrySwipe(character, pointerEndPosition - pointerStartPosition);
+        if (delta.magnitude < swipeThreshold && TryUseActiveCellSelectableAbility(character, pointerEndPosition))
+        {
+            return;
+        }
+
+        TrySwipe(character, delta);
     }
 
     private void TrySwipe(Character character, Vector2 delta)
@@ -310,6 +318,92 @@ public class GameTurnManager : MonoBehaviour
             RegisterPlayerAction();
             ClearPendingAbility();
         }
+    }
+
+    private bool TryUseActiveCellSelectableAbility(Character character, Vector2 screenPosition)
+    {
+        if (character == null || board == null)
+        {
+            return false;
+        }
+
+        int abilityIndex = GetActiveCellSelectableAbilityIndex(character);
+        if (abilityIndex < 0)
+        {
+            return false;
+        }
+
+        CharacterAbilityRuntime runtime = character.GetAbility(abilityIndex);
+        if (runtime?.Definition == null)
+        {
+            return false;
+        }
+
+        if (!TryGetTargetCellFromScreen(screenPosition, out Vector2Int targetCell))
+        {
+            return false;
+        }
+
+        if (!runtime.Definition.TryActivateFromSelectedCell(character, runtime, targetCell))
+        {
+            return false;
+        }
+
+        runtime.ConsumePreparedActivation();
+        if (runtime.Definition.DeactivateAfterSelectedCellActivation)
+        {
+            runtime.Deactivate(character);
+        }
+
+        character.RefreshAbilityState();
+        RegisterPlayerAction();
+        return true;
+    }
+
+    private int GetActiveCellSelectableAbilityIndex(Character character)
+    {
+        if (character == null)
+        {
+            return -1;
+        }
+
+        for (int index = 0; index < character.Abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = character.GetAbility(index);
+            if (runtime?.Definition == null || !runtime.Definition.SupportsCellSelectionWhileActive(character, runtime))
+            {
+                continue;
+            }
+
+            return index;
+        }
+
+        return -1;
+    }
+
+    private bool TryGetTargetCellFromScreen(Vector2 screenPosition, out Vector2Int targetCell)
+    {
+        targetCell = default;
+        if (board == null)
+        {
+            return false;
+        }
+
+        Camera targetCamera = Camera.main;
+        if (targetCamera == null)
+        {
+            return false;
+        }
+
+        Plane boardPlane = new Plane(board.transform.up, board.transform.position);
+        Ray ray = targetCamera.ScreenPointToRay(screenPosition);
+        if (!boardPlane.Raycast(ray, out float distance))
+        {
+            return false;
+        }
+
+        Vector3 hitPoint = ray.GetPoint(distance);
+        return board.TryWorldToGridPosition(hitPoint, out targetCell);
     }
 
     private static bool IsPointerOverUI(Vector2 screenPosition, int fingerId)

@@ -3,6 +3,8 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Death Mark", fileName = "DeathMark")]
 public class DeathMarkAbility : AbilityDefinition
 {
+    [SerializeField] private SecondaryAbilityEffectDefinition struckByFearEffect;
+
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
@@ -29,7 +31,24 @@ public class DeathMarkAbility : AbilityDefinition
         int struckStacks = character.GetUpgradeStacks(AbilityUpgradeKey.DeathMarkStruckByFear);
         if (struckStacks > 0)
         {
-            character.DealDamageToEnemy(enemy, struckStacks, false, true);
+            AbilityExecutionContext struckContext = new AbilityExecutionContext(
+                this,
+                runtime,
+                character.GridPosition,
+                enemy.GridPosition,
+                enemy);
+
+            if (struckByFearEffect != null)
+            {
+                for (int index = 0; index < struckStacks; index++)
+                {
+                    struckByFearEffect.Execute(character, struckContext);
+                }
+            }
+            else
+            {
+                character.DealDamageToEnemy(enemy, struckStacks, false, true);
+            }
         }
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.DeathMarkPetrify) > 0)

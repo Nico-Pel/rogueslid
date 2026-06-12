@@ -55,8 +55,11 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float projectileTravelSpeed = 10f;
 
     [Header("Animation")]
+    [SerializeField] private Transform enemyBody;
     [SerializeField] private Animator enemyAnimator;
     [SerializeField] private string attackTriggerParameter = "Attack";
+    [SerializeField] private bool useFlyAnimationOnObstacle;
+    [SerializeField] private string flyingBoolParameter = "Flying";
 
     private Tween moveTween;
     private RendererBlinkFeedback blinkFeedback;
@@ -69,6 +72,7 @@ public class Enemy : MonoBehaviour
     public int Resistance => resistance;
     public bool IsMoving { get; private set; }
     public BoardManager Board { get; private set; }
+    public Transform EffectAnchor => deathMarkAnchor != null ? deathMarkAnchor : transform;
 
     private int pendingMobilityPenalty;
 
@@ -84,10 +88,12 @@ public class Enemy : MonoBehaviour
         Board = board;
         currentHealth = maxHealth;
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
+        CacheBody();
         CacheAnimator();
         CacheHpBar();
         RefreshHpBar();
         SnapToGrid();
+        RefreshFlyingAnimationState();
     }
 
     public void SetDeathMarkActive(bool isActive)
@@ -131,65 +137,14 @@ public class Enemy : MonoBehaviour
         }
 
         Vector2Int bestStep = gridPosition;
-        bool bestCanAttack = CanAttackTargetFrom(gridPosition, target, false);
-        int bestScore = useFleeBehaviour ? int.MinValue : int.MaxValue;
-
-        Vector2Int[] directions =
+        if (!useFleeBehaviour)
         {
-            Vector2Int.up,
-            Vector2Int.right,
-            Vector2Int.down,
-            Vector2Int.left
-        };
-
-        foreach (Vector2Int direction in directions)
-        {
-            Vector2Int candidate = gridPosition + direction;
-            if (!Board.TryGetCell(candidate, out BoardCell candidateCell))
+            if (!TryGetPursuitStep(target, remainingMovesAfterThisStep, out bestStep))
             {
-                continue;
-            }
-
-            if (!CanUseMovementCandidate(candidateCell, remainingMovesAfterThisStep))
-            {
-                continue;
-            }
-
-            bool canAttackFromCandidate = CanAttackTargetFrom(candidate, target, false);
-            int distanceScore = GetPursuitScore(candidate, target);
-            if (distanceScore == int.MaxValue)
-            {
-                continue;
-            }
-
-            if (!useFleeBehaviour)
-            {
-                if (canAttackFromCandidate && !bestCanAttack)
-                {
-                    bestCanAttack = true;
-                    bestScore = distanceScore;
-                    bestStep = candidate;
-                    continue;
-                }
-
-                if (canAttackFromCandidate == bestCanAttack && distanceScore < bestScore)
-                {
-                    bestScore = distanceScore;
-                    bestStep = candidate;
-                }
-            }
-            else
-            {
-                int fleeScore = Board.GetManhattanDistance(candidate, target.GridPosition);
-                if (fleeScore > bestScore)
-                {
-                    bestScore = fleeScore;
-                    bestStep = candidate;
-                }
+                return false;
             }
         }
-
-        if (bestStep == gridPosition)
+        else if (!TryGetFleeStep(target, remainingMovesAfterThisStep, out bestStep))
         {
             return false;
         }
@@ -205,6 +160,7 @@ public class Enemy : MonoBehaviour
 
         gridPosition = bestStep;
         AnimateToGrid();
+        RefreshFlyingAnimationState();
         return true;
     }
 
@@ -232,7 +188,8 @@ public class Enemy : MonoBehaviour
         }
 
         bool useFleeBehaviour = ShouldUseFleeBehaviour() || temporaryFleeMove;
-        for (int step = 0; step < effectiveMobility; step++)
+        List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
+        for (int step = 0; step < plannedPath.Count; step++)
         {
             if (!useFleeBehaviour
                 && CanAttackTargetFrom(gridPosition, target, false)
@@ -241,8 +198,7 @@ public class Enemy : MonoBehaviour
                 break;
             }
 
-            int remainingMovesAfterThisStep = effectiveMobility - step - 1;
-            bool moved = TryMoveOneStep(target, useFleeBehaviour, remainingMovesAfterThisStep);
+            bool moved = TryMoveToPlannedStep(plannedPath[step]);
             if (!moved)
             {
                 break;
@@ -256,6 +212,169 @@ public class Enemy : MonoBehaviour
         {
             yield return AttackIfPossible(target, attackAlways);
         }
+    }
+
+    private List<Vector2Int> BuildMovementPlan(Character target, bool useFleeBehaviour, int maxSteps)
+    {
+        List<Vector2Int> plannedPath = new List<Vector2Int>();
+        if (Board == null || target == null || maxSteps <= 0)
+        {
+            return plannedPath;
+        }
+
+        if (!useFleeBehaviour
+            && CanAttackTargetFrom(gridPosition, target, false)
+            && !advanceTowardsCharacterWhenAlreadyInRange)
+        {
+            return plannedPath;
+        }
+
+        if (useFleeBehaviour)
+        {
+            BuildReachabilityMap(maxSteps, out Dictionary<Vector2Int, int> distances, out Dictionary<Vector2Int, Vector2Int> cameFrom);
+            int bestFleeScore = int.MinValue;
+            int bestFleePathDistance = -1;
+            Vector2Int bestDestination = gridPosition;
+            bool foundDestination = false;
+            foreach (KeyValuePair<Vector2Int, int> entry in distances)
+            {
+                Vector2Int cellPosition = entry.Key;
+                int pathDistance = entry.Value;
+                if (cellPosition == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell) || !CanEndMovementOnCell(cell))
+                {
+                    continue;
+                }
+
+                int fleeScore = Board.GetManhattanDistance(cellPosition, target.GridPosition);
+                if (!foundDestination
+                    || fleeScore > bestFleeScore
+                    || (fleeScore == bestFleeScore && pathDistance > bestFleePathDistance))
+                {
+                    foundDestination = true;
+                    bestDestination = cellPosition;
+                    bestFleeScore = fleeScore;
+                    bestFleePathDistance = pathDistance;
+                }
+            }
+
+            if (!foundDestination || bestDestination == gridPosition || !cameFrom.ContainsKey(bestDestination))
+            {
+                return plannedPath;
+            }
+
+            Vector2Int currentStep = bestDestination;
+            while (currentStep != gridPosition)
+            {
+                plannedPath.Add(currentStep);
+                currentStep = cameFrom[currentStep];
+            }
+
+            plannedPath.Reverse();
+            return plannedPath;
+        }
+
+        bool shouldAdvanceAggressively = advanceTowardsCharacterWhenAlreadyInRange;
+        if (!shouldAdvanceAggressively
+            && TryFindBestAttackObjective(target, out Vector2Int attackObjective)
+            && TryBuildPathForCurrentMovementRules(gridPosition, attackObjective, out List<Vector2Int> attackPath))
+        {
+            AppendPathPrefix(plannedPath, attackPath, maxSteps);
+            return plannedPath;
+        }
+
+        if (TryBuildPathForCurrentMovementRules(gridPosition, target.GridPosition, out List<Vector2Int> targetPath, true))
+        {
+            AppendPathPrefix(plannedPath, targetPath, maxSteps);
+        }
+
+        return plannedPath;
+    }
+
+    private static void AppendPathPrefix(List<Vector2Int> destination, List<Vector2Int> fullPath, int maxSteps)
+    {
+        if (destination == null || fullPath == null || maxSteps <= 0)
+        {
+            return;
+        }
+
+        int stepCount = Mathf.Min(maxSteps, fullPath.Count);
+        for (int index = 0; index < stepCount; index++)
+        {
+            destination.Add(fullPath[index]);
+        }
+    }
+
+    private void BuildReachabilityMap(int maxSteps, out Dictionary<Vector2Int, int> distances, out Dictionary<Vector2Int, Vector2Int> cameFrom)
+    {
+        distances = new Dictionary<Vector2Int, int>();
+        cameFrom = new Dictionary<Vector2Int, Vector2Int>();
+        if (Board == null || maxSteps <= 0)
+        {
+            return;
+        }
+
+        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        frontier.Enqueue(gridPosition);
+        distances[gridPosition] = 0;
+        cameFrom[gridPosition] = gridPosition;
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (frontier.Count > 0)
+        {
+            Vector2Int current = frontier.Dequeue();
+            int currentDistance = distances[current];
+            if (currentDistance >= maxSteps)
+            {
+                continue;
+            }
+
+            foreach (Vector2Int direction in directions)
+            {
+                Vector2Int next = current + direction;
+                if (distances.ContainsKey(next) || !Board.TryGetCell(next, out BoardCell nextCell) || !CanPathThroughCell(nextCell))
+                {
+                    continue;
+                }
+
+                distances[next] = currentDistance + 1;
+                cameFrom[next] = current;
+                frontier.Enqueue(next);
+            }
+        }
+    }
+
+    private bool TryMoveToPlannedStep(Vector2Int nextStep)
+    {
+        if (Board == null || IsMoving || nextStep == gridPosition)
+        {
+            return false;
+        }
+
+        bool allowBlockedDestination = ignoreObstaclesForMovement
+            && Board.TryGetCell(nextStep, out BoardCell destinationCell)
+            && destinationCell.HasBlockingTerrain;
+
+        if (!Board.MoveOccupant(gridPosition, nextStep, BoardOccupantKind.Enemy, allowBlockedDestination))
+        {
+            return false;
+        }
+
+        gridPosition = nextStep;
+        AnimateToGrid();
+        RefreshFlyingAnimationState();
+        return true;
     }
 
     public void ApplyMobilityPenaltyNextTurn(int amount)
@@ -282,6 +401,7 @@ public class Enemy : MonoBehaviour
 
         gridPosition = targetCell;
         AnimateToGrid();
+        RefreshFlyingAnimationState();
         return true;
     }
 
@@ -318,6 +438,7 @@ public class Enemy : MonoBehaviour
     {
         moveTween?.Kill();
         IsMoving = false;
+        SetFlyingAnimation(false);
         ClearDeathMarkFx();
     }
 
@@ -340,6 +461,14 @@ public class Enemy : MonoBehaviour
         if (enemyAnimator == null)
         {
             enemyAnimator = GetComponentInChildren<Animator>();
+        }
+    }
+
+    private void CacheBody()
+    {
+        if (enemyBody == null && transform.childCount > 0)
+        {
+            enemyBody = transform.GetChild(0);
         }
     }
 
@@ -463,28 +592,131 @@ public class Enemy : MonoBehaviour
         return remainingMovesAfterThisStep > 0 && CanExitObstacleZone(candidateCell.GridPosition, remainingMovesAfterThisStep);
     }
 
-    private int GetPursuitScore(Vector2Int candidate, Character target)
+    private bool TryGetPursuitStep(Character target, int remainingMovesAfterThisStep, out Vector2Int bestStep)
     {
+        bestStep = gridPosition;
         if (Board == null || target == null)
         {
-            return int.MaxValue;
+            return false;
         }
 
-        if (CanAttackTargetFrom(candidate, target, false))
+        Vector2Int bestDestination = gridPosition;
+        int bestDestinationPathDistance = int.MaxValue;
+        int bestFallbackScore = int.MaxValue;
+        int bestFallbackPathDistance = int.MaxValue;
+        bool foundAttackDestination = false;
+        bool foundFallbackDestination = false;
+
+        for (int x = 0; x < Board.Width; x++)
         {
-            return 0;
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (cellPosition == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell) || !CanEndMovementOnCell(cell))
+                {
+                    continue;
+                }
+
+                int pathDistance = GetPathDistanceForCurrentMovementRules(gridPosition, cellPosition);
+                if (pathDistance == int.MaxValue)
+                {
+                    continue;
+                }
+
+                if (CanAttackTargetFrom(cellPosition, target, false))
+                {
+                    if (!foundAttackDestination
+                        || pathDistance < bestDestinationPathDistance
+                        || (pathDistance == bestDestinationPathDistance
+                            && Board.GetManhattanDistance(cellPosition, target.GridPosition) < Board.GetManhattanDistance(bestDestination, target.GridPosition)))
+                    {
+                        foundAttackDestination = true;
+                        bestDestination = cellPosition;
+                        bestDestinationPathDistance = pathDistance;
+                    }
+
+                    continue;
+                }
+
+                int fallbackScore = GetFutureAttackDistance(cellPosition, target);
+                if (fallbackScore == int.MaxValue)
+                {
+                    fallbackScore = GetBestReachableDistanceToTarget(cellPosition, target.GridPosition);
+                }
+
+                if (!foundFallbackDestination
+                    || fallbackScore < bestFallbackScore
+                    || (fallbackScore == bestFallbackScore && pathDistance < bestFallbackPathDistance))
+                {
+                    foundFallbackDestination = true;
+                    bestDestination = cellPosition;
+                    bestFallbackScore = fallbackScore;
+                    bestFallbackPathDistance = pathDistance;
+                }
+            }
         }
 
-        int attackPositionDistance = GetDistanceToClosestAttackPosition(candidate, target);
-        if (attackPositionDistance != int.MaxValue)
+        if (!foundAttackDestination && !foundFallbackDestination)
         {
-            return attackPositionDistance;
+            return false;
         }
 
-        return GetBestReachableDistanceToTarget(candidate, target.GridPosition);
+        if (!TryGetNextPathStepForCurrentMovementRules(gridPosition, bestDestination, out Vector2Int nextStep))
+        {
+            return false;
+        }
+
+        if (!Board.TryGetCell(nextStep, out BoardCell nextCell) || !CanUseMovementCandidate(nextCell, remainingMovesAfterThisStep))
+        {
+            return false;
+        }
+
+        bestStep = nextStep;
+        return bestStep != gridPosition;
     }
 
-    private int GetDistanceToClosestAttackPosition(Vector2Int start, Character target)
+    private bool TryGetFleeStep(Character target, int remainingMovesAfterThisStep, out Vector2Int bestStep)
+    {
+        bestStep = gridPosition;
+        if (Board == null || target == null)
+        {
+            return false;
+        }
+
+        int bestScore = int.MinValue;
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        foreach (Vector2Int direction in directions)
+        {
+            Vector2Int candidate = gridPosition + direction;
+            if (!Board.TryGetCell(candidate, out BoardCell candidateCell) || !CanUseMovementCandidate(candidateCell, remainingMovesAfterThisStep))
+            {
+                continue;
+            }
+
+            int fleeScore = Board.GetManhattanDistance(candidate, target.GridPosition);
+            if (fleeScore > bestScore)
+            {
+                bestScore = fleeScore;
+                bestStep = candidate;
+            }
+        }
+
+        return bestStep != gridPosition;
+    }
+
+    private int GetFutureAttackDistance(Vector2Int start, Character target)
     {
         if (Board == null || target == null || Board.Cells == null)
         {
@@ -517,7 +749,7 @@ public class Enemy : MonoBehaviour
                     continue;
                 }
 
-                int pathDistance = Board.GetPathDistance(start, cellPosition, false, ignoreObstaclesForMovement);
+                int pathDistance = GetPathDistanceForCurrentMovementRules(start, cellPosition);
                 if (pathDistance < bestDistance)
                 {
                     bestDistance = pathDistance;
@@ -562,7 +794,7 @@ public class Enemy : MonoBehaviour
                     continue;
                 }
 
-                if (nextCell.IsOccupied || (!nextCell.Walkable && !ignoreObstaclesForMovement))
+                if (!CanPathThroughCell(nextCell))
                 {
                     continue;
                 }
@@ -588,6 +820,263 @@ public class Enemy : MonoBehaviour
         }
 
         return ignoreObstaclesForMovement && canEndTurnOnObstacle;
+    }
+
+    private bool CanPathThroughCell(BoardCell cell)
+    {
+        if (cell == null || cell.IsOccupied)
+        {
+            return false;
+        }
+
+        return cell.Walkable || ignoreObstaclesForMovement;
+    }
+
+    private int GetPathDistanceForCurrentMovementRules(Vector2Int start, Vector2Int goal)
+    {
+        return GetPathDistanceForCurrentMovementRules(start, goal, false);
+    }
+
+    private int GetPathDistanceForCurrentMovementRules(Vector2Int start, Vector2Int goal, bool allowOccupiedGoal)
+    {
+        if (Board == null || !Board.IsInsideBoard(start) || !Board.IsInsideBoard(goal))
+        {
+            return int.MaxValue;
+        }
+
+        if (!Board.TryGetCell(goal, out BoardCell goalCell) || (!allowOccupiedGoal && !CanEndMovementOnCell(goalCell)))
+        {
+            return int.MaxValue;
+        }
+
+        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, int> distances = new Dictionary<Vector2Int, int>();
+        frontier.Enqueue(start);
+        distances[start] = 0;
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (frontier.Count > 0)
+        {
+            Vector2Int current = frontier.Dequeue();
+            if (current == goal)
+            {
+                return distances[current];
+            }
+
+            foreach (Vector2Int direction in directions)
+            {
+                Vector2Int next = current + direction;
+                if (!Board.TryGetCell(next, out BoardCell nextCell) || distances.ContainsKey(next))
+                {
+                    continue;
+                }
+
+                bool canVisit = next == goal
+                    ? (allowOccupiedGoal || CanEndMovementOnCell(nextCell))
+                    : CanPathThroughCell(nextCell);
+                if (!canVisit)
+                {
+                    continue;
+                }
+
+                distances[next] = distances[current] + 1;
+                frontier.Enqueue(next);
+            }
+        }
+
+        return int.MaxValue;
+    }
+
+    private bool TryFindBestAttackObjective(Character target, out Vector2Int bestObjective)
+    {
+        bestObjective = gridPosition;
+        if (Board == null || target == null || Board.Cells == null)
+        {
+            return false;
+        }
+
+        bool foundObjective = false;
+        int bestPathDistance = int.MaxValue;
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (cellPosition == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell) || !CanEndMovementOnCell(cell) || !CanAttackTargetFrom(cellPosition, target, false))
+                {
+                    continue;
+                }
+
+                int pathDistance = GetPathDistanceForCurrentMovementRules(gridPosition, cellPosition);
+                if (pathDistance == int.MaxValue)
+                {
+                    continue;
+                }
+
+                if (!foundObjective
+                    || pathDistance < bestPathDistance
+                    || (pathDistance == bestPathDistance
+                        && Board.GetManhattanDistance(cellPosition, target.GridPosition) < Board.GetManhattanDistance(bestObjective, target.GridPosition)))
+                {
+                    foundObjective = true;
+                    bestObjective = cellPosition;
+                    bestPathDistance = pathDistance;
+                }
+            }
+        }
+
+        return foundObjective;
+    }
+
+    private bool TryBuildPathForCurrentMovementRules(Vector2Int start, Vector2Int goal, out List<Vector2Int> path, bool allowOccupiedGoal = false)
+    {
+        path = new List<Vector2Int>();
+        if (Board == null || !Board.IsInsideBoard(start) || !Board.IsInsideBoard(goal) || start == goal)
+        {
+            return false;
+        }
+
+        if (!Board.TryGetCell(goal, out BoardCell goalCell) || (!allowOccupiedGoal && !CanEndMovementOnCell(goalCell)))
+        {
+            return false;
+        }
+
+        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
+        frontier.Enqueue(start);
+        cameFrom[start] = start;
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (frontier.Count > 0)
+        {
+            Vector2Int current = frontier.Dequeue();
+            if (current == goal)
+            {
+                break;
+            }
+
+            foreach (Vector2Int direction in directions)
+            {
+                Vector2Int next = current + direction;
+                if (!Board.TryGetCell(next, out BoardCell nextCell) || cameFrom.ContainsKey(next))
+                {
+                    continue;
+                }
+
+                bool canVisit = next == goal
+                    ? (allowOccupiedGoal || CanEndMovementOnCell(nextCell))
+                    : CanPathThroughCell(nextCell);
+                if (!canVisit)
+                {
+                    continue;
+                }
+
+                cameFrom[next] = current;
+                frontier.Enqueue(next);
+            }
+        }
+
+        if (!cameFrom.ContainsKey(goal))
+        {
+            return false;
+        }
+
+        Vector2Int currentStep = goal;
+        while (currentStep != start)
+        {
+            path.Add(currentStep);
+            currentStep = cameFrom[currentStep];
+        }
+
+        path.Reverse();
+        return path.Count > 0;
+    }
+
+    private bool TryGetNextPathStepForCurrentMovementRules(Vector2Int start, Vector2Int goal, out Vector2Int nextStep)
+    {
+        nextStep = start;
+        if (Board == null || !Board.IsInsideBoard(start) || !Board.IsInsideBoard(goal) || start == goal)
+        {
+            return false;
+        }
+
+        if (!Board.TryGetCell(goal, out BoardCell goalCell) || !CanEndMovementOnCell(goalCell))
+        {
+            return false;
+        }
+
+        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>();
+        frontier.Enqueue(start);
+        cameFrom[start] = start;
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (frontier.Count > 0)
+        {
+            Vector2Int current = frontier.Dequeue();
+            if (current == goal)
+            {
+                break;
+            }
+
+            foreach (Vector2Int direction in directions)
+            {
+                Vector2Int next = current + direction;
+                if (!Board.TryGetCell(next, out BoardCell nextCell) || cameFrom.ContainsKey(next))
+                {
+                    continue;
+                }
+
+                bool canVisit = next == goal ? CanEndMovementOnCell(nextCell) : CanPathThroughCell(nextCell);
+                if (!canVisit)
+                {
+                    continue;
+                }
+
+                cameFrom[next] = current;
+                frontier.Enqueue(next);
+            }
+        }
+
+        if (!cameFrom.ContainsKey(goal))
+        {
+            return false;
+        }
+
+        Vector2Int currentStep = goal;
+        while (cameFrom[currentStep] != start)
+        {
+            currentStep = cameFrom[currentStep];
+        }
+
+        nextStep = currentStep;
+        return true;
     }
 
     private bool CanExitObstacleZone(Vector2Int startPosition, int stepsAvailable)
@@ -628,7 +1117,7 @@ public class Enemy : MonoBehaviour
                     continue;
                 }
 
-                if (!nextCell.Walkable && !ignoreObstaclesForMovement)
+                if (!CanPathThroughCell(nextCell))
                 {
                     continue;
                 }
@@ -656,6 +1145,28 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void RefreshFlyingAnimationState()
+    {
+        if (!useFlyAnimationOnObstacle || Board == null || !Board.TryGetCell(gridPosition, out BoardCell currentCell))
+        {
+            SetFlyingAnimation(false);
+            return;
+        }
+
+        SetFlyingAnimation(currentCell.HasBlockingTerrain);
+    }
+
+    private void SetFlyingAnimation(bool isFlying)
+    {
+        CacheAnimator();
+        if (enemyAnimator == null || string.IsNullOrWhiteSpace(flyingBoolParameter))
+        {
+            return;
+        }
+
+        enemyAnimator.SetBool(flyingBoolParameter, isFlying);
+    }
+
     private void FaceTargetForAttack(Character target)
     {
         if (!lookAtTargetWhenAttacking || target == null)
@@ -670,7 +1181,12 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        transform.rotation = Quaternion.LookRotation(targetDirection.normalized, Vector3.up);
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : transform;
+        float targetYaw = Quaternion.LookRotation((-targetDirection).normalized, Vector3.up).eulerAngles.y;
+        Vector3 localEulerAngles = targetBody.localEulerAngles;
+        localEulerAngles.y = targetYaw;
+        targetBody.localEulerAngles = localEulerAngles;
     }
 
     private IEnumerator AttackIfPossible(Character target, bool ignoreRequirements)

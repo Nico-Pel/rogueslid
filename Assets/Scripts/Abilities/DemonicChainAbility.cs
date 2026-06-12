@@ -6,6 +6,7 @@ public class DemonicChainAbility : AbilityDefinition
 {
     [Min(1)]
     [SerializeField] private int baseDamage = 4;
+    [SerializeField] private SecondaryAbilityEffectDefinition chainedStrikeEffect;
     [SerializeField] private GameObject chainLineRendererPrefab;
     [SerializeField] private Vector3 chainStartOffset = new Vector3(0f, 0.1f, 0f);
     [SerializeField] private Vector3 chainEndOffset = new Vector3(0f, 0.1f, 0f);
@@ -57,7 +58,21 @@ public class DemonicChainAbility : AbilityDefinition
                 && enemy.CurrentHealth > 0
                 && IsAdjacentOrDiagonal(character.GridPosition, enemy.GridPosition))
             {
-                character.DealDamageToEnemy(enemy, 2, false, true);
+                AbilityExecutionContext chainedStrikeContext = new AbilityExecutionContext(
+                    this,
+                    runtime,
+                    character.GridPosition,
+                    enemy.GridPosition,
+                    enemy);
+
+                if (chainedStrikeEffect != null)
+                {
+                    chainedStrikeEffect.Execute(character, chainedStrikeContext);
+                }
+                else
+                {
+                    character.DealDamageToEnemy(enemy, 2, false, true);
+                }
             }
         }
 

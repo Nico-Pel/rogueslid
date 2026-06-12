@@ -101,6 +101,8 @@ public abstract class AbilityDefinition : ScriptableObject
     public IReadOnlyList<AbilityFxSpawnConfig> FxSpawns => fxSpawns;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
     public virtual bool KeepsActiveStateBetweenTurns => true;
+    public virtual bool RefundUseIfDeactivatedWithoutConsumption => false;
+    public virtual bool DeactivateAfterSelectedCellActivation => true;
 
     public virtual bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
@@ -118,6 +120,21 @@ public abstract class AbilityDefinition : ScriptableObject
     }
 
     public virtual bool LimitsNextSlideToOneCell(Character character, CharacterAbilityRuntime runtime)
+    {
+        return false;
+    }
+
+    public virtual bool SupportsCellSelectionWhileActive(Character character, CharacterAbilityRuntime runtime)
+    {
+        return false;
+    }
+
+    public virtual bool CanActivateFromSelectedCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
+    {
+        return false;
+    }
+
+    public virtual bool TryActivateFromSelectedCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         return false;
     }

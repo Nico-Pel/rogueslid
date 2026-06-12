@@ -52,7 +52,7 @@ public class SpinningBladesAbility : AbilityDefinition
 
         if (kills > 0 && character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesBloodthirst) > 0)
         {
-            character.RefundAbilityTurnUse(this, 1);
+            character.GrantAbilityBonusTurnUse(this, 1);
         }
 
         if (hitEnemies.Count > 1 && character.GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesLightningAttack) > 0)

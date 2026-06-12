@@ -12,10 +12,12 @@ public class CharacterAbilityRuntime
     public int UsesThisCombat { get; private set; }
     public int RemainingCooldown { get; private set; }
     public bool IsActive { get; private set; }
+    public int BonusUsesThisTurn { get; private set; }
+    private bool hasPreparedActivationPendingConsumption;
     public AbilityTargetingMode TargetingMode => Definition != null ? Definition.TargetingMode : AbilityTargetingMode.Immediate;
     public int RemainingUsesThisTurn => Definition == null || Definition.UsesPerTurn <= 0
         ? int.MaxValue
-        : Mathf.Max(0, Definition.UsesPerTurn - UsesThisTurn);
+        : Mathf.Max(0, Definition.UsesPerTurn + BonusUsesThisTurn - UsesThisTurn);
     public int RemainingUsesThisCombat => Definition == null || Definition.UsesPerCombat <= 0
         ? int.MaxValue
         : Mathf.Max(0, Definition.UsesPerCombat - UsesThisCombat);
@@ -26,6 +28,8 @@ public class CharacterAbilityRuntime
         UsesThisCombat = 0;
         RemainingCooldown = 0;
         IsActive = false;
+        BonusUsesThisTurn = 0;
+        hasPreparedActivationPendingConsumption = false;
     }
 
     public void BeginTurn(Character character)
@@ -36,6 +40,7 @@ public class CharacterAbilityRuntime
         }
 
         UsesThisTurn = 0;
+        BonusUsesThisTurn = 0;
         if (RemainingCooldown > 0)
         {
             RemainingCooldown--;
@@ -59,7 +64,7 @@ public class CharacterAbilityRuntime
             return false;
         }
 
-        if (Definition.UsesPerTurn > 0 && UsesThisTurn >= Definition.UsesPerTurn)
+        if (Definition.UsesPerTurn > 0 && UsesThisTurn >= Definition.UsesPerTurn + BonusUsesThisTurn)
         {
             return false;
         }
@@ -84,6 +89,16 @@ public class CharacterAbilityRuntime
             return;
         }
 
+        if (Definition != null
+            && Definition.RefundUseIfDeactivatedWithoutConsumption
+            && hasPreparedActivationPendingConsumption)
+        {
+            UsesThisTurn = Mathf.Max(0, UsesThisTurn - 1);
+            UsesThisCombat = Mathf.Max(0, UsesThisCombat - 1);
+            RemainingCooldown = 0;
+        }
+
+        hasPreparedActivationPendingConsumption = false;
         IsActive = false;
         Definition?.OnAbilityDeactivated(character, this);
     }
@@ -136,6 +151,7 @@ public class CharacterAbilityRuntime
         if (Definition.IsToggle)
         {
             IsActive = true;
+            hasPreparedActivationPendingConsumption = Definition.RefundUseIfDeactivatedWithoutConsumption;
         }
 
         Definition.PlayActivationAnimation(character);
@@ -154,10 +170,22 @@ public class CharacterAbilityRuntime
         UsesThisTurn = Mathf.Max(0, UsesThisTurn - amount);
     }
 
+    public void GrantBonusTurnUse(int amount = 1)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        BonusUsesThisTurn += amount;
+    }
+
     public void ResetAvailability()
     {
         UsesThisTurn = 0;
+        BonusUsesThisTurn = 0;
         RemainingCooldown = 0;
+        hasPreparedActivationPendingConsumption = false;
     }
 
     public void ReduceCooldown(int amount)
@@ -168,5 +196,10 @@ public class CharacterAbilityRuntime
         }
 
         RemainingCooldown = Mathf.Max(0, RemainingCooldown - amount);
+    }
+
+    public void ConsumePreparedActivation()
+    {
+        hasPreparedActivationPendingConsumption = false;
     }
 }

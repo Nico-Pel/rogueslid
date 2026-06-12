@@ -14,6 +14,12 @@ public enum SecondaryEffectTiming
     AfterMovement
 }
 
+public enum SecondaryEffectTargetMode
+{
+    None,
+    TargetEnemy
+}
+
 public enum SecondaryEffectOffsetReference
 {
     World,
@@ -70,18 +76,21 @@ public readonly struct AbilityExecutionContext
         AbilityDefinition sourceAbility,
         CharacterAbilityRuntime runtime,
         Vector2Int originCell,
-        Vector2Int targetCell)
+        Vector2Int targetCell,
+        Enemy targetEnemy = null)
     {
         SourceAbility = sourceAbility;
         Runtime = runtime;
         OriginCell = originCell;
         TargetCell = targetCell;
+        TargetEnemy = targetEnemy;
     }
 
     public AbilityDefinition SourceAbility { get; }
     public CharacterAbilityRuntime Runtime { get; }
     public Vector2Int OriginCell { get; }
     public Vector2Int TargetCell { get; }
+    public Enemy TargetEnemy { get; }
 }
 
 public abstract class SecondaryAbilityEffectDefinition : ScriptableObject

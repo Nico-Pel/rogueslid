@@ -19,11 +19,13 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Color mobilityConsumedColor = Color.black;
     [SerializeField] private GameObject rewardsMenu;
     [SerializeField] private Button ignoreRewardsButton;
+    [SerializeField] private GameObject targetCellIndicatorPrefab;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
     private readonly List<GameObject> itemIcons = new List<GameObject>();
     private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
     private readonly List<RewardButtonUI> rewardCards = new List<RewardButtonUI>();
+    private readonly List<GameObject> targetCellIndicators = new List<GameObject>();
     private Character observedCharacter;
     private Action<RewardOffer> onRewardSelected;
     private Action onRewardsIgnored;
@@ -165,6 +167,7 @@ public class UIGame : MonoBehaviour
             gameTurnManager.EndTurnAvailabilityChanged -= HandleEndTurnAvailabilityChanged;
         }
 
+        ClearTargetCellIndicators();
         UnbindCharacter();
     }
 
@@ -188,6 +191,8 @@ public class UIGame : MonoBehaviour
         }
 
         rewardsMenu.SetActive(true);
+        ClearTargetCellIndicators();
+        UpdateEndTurnButtonVisibility();
         for (int index = 0; index < rewardCards.Count; index++)
         {
             RewardOffer rewardOffer = rewardOffers != null && index < rewardOffers.Count ? rewardOffers[index] : null;
@@ -206,6 +211,8 @@ public class UIGame : MonoBehaviour
 
         onRewardSelected = null;
         onRewardsIgnored = null;
+        UpdateEndTurnButtonVisibility();
+        RefreshTargetCellIndicators();
     }
 
     private void HandleTurnChanged(TurnSide turnSide)
@@ -226,6 +233,7 @@ public class UIGame : MonoBehaviour
         RefreshAbilityButtons();
         RefreshItemsList();
         RefreshFooterCharacterInfo();
+        RefreshTargetCellIndicators();
     }
 
     private void BindToCurrentCharacter()
@@ -258,6 +266,7 @@ public class UIGame : MonoBehaviour
         RefreshAbilityButtons();
         RefreshItemsList();
         RefreshFooterCharacterInfo();
+        RefreshTargetCellIndicators();
     }
 
     private void UnbindCharacter()
@@ -268,11 +277,14 @@ public class UIGame : MonoBehaviour
             observedCharacter.AbilitiesChanged -= HandleAbilitiesChanged;
             observedCharacter = null;
         }
+
+        ClearTargetCellIndicators();
     }
 
     private void HandleMovementPointsChanged(Character character)
     {
         RefreshMobilityBar();
+        RefreshTargetCellIndicators();
     }
 
     private void HandleAbilitiesChanged(Character character)
@@ -280,11 +292,13 @@ public class UIGame : MonoBehaviour
         RefreshAbilityButtons();
         RefreshItemsList();
         RefreshFooterCharacterInfo();
+        RefreshTargetCellIndicators();
     }
 
     private void HandlePendingAbilityChanged(int abilityIndex)
     {
         RefreshAbilityButtons();
+        RefreshTargetCellIndicators();
     }
 
     private void HandleEndTurnAvailabilityChanged(bool isAvailable)
@@ -317,7 +331,10 @@ public class UIGame : MonoBehaviour
             return;
         }
 
-        bool shouldShow = gameTurnManager.CurrentTurn == TurnSide.Player && gameTurnManager.CanEndTurn;
+        bool shouldShow = gameTurnManager.CurrentTurn == TurnSide.Player
+            && gameTurnManager.CanEndTurn
+            && !gameTurnManager.IsRewardMenuOpen
+            && !gameTurnManager.IsArenaTransitionRunning;
         if (endTurnButton.gameObject.activeSelf != shouldShow)
         {
             endTurnButton.gameObject.SetActive(shouldShow);
@@ -365,6 +382,101 @@ public class UIGame : MonoBehaviour
             bool isAvailable = index < observedCharacter.RemainingMovementPoints;
             SetMobilityIconColor(mobilityIcons[index], isAvailable ? mobilityAvailableColor : mobilityConsumedColor);
         }
+    }
+
+    private void RefreshTargetCellIndicators()
+    {
+        ClearTargetCellIndicators();
+
+        if (targetCellIndicatorPrefab == null
+            || observedCharacter == null
+            || gameTurnManager == null
+            || gameTurnManager.Board == null
+            || gameTurnManager.CurrentTurn != TurnSide.Player
+            || gameTurnManager.IsRewardMenuOpen
+            || gameTurnManager.IsArenaTransitionRunning)
+        {
+            return;
+        }
+
+        CharacterAbilityRuntime runtime = GetCurrentTargetIndicatorRuntime();
+        if (runtime?.Definition == null)
+        {
+            return;
+        }
+
+        List<Vector2Int> validCells = GetValidTargetCells(runtime);
+        for (int index = 0; index < validCells.Count; index++)
+        {
+            Vector3 spawnPosition = gameTurnManager.Board.GridToWorldPosition(validCells[index]);
+            GameObject indicator = Instantiate(targetCellIndicatorPrefab, spawnPosition, targetCellIndicatorPrefab.transform.rotation, gameTurnManager.Board.transform);
+            indicator.name = $"{targetCellIndicatorPrefab.name}_{validCells[index].x}_{validCells[index].y}";
+            indicator.transform.localScale = targetCellIndicatorPrefab.transform.localScale;
+            targetCellIndicators.Add(indicator);
+        }
+    }
+
+    private CharacterAbilityRuntime GetCurrentTargetIndicatorRuntime()
+    {
+        int pendingAbilityIndex = gameTurnManager.PendingCellTargetAbilityIndex;
+        if (pendingAbilityIndex >= 0)
+        {
+            return observedCharacter.GetAbility(pendingAbilityIndex);
+        }
+
+        for (int index = 0; index < observedCharacter.Abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = observedCharacter.GetAbility(index);
+            if (runtime?.Definition != null && runtime.Definition.SupportsCellSelectionWhileActive(observedCharacter, runtime))
+            {
+                return runtime;
+            }
+        }
+
+        return null;
+    }
+
+    private List<Vector2Int> GetValidTargetCells(CharacterAbilityRuntime runtime)
+    {
+        List<Vector2Int> validCells = new List<Vector2Int>();
+        if (runtime?.Definition == null || gameTurnManager?.Board == null)
+        {
+            return validCells;
+        }
+
+        BoardManager board = gameTurnManager.Board;
+        bool isPendingTargetedAbility = gameTurnManager.PendingCellTargetAbilityIndex >= 0;
+
+        for (int x = 0; x < board.Width; x++)
+        {
+            for (int y = 0; y < board.Height; y++)
+            {
+                Vector2Int cell = new Vector2Int(x, y);
+                bool isValid = isPendingTargetedAbility
+                    ? runtime.Definition.CanActivateOnCell(observedCharacter, runtime, cell)
+                    : runtime.Definition.CanActivateFromSelectedCell(observedCharacter, runtime, cell);
+
+                if (isValid)
+                {
+                    validCells.Add(cell);
+                }
+            }
+        }
+
+        return validCells;
+    }
+
+    private void ClearTargetCellIndicators()
+    {
+        for (int index = 0; index < targetCellIndicators.Count; index++)
+        {
+            if (targetCellIndicators[index] != null)
+            {
+                Destroy(targetCellIndicators[index]);
+            }
+        }
+
+        targetCellIndicators.Clear();
     }
 
     private void CacheAbilityButtons()

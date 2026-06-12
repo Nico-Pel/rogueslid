@@ -97,8 +97,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74150845115884f10b8c79941c8c4ad9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  scaleMultiplier: {x: 1.1, y: 1.1, z: 1.1}
-  scaleDuration: 1
+  scaleMultiplier: {x: 1.2, y: 1.2, z: 1.2}
+  scaleDuration: 0.5
   scaleEase: 4
 --- !u!1 &4144369137230570261
 GameObject:
