@@ -20,7 +20,7 @@ MonoBehaviour:
     spawnAnchor: 0
     offsetReference: 0
     positionOffset: {x: 0, y: 0, z: 0}
-  anchor: 0
+  anchor: 2
   range: 1
   damage: 2
   includeDiagonals: 1

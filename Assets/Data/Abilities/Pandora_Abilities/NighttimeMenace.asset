@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityName: Nighttime Menace
   icon: {fileID: -306928396, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
   category: 1
-  attackAnimationClip: {fileID: 7400000, guid: 8a1c979f827d24949911a01112be6137, type: 2}
+  attackAnimationClip: {fileID: 0}
   linkedUpgradeRewards:
   - {fileID: 11400000, guid: c2020000000000000000000000000008, type: 2}
   - {fileID: 11400000, guid: c2020000000000000000000000000009, type: 2}

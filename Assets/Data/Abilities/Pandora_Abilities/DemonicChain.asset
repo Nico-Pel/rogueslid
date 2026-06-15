@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: DemonicChain
   m_EditorClassIdentifier: 
   abilityName: Demonic Chain
-  icon: {fileID: 1039267727, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  icon: {fileID: 1301844510, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: b38d7f7a102c24e0ca2516e2429bfbf1, type: 2}
   linkedUpgradeRewards:

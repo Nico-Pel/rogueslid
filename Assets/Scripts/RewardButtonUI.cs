@@ -37,9 +37,13 @@ public readonly struct RewardButtonStyle
 
 public class RewardButtonUI : MonoBehaviour
 {
+    private static readonly Color PowerOutlineColor = new Color32(0x92, 0x00, 0xBE, 0xFF);
+    private static readonly Color ItemOutlineColor = new Color32(0x96, 0x7F, 0x62, 0xFF);
+
     [SerializeField] private Button button;
     [SerializeField] private Image background;
     [SerializeField] private Image artworkImage;
+    [SerializeField] private Image outlineImage;
     [SerializeField] private GameObject powerStroke;
     [SerializeField] private Image titleBackground;
     [SerializeField] private TMP_Text titleText;
@@ -112,6 +116,13 @@ public class RewardButtonUI : MonoBehaviour
             typeIcon.sprite = resolvedTypeIcon;
         }
 
+        if (outlineImage != null)
+        {
+            outlineImage.color = rewardOffer.Kind == RewardOfferKind.Item
+                ? ItemOutlineColor
+                : PowerOutlineColor;
+        }
+
         if (powerStroke != null)
         {
             powerStroke.SetActive(rewardOffer.ShowPowerStroke);
@@ -180,6 +191,11 @@ public class RewardButtonUI : MonoBehaviour
         if (artworkImage == null)
         {
             artworkImage = transform.Find("MaskIcon/PowerSprite")?.GetComponent<Image>();
+        }
+
+        if (outlineImage == null)
+        {
+            outlineImage = transform.Find("MaskIcon/iOutline")?.GetComponent<Image>();
         }
 
         if (powerStroke == null)

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SpinningBlades
   m_EditorClassIdentifier: 
   abilityName: Spinning blades
-  icon: {fileID: -767586726, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  icon: {fileID: -409810025, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: b38d7f7a102c24e0ca2516e2429bfbf1, type: 2}
   linkedUpgradeRewards:
@@ -34,6 +34,12 @@ MonoBehaviour:
     offsetReference: 0
     positionOffset: {x: 0, y: 0, z: 0}
     parentToAnchor: 0
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
   baseDamage: 5
   defaultSpinFxPrefab: {fileID: 6163134623645628608, guid: 1e914563f58864674b4873f04547d1aa, type: 3}
   largeSpinFxPrefab: {fileID: 6163134623645628608, guid: 284854e152b04453daa208c83d7fd714, type: 3}

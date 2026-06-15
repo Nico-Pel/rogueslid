@@ -156,6 +156,43 @@ public class SoundManager : MonoBehaviour
         PlayUiSound(clickSound, clickVolume, 1f);
     }
 
+    public SoundInstance Play2DSound(
+        AudioClip clip,
+        float volume = 1f,
+        float pitch = 1f,
+        float duration = -1f,
+        bool loop = false)
+    {
+        if (clip == null)
+        {
+            return null;
+        }
+
+        GameObject owner = new GameObject($"Sound2D_{clip.name}");
+        Transform soundAnchor = GetSoundAnchor();
+        owner.transform.SetParent(soundAnchor, false);
+        owner.transform.localPosition = Vector3.zero;
+
+        AudioSource source = owner.AddComponent<AudioSource>();
+        source.clip = clip;
+        source.volume = Mathf.Clamp01(volume * sfxVolumeMultiplier);
+        source.pitch = pitch;
+        source.loop = loop;
+        source.spatialBlend = 0f;
+        source.Play();
+
+        float destroyDelay = duration > 0f
+            ? duration
+            : (loop ? -1f : clip.length / Mathf.Max(0.01f, Mathf.Abs(pitch)));
+
+        if (destroyDelay > 0f)
+        {
+            Destroy(owner, destroyDelay);
+        }
+
+        return new SoundInstance(source, owner);
+    }
+
     public SoundInstance PlaySound(
         AudioClip clip,
         Vector3 position,

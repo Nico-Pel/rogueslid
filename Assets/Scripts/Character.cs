@@ -94,6 +94,7 @@ public class Character : MonoBehaviour
     private GameObject activeNextAttackBonusAuraInstance;
     private Enemy markedEnemy;
     private DeathMarkAbility deathMarkAbility;
+    private int actionLockCount;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -102,8 +103,9 @@ public class Character : MonoBehaviour
     public int Resistance => resistance;
     public int BaseMovementPoints => movementPointsPerTurn;
     public int RemainingMovementPoints => remainingMovementPoints;
-    public bool CanAct => remainingMovementPoints > 0 && !IsMoving;
+    public bool CanAct => remainingMovementPoints > 0 && !IsBusy;
     public bool IsMoving { get; private set; }
+    public bool IsBusy => IsMoving || actionLockCount > 0;
     public Player Owner { get; private set; }
     public BoardManager Board { get; private set; }
     public CharacterData Data => characterData;
@@ -155,6 +157,7 @@ public class Character : MonoBehaviour
         tookDamageDuringEnemyTurn = false;
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
+        actionLockCount = 0;
         markedEnemy = null;
         deathMarkAbility = null;
         SnapToGrid();
@@ -226,7 +229,7 @@ public class Character : MonoBehaviour
 
     public bool TrySlide(Vector2Int direction)
     {
-        if (Board == null || remainingMovementPoints <= 0 || IsMoving || direction == Vector2Int.zero)
+        if (Board == null || remainingMovementPoints <= 0 || IsBusy || direction == Vector2Int.zero)
         {
             return false;
         }
@@ -303,7 +306,7 @@ public class Character : MonoBehaviour
     public bool TryUseAbility(int abilityIndex, Vector2Int? targetCell = null)
     {
         CharacterAbilityRuntime runtime = GetAbility(abilityIndex);
-        if (runtime == null || IsMoving)
+        if (runtime == null || IsBusy)
         {
             return false;
         }
@@ -366,6 +369,16 @@ public class Character : MonoBehaviour
 
         remainingMovementPoints--;
         NotifyMovementPointsChanged();
+    }
+
+    public void BeginActionLock()
+    {
+        actionLockCount++;
+    }
+
+    public void EndActionLock()
+    {
+        actionLockCount = Mathf.Max(0, actionLockCount - 1);
     }
 
     public int DealDamageToEnemy(
@@ -961,6 +974,7 @@ public class Character : MonoBehaviour
         moveTween?.Kill();
         bodyRotationTween?.Kill();
         IsMoving = false;
+        actionLockCount = 0;
         ClearNextAttackBonusAura();
         SnapBodyRotationToDefault();
         SetDashingAnimation(false);

@@ -95,7 +95,7 @@ GameObject:
   - component: {fileID: 1568213215659645438}
   - component: {fileID: 575714669096490803}
   - component: {fileID: 8789706822997655969}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: hpFillBar
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -213,6 +213,7 @@ MonoBehaviour:
   resistance: 0
   attackPattern: 0
   attackRange: 1
+  damageSoundType: 0
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0
@@ -240,8 +241,13 @@ MonoBehaviour:
   projectilePrefab: {fileID: 0}
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
+  enemyBody: {fileID: 0}
+  enemyCanvas: {fileID: 0}
   enemyAnimator: {fileID: 0}
   attackTriggerParameter: Attack
+  useFlyAnimationOnObstacle: 0
+  flyingBoolParameter: Flying
+  obstacleCanvasHeightOffset: 1
 --- !u!114 &1074041014115478145
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -268,7 +274,7 @@ GameObject:
   - component: {fileID: 5384017260614743609}
   - component: {fileID: 2338087563390687049}
   - component: {fileID: 4112894147306812618}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Canvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -372,7 +378,7 @@ GameObject:
   - component: {fileID: 5723789154935826527}
   - component: {fileID: 4346021201559092484}
   - component: {fileID: 700284976934519808}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: hpBarStroke
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -507,7 +513,7 @@ GameObject:
   - component: {fileID: 2470190554620897956}
   - component: {fileID: 4762356812925577015}
   - component: {fileID: 955970575556386858}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: hpBar
   m_TagString: Untagged
   m_Icon: {fileID: 0}

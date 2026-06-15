@@ -171,6 +171,7 @@ public class Enemy : MonoBehaviour
             return false;
         }
 
+        FaceMovementDirection(bestStep - gridPosition);
         gridPosition = bestStep;
         AnimateToGrid();
         RefreshFlyingAnimationState();
@@ -402,6 +403,7 @@ public class Enemy : MonoBehaviour
             return false;
         }
 
+        FaceMovementDirection(nextStep - gridPosition);
         gridPosition = nextStep;
         AnimateToGrid();
         RefreshFlyingAnimationState();
@@ -430,6 +432,7 @@ public class Enemy : MonoBehaviour
             return false;
         }
 
+        FaceMovementDirection(targetCell - gridPosition);
         gridPosition = targetCell;
         AnimateToGrid();
         RefreshFlyingAnimationState();
@@ -1277,6 +1280,27 @@ public class Enemy : MonoBehaviour
         CacheBody();
         Transform targetBody = enemyBody != null ? enemyBody : transform;
         float targetYaw = Quaternion.LookRotation((-targetDirection).normalized, Vector3.up).eulerAngles.y;
+        Vector3 localEulerAngles = targetBody.localEulerAngles;
+        localEulerAngles.y = targetYaw;
+        targetBody.localEulerAngles = localEulerAngles;
+    }
+
+    private void FaceMovementDirection(Vector2Int gridDirection)
+    {
+        if (gridDirection == Vector2Int.zero)
+        {
+            return;
+        }
+
+        Vector3 moveDirection = new Vector3(gridDirection.x, 0f, -gridDirection.y);
+        if (moveDirection.sqrMagnitude <= 0.0001f)
+        {
+            return;
+        }
+
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : transform;
+        float targetYaw = Quaternion.LookRotation((-moveDirection).normalized, Vector3.up).eulerAngles.y;
         Vector3 localEulerAngles = targetBody.localEulerAngles;
         localEulerAngles.y = targetYaw;
         targetBody.localEulerAngles = localEulerAngles;

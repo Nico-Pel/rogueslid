@@ -145,6 +145,23 @@ public class GameTurnManager : MonoBehaviour
 
         if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
         {
+            if (TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell))
+            {
+                bool singleTargetUsed = character.TryUseAbility(abilityIndex, singleTargetCell);
+                if (singleTargetUsed)
+                {
+                    RegisterPlayerAction();
+                    ClearPendingAbility();
+                }
+
+                return singleTargetUsed;
+            }
+
+            if (!HasAnyValidTargetCell(character, ability))
+            {
+                return false;
+            }
+
             if (pendingCellTargetAbilityIndex == abilityIndex)
             {
                 ClearPendingAbility();
@@ -166,6 +183,60 @@ public class GameTurnManager : MonoBehaviour
         }
 
         return used;
+    }
+
+    private bool TryGetSingleValidTargetCell(Character character, CharacterAbilityRuntime ability, out Vector2Int targetCell)
+    {
+        targetCell = default;
+        if (character == null || ability?.Definition == null || board == null)
+        {
+            return false;
+        }
+
+        bool foundOne = false;
+        for (int x = 0; x < board.Width; x++)
+        {
+            for (int y = 0; y < board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (!ability.Definition.CanActivateOnCell(character, ability, candidateCell))
+                {
+                    continue;
+                }
+
+                if (foundOne)
+                {
+                    targetCell = default;
+                    return false;
+                }
+
+                foundOne = true;
+                targetCell = candidateCell;
+            }
+        }
+
+        return foundOne;
+    }
+
+    private bool HasAnyValidTargetCell(Character character, CharacterAbilityRuntime ability)
+    {
+        if (character == null || ability?.Definition == null || board == null)
+        {
+            return false;
+        }
+
+        for (int x = 0; x < board.Width; x++)
+        {
+            for (int y = 0; y < board.Height; y++)
+            {
+                if (ability.Definition.CanActivateOnCell(character, ability, new Vector2Int(x, y)))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private void HandleDebugKeyboardInput()
@@ -212,7 +283,7 @@ public class GameTurnManager : MonoBehaviour
     private void HandleSwipeInput()
     {
         Character character = board.Player.ControlledCharacter;
-        if (character == null || character.IsMoving)
+        if (character == null || character.IsBusy)
         {
             return;
         }

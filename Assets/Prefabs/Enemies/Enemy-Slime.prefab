@@ -5085,6 +5085,7 @@ MonoBehaviour:
   duration: -1
   range: 15
   loop: 0
+  playOnCamera: 1
   sourceParent: {fileID: 0}
 --- !u!1001 &641257124862016529
 PrefabInstance:
@@ -5153,7 +5154,7 @@ PrefabInstance:
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: enemyBody
       value: 
-      objectReference: {fileID: 2166426622599667544}
+      objectReference: {fileID: 5179643888201822126}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: hpFillBar
       value: 
@@ -5166,6 +5167,10 @@ PrefabInstance:
       propertyPath: attackRange
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: enemyCanvas
+      value: 
+      objectReference: {fileID: 334610977284290365}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackAlways
       value: 1
@@ -5214,6 +5219,11 @@ PrefabInstance:
       addedObject: {fileID: 5179643888201822126}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+--- !u!224 &334610977284290365 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 883537977927486252, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+  m_PrefabInstance: {fileID: 641257124862016529}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &2166426622599667544 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1654653390129865545, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}

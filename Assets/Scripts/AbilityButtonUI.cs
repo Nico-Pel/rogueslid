@@ -26,6 +26,9 @@ public class AbilityButtonUI : MonoBehaviour
     public int AbilityIndex => abilitySlotIndex;
     public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
     public Sprite TypeSprite => abilityTypeImage != null ? abilityTypeImage.sprite : null;
+    public Sprite BasicAttackTypeSprite => basicAttackTypeSprite;
+    public Sprite MobilityTypeSprite => mobilityTypeSprite;
+    public Sprite SpecialPowerTypeSprite => specialPowerTypeSprite;
 
     private void Awake()
     {
@@ -229,6 +232,11 @@ public class AbilityButtonUI : MonoBehaviour
             default:
                 return basicAttackTypeSprite;
         }
+    }
+
+    public Sprite GetTypeSpriteForCategory(AbilityCategory category)
+    {
+        return GetCategorySprite(category);
     }
 
     private void SetEmptyState(bool isEmpty)

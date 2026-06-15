@@ -321,6 +321,7 @@ public class UIGame : MonoBehaviour
 
     private void HandleRewardSelected(RewardOffer rewardOffer)
     {
+        SoundManager.Instance?.PlayClick();
         Action<RewardOffer> selectedCallback = onRewardSelected;
         HideRewards();
         selectedCallback?.Invoke(rewardOffer);
@@ -612,22 +613,29 @@ public class UIGame : MonoBehaviour
         for (int index = 0; index < abilityButtons.Count; index++)
         {
             AbilityButtonUI button = abilityButtons[index];
-            if (button == null || button.BoundDefinition == null || button.TypeSprite == null)
+            if (button == null)
             {
                 continue;
             }
 
-            switch (button.BoundDefinition.Category)
+            if (basicAttackRewardIcon == null)
             {
-                case AbilityCategory.BasicAttack:
-                    basicAttackRewardIcon = button.TypeSprite;
-                    break;
-                case AbilityCategory.MobilitySkill:
-                    mobilityRewardIcon = button.TypeSprite;
-                    break;
-                case AbilityCategory.SpecialPower:
-                    specialRewardIcon = button.TypeSprite;
-                    break;
+                basicAttackRewardIcon = button.GetTypeSpriteForCategory(AbilityCategory.BasicAttack);
+            }
+
+            if (mobilityRewardIcon == null)
+            {
+                mobilityRewardIcon = button.GetTypeSpriteForCategory(AbilityCategory.MobilitySkill);
+            }
+
+            if (specialRewardIcon == null)
+            {
+                specialRewardIcon = button.GetTypeSpriteForCategory(AbilityCategory.SpecialPower);
+            }
+
+            if (basicAttackRewardIcon != null && mobilityRewardIcon != null && specialRewardIcon != null)
+            {
+                break;
             }
         }
     }

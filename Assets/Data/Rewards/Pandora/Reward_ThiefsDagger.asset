@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a13f1e31a1d4a159f57c3f25d0bc002, type: 3}
+  m_Name: Reward_ThiefsDagger
+  m_EditorClassIdentifier: 
+  rewardId: reward_thiefs_dagger
+  rewardTitle: Thief's Dagger
+  rewardDescription: Strike a single adjacent enemy for 5 damage.
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: 2517299324c84c25b12b5db893e60098, type: 2}

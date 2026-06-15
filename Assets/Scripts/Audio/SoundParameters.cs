@@ -12,6 +12,7 @@ public class SoundParameters : MonoBehaviour
     [SerializeField] private float duration = -1f;
     [SerializeField] private float range = 15f;
     [SerializeField] private bool loop;
+    [SerializeField] private bool playOnCamera = true;
     [SerializeField] private Transform sourceParent;
 
     private int lastPlayedClipIndex = -1;
@@ -43,6 +44,12 @@ public class SoundParameters : MonoBehaviour
         if (isUiSound)
         {
             SoundManager.Instance.PlayUiSound(clip, appliedVolume, pitch);
+            return;
+        }
+
+        if (playOnCamera)
+        {
+            SoundManager.Instance.Play2DSound(clip, appliedVolume, pitch, duration, loop);
             return;
         }
 

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3a13dbfb8764226aaab0a85ad6d62fc, type: 3}
+  m_Name: ThiefsDagger
+  m_EditorClassIdentifier: 
+  abilityName: Thief's Dagger
+  icon: {fileID: -1386984905, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
+  category: 0
+  attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards: []
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 0
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 5
