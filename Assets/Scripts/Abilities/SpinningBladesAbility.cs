@@ -38,7 +38,7 @@ public class SpinningBladesAbility : AbilityDefinition
                     continue;
                 }
 
-                character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Sword);
+                character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Sword, this);
                 hitAtLeastOneEnemy = true;
                 hitEnemies.Add(enemy);
                 if (enemy.CurrentHealth <= 0)

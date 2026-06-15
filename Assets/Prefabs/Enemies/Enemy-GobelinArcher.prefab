@@ -1232,6 +1232,10 @@ PrefabInstance:
       value: Enemy-GobelinArcher
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: enemyData
+      value: 
+      objectReference: {fileID: 11400000, guid: e99110dfa54444959a1ef4606c25c156, type: 2}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: flee
       value: 0
       objectReference: {fileID: 0}

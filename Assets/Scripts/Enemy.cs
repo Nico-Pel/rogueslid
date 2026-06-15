@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,38 +12,51 @@ public enum EnemyAttackPattern
     Projectile
 }
 
+public enum EnemyOptionalActionType
+{
+    None,
+    HealMostWoundedAlly
+}
+
 public class Enemy : MonoBehaviour
 {
+    [Header("Data")]
+    [SerializeField] private EnemyData enemyData;
+
     [Header("Core Stats")]
-    [SerializeField] private int maxHealth = 8;
+    [ReadOnly] [SerializeField] private int maxHealth = 8;
     [SerializeField] [ReadOnly] private int currentHealth = 8;
-    [SerializeField] private int force = 2;
-    [SerializeField] private int resistance;
+    [ReadOnly] [SerializeField] private int force = 2;
+    [ReadOnly] [SerializeField] private int resistance;
 
     [Header("Behaviour")]
-    [SerializeField] private EnemyAttackPattern attackPattern = EnemyAttackPattern.AdjacentOrthogonal;
-    [SerializeField] private int attackRange = 1;
-    [SerializeField] private DamageSoundType damageSoundType;
-    [SerializeField] private bool directVision = true;
-    [SerializeField] private bool requireAlignedShot;
-    [SerializeField] private bool allowPerfectDiagonalShot;
-    [SerializeField] private bool hasMaxRange = true;
-    [SerializeField] private bool ignoreObstacles;
-    [SerializeField] private bool attackAlways;
-    [SerializeField] private bool flee;
-    [SerializeField] private bool attackFirst;
-    [SerializeField] [Range(0f, 100f)] private float fleeThresholdPercent;
-    [SerializeField] private bool ignoreObstaclesForMovement;
-    [SerializeField] private bool canEndTurnOnObstacle;
-    [SerializeField] private bool advanceTowardsCharacterWhenAlreadyInRange;
-    [SerializeField] private float attackDamageDelay = 0.2f;
-    [SerializeField] private bool multiplyAttackDamageDelayByDistance;
-    [SerializeField] private bool lookAtTargetWhenAttacking;
+    [ReadOnly] [SerializeField] private EnemyAttackPattern attackPattern = EnemyAttackPattern.AdjacentOrthogonal;
+    [ReadOnly] [SerializeField] private int attackRange = 1;
+    [ReadOnly] [SerializeField] private DamageSoundType damageSoundType;
+    [ReadOnly] [SerializeField] private bool directVision = true;
+    [ReadOnly] [SerializeField] private bool requireAlignedShot;
+    [ReadOnly] [SerializeField] private bool allowPerfectDiagonalShot;
+    [ReadOnly] [SerializeField] private bool hasMaxRange = true;
+    [ReadOnly] [SerializeField] private bool ignoreObstacles;
+    [ReadOnly] [SerializeField] private bool attackAlways;
+    [ReadOnly] [SerializeField] private bool flee;
+    [Min(0)]
+    [ReadOnly] [SerializeField] private int maxFleeTurns = 2;
+    [ReadOnly] [SerializeField] private bool attackFirst;
+    [ReadOnly] [SerializeField] [Range(0f, 100f)] private float fleeThresholdPercent;
+    [ReadOnly] [SerializeField] private bool ignoreObstaclesForMovement;
+    [ReadOnly] [SerializeField] private bool canEndTurnOnObstacle;
+    [ReadOnly] [SerializeField] private bool advanceTowardsCharacterWhenAlreadyInRange;
+    [ReadOnly] [SerializeField] private float attackDamageDelay = 0.2f;
+    [ReadOnly] [SerializeField] private bool multiplyAttackDamageDelayByDistance;
+    [ReadOnly] [SerializeField] private bool lookAtTargetWhenAttacking;
+    [ReadOnly] [SerializeField] private EnemyOptionalActionType optionalActionType;
+    [ReadOnly] [SerializeField] private int optionalHealAmount = 4;
 
     [Header("Board")]
     [SerializeField] private Vector2Int gridPosition;
-    [SerializeField] private int mobility = 2;
-    [SerializeField] private float moveDuration = 0.16f;
+    [ReadOnly] [SerializeField] private int mobility = 2;
+    [ReadOnly] [SerializeField] private float moveDuration = 0.16f;
     [SerializeField] private float spawnHeight = 0.08f;
     [SerializeField] private float deathDestroyDelay = 0.12f;
     [SerializeField] private GameObject fxDeathPrefab;
@@ -52,17 +66,25 @@ public class Enemy : MonoBehaviour
 
     [Header("Projectile")]
     [SerializeField] private GameObject projectilePrefab;
-    [SerializeField] private float projectileTravelHeight = 0.5f;
-    [SerializeField] private float projectileTravelSpeed = 10f;
+    [ReadOnly] [SerializeField] private float projectileTravelHeight = 0.5f;
+    [ReadOnly] [SerializeField] private float projectileTravelSpeed = 10f;
 
     [Header("Animation")]
     [SerializeField] private Transform enemyBody;
     [SerializeField] private Transform enemyCanvas;
     [SerializeField] private Animator enemyAnimator;
     [SerializeField] private string attackTriggerParameter = "Attack";
-    [SerializeField] private bool useFlyAnimationOnObstacle;
+    [SerializeField] private string optionalActionTriggerParameter = "AltAttack";
+    [ReadOnly] [SerializeField] private bool useFlyAnimationOnObstacle;
     [SerializeField] private string flyingBoolParameter = "Flying";
     [SerializeField] private float obstacleCanvasHeightOffset = 1f;
+    [SerializeField] private GameObject optionalActionCasterFxPrefab;
+    [SerializeField] private Vector3 optionalActionCasterFxOffset;
+    [SerializeField] private float optionalActionCasterFxDelay;
+    [SerializeField] private GameObject optionalActionTargetFxPrefab;
+    [SerializeField] private Vector3 optionalActionTargetFxOffset;
+    [SerializeField] private float optionalActionTargetFxDelay;
+    [SerializeField] private float optionalActionFxLifetime = 1f;
 
     private Tween moveTween;
     private RendererBlinkFeedback blinkFeedback;
@@ -74,6 +96,8 @@ public class Enemy : MonoBehaviour
     private bool fleePermanentlyDisabled;
 
     public Vector2Int GridPosition => gridPosition;
+    public int MaxHealth => maxHealth;
+    public int Force => force;
     public int Mobility => mobility;
     public int CurrentHealth => currentHealth;
     public int Resistance => resistance;
@@ -82,17 +106,74 @@ public class Enemy : MonoBehaviour
     public bool IsMoving { get; private set; }
     public BoardManager Board { get; private set; }
     public Transform EffectAnchor => deathMarkAnchor != null ? deathMarkAnchor : transform;
+    public EnemyData Data => enemyData;
+    public string EnemyName => enemyData != null && !string.IsNullOrWhiteSpace(enemyData.EnemyName)
+        ? enemyData.EnemyName
+        : GetFallbackDisplayName();
+    public Sprite EnemyPortrait => enemyData != null ? enemyData.Portrait : null;
+    public string EnemySpecialInfo => enemyData != null ? enemyData.SpecialInfo : "The goblin is a classic enemy.";
 
     private int pendingMobilityPenalty;
 
     private void OnValidate()
     {
+        ApplyEnemyDataDefinition();
         maxHealth = Mathf.Max(1, maxHealth);
         currentHealth = maxHealth;
     }
 
+    private void ApplyEnemyDataDefinition()
+    {
+        if (enemyData == null)
+        {
+            return;
+        }
+
+        maxHealth = enemyData.MaxHealth;
+        force = enemyData.Force;
+        resistance = enemyData.Resistance;
+        attackPattern = enemyData.AttackPattern;
+        attackRange = enemyData.AttackRange;
+        damageSoundType = enemyData.DamageSoundType;
+        directVision = enemyData.DirectVision;
+        requireAlignedShot = enemyData.RequireAlignedShot;
+        allowPerfectDiagonalShot = enemyData.AllowPerfectDiagonalShot;
+        hasMaxRange = enemyData.HasMaxRange;
+        ignoreObstacles = enemyData.IgnoreObstacles;
+        attackAlways = enemyData.AttackAlways;
+        flee = enemyData.Flee;
+        maxFleeTurns = enemyData.MaxFleeTurns;
+        attackFirst = enemyData.AttackFirst;
+        fleeThresholdPercent = enemyData.FleeThresholdPercent;
+        ignoreObstaclesForMovement = enemyData.IgnoreObstaclesForMovement;
+        canEndTurnOnObstacle = enemyData.CanEndTurnOnObstacle;
+        advanceTowardsCharacterWhenAlreadyInRange = enemyData.AdvanceTowardsCharacterWhenAlreadyInRange;
+        attackDamageDelay = enemyData.AttackDamageDelay;
+        multiplyAttackDamageDelayByDistance = enemyData.MultiplyAttackDamageDelayByDistance;
+        lookAtTargetWhenAttacking = enemyData.LookAtTargetWhenAttacking;
+        optionalActionType = enemyData.OptionalActionType;
+        optionalHealAmount = enemyData.OptionalHealAmount;
+        mobility = enemyData.Mobility;
+        moveDuration = enemyData.MoveDuration;
+        projectileTravelHeight = enemyData.ProjectileTravelHeight;
+        projectileTravelSpeed = enemyData.ProjectileTravelSpeed;
+        useFlyAnimationOnObstacle = enemyData.UseFlyAnimationOnObstacle;
+    }
+
+    private string GetFallbackDisplayName()
+    {
+        string displayName = name.Replace("(Clone)", string.Empty).Trim();
+        if (displayName.StartsWith("Enemy-", StringComparison.OrdinalIgnoreCase))
+        {
+            displayName = displayName.Substring("Enemy-".Length);
+        }
+
+        return displayName;
+    }
+
     public void Assign(Vector2Int spawnGridPosition, BoardManager board)
     {
+        ApplyEnemyDataDefinition();
         gridPosition = spawnGridPosition;
         Board = board;
         currentHealth = maxHealth;
@@ -140,6 +221,24 @@ public class Enemy : MonoBehaviour
         }
 
         return finalDamage;
+    }
+
+    public int Heal(int amount)
+    {
+        if (amount <= 0 || isDying || currentHealth <= 0)
+        {
+            return 0;
+        }
+
+        int previousHealth = currentHealth;
+        currentHealth = Mathf.Clamp(currentHealth + amount, 0, maxHealth);
+        int healedAmount = currentHealth - previousHealth;
+        if (healedAmount > 0)
+        {
+            RefreshHpBar();
+        }
+
+        return healedAmount;
     }
 
     public bool TryMoveOneStep(Character target, bool useFleeBehaviour, int remainingMovesAfterThisStep)
@@ -195,6 +294,14 @@ public class Enemy : MonoBehaviour
         pendingMobilityPenalty = 0;
 
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
+        {
+            persistentFleeBehaviour = false;
+            flee = false;
+            fleePermanentlyDisabled = true;
+            consecutiveFleeTurns = 0;
+        }
+
         if (persistentFleeBehaviour && ShouldStopFleePermanently(target))
         {
             persistentFleeBehaviour = false;
@@ -207,7 +314,14 @@ public class Enemy : MonoBehaviour
 
         if (attackFirst)
         {
-            yield return AttackIfPossible(target, attackAlways);
+            if (CanAttackTargetFrom(gridPosition, target, attackAlways))
+            {
+                yield return AttackIfPossible(target, attackAlways);
+            }
+            else
+            {
+                yield return TryPerformOptionalAction();
+            }
         }
 
         bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
@@ -233,7 +347,14 @@ public class Enemy : MonoBehaviour
 
         if (!attackFirst)
         {
-            yield return AttackIfPossible(target, attackAlways);
+            if (CanAttackTargetFrom(gridPosition, target, attackAlways))
+            {
+                yield return AttackIfPossible(target, attackAlways);
+            }
+            else
+            {
+                yield return TryPerformOptionalAction();
+            }
         }
 
         if (persistentFleeBehaviour)
@@ -1221,6 +1342,15 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void TriggerOptionalActionAnimation()
+    {
+        CacheAnimator();
+        if (enemyAnimator != null && !string.IsNullOrEmpty(optionalActionTriggerParameter))
+        {
+            enemyAnimator.SetTrigger(optionalActionTriggerParameter);
+        }
+    }
+
     private void RefreshFlyingAnimationState()
     {
         if (Board == null || !Board.TryGetCell(gridPosition, out BoardCell currentCell))
@@ -1330,6 +1460,96 @@ public class Enemy : MonoBehaviour
 
         yield return ApplyDamageToTarget(target, attackPattern == EnemyAttackPattern.Projectile);
         yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator TryPerformOptionalAction()
+    {
+        switch (optionalActionType)
+        {
+            case EnemyOptionalActionType.HealMostWoundedAlly:
+                yield return HealMostWoundedAlly();
+                yield break;
+            default:
+                yield break;
+        }
+    }
+
+    private IEnumerator HealMostWoundedAlly()
+    {
+        Enemy targetAlly = FindMostWoundedAlly();
+        if (targetAlly == null || optionalHealAmount <= 0)
+        {
+            yield break;
+        }
+
+        TriggerOptionalActionAnimation();
+        PlayOptionalActionFx(optionalActionCasterFxPrefab, EffectAnchor, optionalActionCasterFxOffset, optionalActionCasterFxDelay);
+        PlayOptionalActionFx(optionalActionTargetFxPrefab, targetAlly.EffectAnchor, optionalActionTargetFxOffset, optionalActionTargetFxDelay);
+        targetAlly.Heal(optionalHealAmount);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private Enemy FindMostWoundedAlly()
+    {
+        if (Board == null)
+        {
+            return null;
+        }
+
+        Enemy bestTarget = null;
+        int mostMissingHealth = 0;
+        for (int index = 0; index < Board.SpawnedEnemies.Count; index++)
+        {
+            Enemy ally = Board.SpawnedEnemies[index];
+            if (ally == null || ally.isDying)
+            {
+                continue;
+            }
+
+            int missingHealth = Mathf.Max(0, ally.MaxHealth - ally.CurrentHealth);
+            if (missingHealth <= 0)
+            {
+                continue;
+            }
+
+            if (bestTarget == null || missingHealth > mostMissingHealth)
+            {
+                bestTarget = ally;
+                mostMissingHealth = missingHealth;
+            }
+        }
+
+        return bestTarget;
+    }
+
+    private void PlayOptionalActionFx(GameObject fxPrefab, Transform anchor, Vector3 offset, float delay)
+    {
+        if (fxPrefab == null || anchor == null)
+        {
+            return;
+        }
+
+        StartCoroutine(SpawnOptionalActionFxAfterDelay(fxPrefab, anchor, offset, delay));
+    }
+
+    private IEnumerator SpawnOptionalActionFxAfterDelay(GameObject fxPrefab, Transform anchor, Vector3 offset, float delay)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        if (fxPrefab == null || anchor == null)
+        {
+            yield break;
+        }
+
+        GameObject spawnedFx = Instantiate(fxPrefab, anchor.position + offset, fxPrefab.transform.rotation);
+        spawnedFx.transform.localScale = fxPrefab.transform.localScale;
+        if (optionalActionFxLifetime > 0f)
+        {
+            Destroy(spawnedFx, optionalActionFxLifetime);
+        }
     }
 
     private IEnumerator AttackRadialTargets()

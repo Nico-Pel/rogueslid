@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System;
+using UnityEngine.EventSystems;
 
 public class UIGame : MonoBehaviour
 {
@@ -20,6 +21,9 @@ public class UIGame : MonoBehaviour
     [SerializeField] private GameObject rewardsMenu;
     [SerializeField] private Button ignoreRewardsButton;
     [SerializeField] private GameObject targetCellIndicatorPrefab;
+    [SerializeField] private UnitStatsMenuUI enemyStatsMenu;
+    [SerializeField] private UnitStatsMenuUI characterStatsMenu;
+    [SerializeField] private float statsMenuClickThreshold = 16f;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
     private readonly List<GameObject> itemIcons = new List<GameObject>();
@@ -35,6 +39,8 @@ public class UIGame : MonoBehaviour
     private Sprite mobilityRewardIcon;
     private Sprite specialRewardIcon;
     private Sprite objectRewardIcon;
+    private bool isStatsPointerTracking;
+    private Vector2 statsPointerStartPosition;
 
     private void Awake()
     {
@@ -139,6 +145,7 @@ public class UIGame : MonoBehaviour
 
         CacheAbilityButtons();
         CacheRewardsMenu();
+        CacheStatsMenus();
         if (rewardsMenu != null)
         {
             rewardsMenu.SetActive(false);
@@ -171,6 +178,11 @@ public class UIGame : MonoBehaviour
         UnbindCharacter();
     }
 
+    private void Update()
+    {
+        HandleStatsMenuInput();
+    }
+
     private void HandleEndTurnClicked()
     {
         SoundManager.Instance?.PlayClick();
@@ -181,6 +193,7 @@ public class UIGame : MonoBehaviour
     {
         CacheRewardsMenu();
         CacheRewardTypeIcons();
+        HideStatsMenus();
 
         onRewardSelected = rewardSelectedCallback;
         onRewardsIgnored = rewardsIgnoredCallback;
@@ -216,8 +229,16 @@ public class UIGame : MonoBehaviour
         RefreshTargetCellIndicators();
     }
 
+    public void HideStatsMenus()
+    {
+        enemyStatsMenu?.Hide();
+        characterStatsMenu?.Hide();
+    }
+
     private void HandleTurnChanged(TurnSide turnSide)
     {
+        HideStatsMenus();
+
         if (endTurnButton != null)
         {
             endTurnButton.interactable = turnSide == TurnSide.Player && gameTurnManager != null && gameTurnManager.CanEndTurn;
@@ -317,6 +338,30 @@ public class UIGame : MonoBehaviour
         Action ignoredCallback = onRewardsIgnored;
         HideRewards();
         ignoredCallback?.Invoke();
+    }
+
+    private void HandleCharacterPortraitClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        if (observedCharacter == null)
+        {
+            return;
+        }
+
+        enemyStatsMenu?.Hide();
+        characterStatsMenu?.ShowCharacter(observedCharacter);
+    }
+
+    private void HandleCloseEnemyStatsClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        enemyStatsMenu?.Hide();
+    }
+
+    private void HandleCloseCharacterStatsClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        characterStatsMenu?.Hide();
     }
 
     private void HandleRewardSelected(RewardOffer rewardOffer)
@@ -640,6 +685,53 @@ public class UIGame : MonoBehaviour
         }
     }
 
+    private void CacheStatsMenus()
+    {
+        if (enemyStatsMenu == null)
+        {
+            Transform enemyMenuTransform = transform.Find("MenuStatsEnemy");
+            if (enemyMenuTransform != null)
+            {
+                enemyStatsMenu = enemyMenuTransform.GetComponent<UnitStatsMenuUI>();
+                if (enemyStatsMenu == null)
+                {
+                    enemyStatsMenu = enemyMenuTransform.gameObject.AddComponent<UnitStatsMenuUI>();
+                }
+            }
+        }
+
+        if (characterStatsMenu == null)
+        {
+            Transform characterMenuTransform = transform.Find("MenuStatsCharacter");
+            if (characterMenuTransform != null)
+            {
+                characterStatsMenu = characterMenuTransform.GetComponent<UnitStatsMenuUI>();
+                if (characterStatsMenu == null)
+                {
+                    characterStatsMenu = characterMenuTransform.gameObject.AddComponent<UnitStatsMenuUI>();
+                }
+            }
+        }
+
+        if (enemyStatsMenu != null && enemyStatsMenu.CloseButton != null)
+        {
+            enemyStatsMenu.CloseButton.onClick.RemoveListener(HandleCloseEnemyStatsClicked);
+            enemyStatsMenu.CloseButton.onClick.AddListener(HandleCloseEnemyStatsClicked);
+        }
+
+        if (characterStatsMenu != null && characterStatsMenu.CloseButton != null)
+        {
+            characterStatsMenu.CloseButton.onClick.RemoveListener(HandleCloseCharacterStatsClicked);
+            characterStatsMenu.CloseButton.onClick.AddListener(HandleCloseCharacterStatsClicked);
+        }
+
+        if (footerUI != null && footerUI.PortraitButton != null)
+        {
+            footerUI.PortraitButton.onClick.RemoveListener(HandleCharacterPortraitClicked);
+            footerUI.PortraitButton.onClick.AddListener(HandleCharacterPortraitClicked);
+        }
+    }
+
     private void RefreshAbilityButtons()
     {
         if (abilityButtons.Count == 0)
@@ -713,6 +805,137 @@ public class UIGame : MonoBehaviour
     private void RefreshFooterCharacterInfo()
     {
         footerUI?.RefreshCharacter(observedCharacter);
+        CacheStatsMenus();
+    }
+
+    private void HandleStatsMenuInput()
+    {
+        if (gameTurnManager == null
+            || gameTurnManager.Board == null
+            || gameTurnManager.IsRewardMenuOpen
+            || gameTurnManager.IsArenaTransitionRunning
+            || IsAbilityTargetingActive())
+        {
+            isStatsPointerTracking = false;
+            return;
+        }
+
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            switch (touch.phase)
+            {
+                case TouchPhase.Began:
+                    if (IsPointerOverUI(touch.position, touch.fingerId))
+                    {
+                        return;
+                    }
+
+                    isStatsPointerTracking = true;
+                    statsPointerStartPosition = touch.position;
+                    break;
+                case TouchPhase.Ended:
+                    if (!isStatsPointerTracking)
+                    {
+                        return;
+                    }
+
+                    isStatsPointerTracking = false;
+                    TryOpenEnemyStatsFromScreenPosition(touch.position, touch.position - statsPointerStartPosition);
+                    break;
+                case TouchPhase.Canceled:
+                    isStatsPointerTracking = false;
+                    break;
+            }
+
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (IsPointerOverUI(Input.mousePosition, -1))
+            {
+                return;
+            }
+
+            isStatsPointerTracking = true;
+            statsPointerStartPosition = Input.mousePosition;
+        }
+        else if (Input.GetMouseButtonUp(0) && isStatsPointerTracking)
+        {
+            isStatsPointerTracking = false;
+            TryOpenEnemyStatsFromScreenPosition(Input.mousePosition, (Vector2)Input.mousePosition - statsPointerStartPosition);
+        }
+    }
+
+    private void TryOpenEnemyStatsFromScreenPosition(Vector2 screenPosition, Vector2 pointerDelta)
+    {
+        if (pointerDelta.magnitude > statsMenuClickThreshold || gameTurnManager?.Board == null)
+        {
+            return;
+        }
+
+        if (!TryGetGridCellFromScreenPosition(screenPosition, out Vector2Int gridPosition))
+        {
+            return;
+        }
+
+        if (!gameTurnManager.Board.TryGetEnemy(gridPosition, out Enemy enemy) || enemy == null)
+        {
+            return;
+        }
+
+        characterStatsMenu?.Hide();
+        enemyStatsMenu?.ShowEnemy(enemy);
+    }
+
+    private bool TryGetGridCellFromScreenPosition(Vector2 screenPosition, out Vector2Int gridPosition)
+    {
+        gridPosition = default;
+        if (gameTurnManager?.Board == null)
+        {
+            return false;
+        }
+
+        Camera targetCamera = Camera.main;
+        if (targetCamera == null)
+        {
+            return false;
+        }
+
+        Plane boardPlane = new Plane(gameTurnManager.Board.transform.up, gameTurnManager.Board.transform.position);
+        Ray ray = targetCamera.ScreenPointToRay(screenPosition);
+        if (!boardPlane.Raycast(ray, out float distance))
+        {
+            return false;
+        }
+
+        Vector3 hitPoint = ray.GetPoint(distance);
+        return gameTurnManager.Board.TryWorldToGridPosition(hitPoint, out gridPosition);
+    }
+
+    private bool IsAbilityTargetingActive()
+    {
+        if (observedCharacter == null || gameTurnManager == null)
+        {
+            return false;
+        }
+
+        if (gameTurnManager.PendingCellTargetAbilityIndex >= 0)
+        {
+            return true;
+        }
+
+        for (int index = 0; index < observedCharacter.Abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = observedCharacter.GetAbility(index);
+            if (runtime?.Definition != null && runtime.Definition.SupportsCellSelectionWhileActive(observedCharacter, runtime))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private Sprite ResolveTypeIconSprite(RewardPresentationIconKind iconKind)
@@ -749,5 +972,20 @@ public class UIGame : MonoBehaviour
         {
             spriteRenderer.color = color;
         }
+    }
+
+    private static bool IsPointerOverUI(Vector2 screenPosition, int fingerId)
+    {
+        if (EventSystem.current == null)
+        {
+            return false;
+        }
+
+        if (fingerId >= 0)
+        {
+            return EventSystem.current.IsPointerOverGameObject(fingerId);
+        }
+
+        return EventSystem.current.IsPointerOverGameObject();
     }
 }

@@ -43,7 +43,7 @@ public class DemonicChainAbility : AbilityDefinition
             }
 
             SpawnChainLine(character, enemy);
-            character.DealDamageToEnemy(enemy, damage, true, true);
+            character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Default, this);
             PullEnemyTowardsCharacter(character, enemy, false);
 
             if (character.GetUpgradeStacks(AbilityUpgradeKey.DemonicChainExecutionersChains) > 0
@@ -71,7 +71,7 @@ public class DemonicChainAbility : AbilityDefinition
                 }
                 else
                 {
-                    character.DealDamageToEnemy(enemy, 2, false, true);
+                    character.DealDamageToEnemy(enemy, 2, false, true, DamageSoundType.Default, this);
                 }
             }
         }

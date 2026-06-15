@@ -221,6 +221,7 @@ MonoBehaviour:
   ignoreObstacles: 0
   attackAlways: 0
   flee: 0
+  maxFleeTurns: 2
   attackFirst: 0
   fleeThresholdPercent: 0
   ignoreObstaclesForMovement: 0
@@ -229,6 +230,8 @@ MonoBehaviour:
   attackDamageDelay: 0.2
   multiplyAttackDamageDelayByDistance: 0
   lookAtTargetWhenAttacking: 0
+  optionalActionType: 0
+  optionalHealAmount: 4
   gridPosition: {x: 0, y: 0}
   mobility: 2
   moveDuration: 0.16
@@ -242,12 +245,18 @@ MonoBehaviour:
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
   enemyBody: {fileID: 0}
-  enemyCanvas: {fileID: 0}
+  enemyCanvas: {fileID: 883537977927486252}
   enemyAnimator: {fileID: 0}
   attackTriggerParameter: Attack
+  optionalActionTriggerParameter: AltAttack
   useFlyAnimationOnObstacle: 0
   flyingBoolParameter: Flying
   obstacleCanvasHeightOffset: 1
+  optionalActionCasterFxPrefab: {fileID: 0}
+  optionalActionCasterFxOffset: {x: 0, y: 0, z: 0}
+  optionalActionTargetFxPrefab: {fileID: 0}
+  optionalActionTargetFxOffset: {x: 0, y: 0, z: 0}
+  optionalActionFxLifetime: 1
 --- !u!114 &1074041014115478145
 MonoBehaviour:
   m_ObjectHideFlags: 0

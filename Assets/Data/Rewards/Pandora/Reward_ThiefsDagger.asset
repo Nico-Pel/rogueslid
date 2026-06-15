@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Reward_ThiefsDagger
   m_EditorClassIdentifier: 
   rewardId: reward_thiefs_dagger
-  rewardTitle: Thief's Dagger
+  rewardTitle: Royal Dagger
   rewardDescription: Strike a single adjacent enemy for 5 damage.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 2517299324c84c25b12b5db893e60098, type: 2}

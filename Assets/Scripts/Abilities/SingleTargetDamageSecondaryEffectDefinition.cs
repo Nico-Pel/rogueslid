@@ -16,6 +16,12 @@ public class SingleTargetDamageSecondaryEffectDefinition : SecondaryAbilityEffec
         }
 
         PlayFeedback(character, context);
-        character.DealDamageToEnemy(context.TargetEnemy, damage, addBonusDamage, countsAsAbilityDamage);
+        character.DealDamageToEnemy(
+            context.TargetEnemy,
+            damage,
+            addBonusDamage,
+            countsAsAbilityDamage,
+            DamageSoundType.Default,
+            context.SourceAbility);
     }
 }

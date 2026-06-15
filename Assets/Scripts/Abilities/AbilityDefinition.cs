@@ -91,6 +91,18 @@ public abstract class AbilityDefinition : ScriptableObject
     [Header("FX")]
     [SerializeField] private List<AbilityFxSpawnConfig> fxSpawns = new List<AbilityFxSpawnConfig>();
 
+    [Header("Damage Timing")]
+    [Min(0f)]
+    [SerializeField] private float damageApplyDelay;
+    [Min(0f)]
+    [SerializeField] private float damageDelayDistanceMultiplier = 1f;
+
+    [Header("Damage FX Override")]
+    [SerializeField] private GameObject damageFxOverridePrefab;
+    [SerializeField] private Vector3 damageFxOverridePositionOffset;
+    [Min(0f)]
+    [SerializeField] private float damageFxOverrideDestroyAfterSeconds = 1f;
+
     [Header("Trail")]
     [SerializeField] private AbilityTrailApplicationMode trailColorMode;
     [SerializeField] private Color trailMaterialColor = Color.white;
@@ -112,6 +124,12 @@ public abstract class AbilityDefinition : ScriptableObject
     public bool ConsumesMovementPoint => consumesMovementPoint;
     public bool IsToggle => isToggle;
     public IReadOnlyList<AbilityFxSpawnConfig> FxSpawns => fxSpawns;
+    public float DamageApplyDelay => damageApplyDelay;
+    public float DamageDelayDistanceMultiplier => damageDelayDistanceMultiplier;
+    public GameObject DamageFxOverridePrefab => damageFxOverridePrefab;
+    public Vector3 DamageFxOverridePositionOffset => damageFxOverridePositionOffset;
+    public float DamageFxOverrideDestroyAfterSeconds => damageFxOverrideDestroyAfterSeconds;
+    public bool HasDamageFxOverride => damageFxOverridePrefab != null;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
     public virtual bool KeepsActiveStateBetweenTurns => true;
     public virtual bool RefundUseIfDeactivatedWithoutConsumption => false;
@@ -155,6 +173,28 @@ public abstract class AbilityDefinition : ScriptableObject
     public virtual int GetTraversalDamage(Character character, CharacterAbilityRuntime runtime, int traversedEnemyCount)
     {
         return 0;
+    }
+
+    public virtual float GetDamageApplyDelay(Vector2Int originCell, Vector2Int targetCell)
+    {
+        if (damageApplyDelay <= 0f)
+        {
+            return 0f;
+        }
+
+        int distance = Mathf.Abs(targetCell.x - originCell.x) + Mathf.Abs(targetCell.y - originCell.y);
+        if (distance <= 1)
+        {
+            return damageApplyDelay;
+        }
+
+        float multiplier = Mathf.Max(0f, damageDelayDistanceMultiplier);
+        if (Mathf.Approximately(multiplier, 1f))
+        {
+            return damageApplyDelay;
+        }
+
+        return damageApplyDelay * Mathf.Pow(multiplier, distance - 1);
     }
 
     public virtual string GetCounterText(CharacterAbilityRuntime runtime)

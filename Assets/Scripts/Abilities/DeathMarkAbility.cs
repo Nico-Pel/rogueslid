@@ -47,7 +47,7 @@ public class DeathMarkAbility : AbilityDefinition
             }
             else
             {
-                character.DealDamageToEnemy(enemy, struckStacks, false, true);
+                character.DealDamageToEnemy(enemy, struckStacks, false, true, DamageSoundType.Default, this);
             }
         }
 

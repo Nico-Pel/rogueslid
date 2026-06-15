@@ -16,10 +16,29 @@ public class ThiefsDaggerAbility : AbilityDefinition
         }
 
         Vector2Int delta = targetCell - character.GridPosition;
-        bool isOrthogonallyAdjacent = Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1;
-        if (!isOrthogonallyAdjacent)
+        bool isOrthogonal = delta.x == 0 || delta.y == 0;
+        if (!isOrthogonal)
         {
             return false;
+        }
+
+        int distance = Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+        int range = 1 + character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerLightStrike);
+        if (distance <= 0 || distance > range)
+        {
+            return false;
+        }
+
+        Vector2Int direction = new Vector2Int(Mathf.Clamp(delta.x, -1, 1), Mathf.Clamp(delta.y, -1, 1));
+        Vector2Int scan = character.GridPosition + direction;
+        while (scan != targetCell)
+        {
+            if (!character.Board.TryGetCell(scan, out BoardCell cell) || cell.HasBlockingTerrain || cell.IsOccupied)
+            {
+                return false;
+            }
+
+            scan += direction;
         }
 
         return character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null;
@@ -37,9 +56,90 @@ public class ThiefsDaggerAbility : AbilityDefinition
             return false;
         }
 
+        int damage = baseDamage;
+        damage += 2 * character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade);
+        if (character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerHolyBlade) > 0
+            && enemy.CurrentHealth >= enemy.MaxHealth)
+        {
+            damage += 2;
+        }
+
+        character.FaceTargetCell(targetCell.Value);
         PlayActivationAnimation(character);
-        character.DealDamageToEnemy(enemy, baseDamage, true, true, DamageSoundType.Sword);
+        int blessingStacks = character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerRoyalBlessing);
+        character.DealDamageToEnemyWithAbilityTiming(
+            this,
+            enemy,
+            damage,
+            true,
+            true,
+            DamageSoundType.Sword,
+            null,
+            this,
+            (targetEnemy, appliedDamage) =>
+            {
+                if (targetEnemy != null && targetEnemy.CurrentHealth <= 0 && blessingStacks > 0)
+                {
+                    character.Heal(2 * blessingStacks);
+                }
+            });
         PlayConfiguredFx(character, new[] { enemy });
+
+        bool targetWasNewThisTurn = character.MarkAbilityTargetHitThisTurn(this, enemy);
+        if (character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerRoyalPunishment) > 0
+            && targetWasNewThisTurn
+            && HasAnotherUnhitTargetInRange(character, enemy))
+        {
+            character.GrantAbilityBonusTurnUse(this, 1);
+        }
+
         return true;
+    }
+
+    private bool HasAnotherUnhitTargetInRange(Character character, Enemy currentTarget)
+    {
+        if (character == null || character.Board == null)
+        {
+            return false;
+        }
+
+        int range = 1 + character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerLightStrike);
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        for (int directionIndex = 0; directionIndex < directions.Length; directionIndex++)
+        {
+            Vector2Int direction = directions[directionIndex];
+            for (int step = 1; step <= range; step++)
+            {
+                Vector2Int cell = character.GridPosition + (direction * step);
+                if (!character.Board.TryGetCell(cell, out BoardCell boardCell) || boardCell.HasBlockingTerrain)
+                {
+                    break;
+                }
+
+                if (character.Board.TryGetEnemy(cell, out Enemy enemy) && enemy != null)
+                {
+                    if (enemy != currentTarget && !character.HasAbilityTargetHitThisTurn(this, enemy))
+                    {
+                        return true;
+                    }
+
+                    break;
+                }
+
+                if (boardCell.IsOccupied)
+                {
+                    break;
+                }
+            }
+        }
+
+        return false;
     }
 }

@@ -12,17 +12,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d3a13dbfb8764226aaab0a85ad6d62fc, type: 3}
   m_Name: ThiefsDagger
   m_EditorClassIdentifier: 
-  abilityName: Thief's Dagger
+  abilityName: Royal Dagger
   icon: {fileID: -1386984905, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
-  attackAnimationClip: {fileID: 0}
-  linkedUpgradeRewards: []
+  attackAnimationClip: {fileID: 7400000, guid: 91c310b254e9e4c5aa8fe9b2f5db167a, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: c2020000000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000006, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000007, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000008, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000009, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 0
   consumesMovementPoint: 0
   isToggle: 0
   fxSpawns: []
+  damageApplyDelay: 0.2
+  damageDelayDistanceMultiplier: 1
   trailColorMode: 0
   trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
   temporaryTrailColorDuration: 0.5

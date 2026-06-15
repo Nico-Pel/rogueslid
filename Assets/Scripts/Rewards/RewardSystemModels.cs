@@ -42,7 +42,12 @@ public enum AbilityUpgradeKey
     DeathMarkBleeding,
     DeathMarkCycleOfDeath,
     DeathMarkHuntingBonus,
-    DeathMarkPetrify
+    DeathMarkPetrify,
+    RoyalDaggerLightStrike,
+    RoyalDaggerHolyBlade,
+    RoyalDaggerRoyalPunishment,
+    RoyalDaggerRoyalBlessing,
+    RoyalDaggerBlessedBlade
 }
 
 public enum ItemRewardKey

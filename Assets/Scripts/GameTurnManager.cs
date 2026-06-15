@@ -247,15 +247,33 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            RequestAbilityUse(0);
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            RequestAbilityUse(1);
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            RequestAbilityUse(2);
+            return;
+        }
+
         if (pendingCellTargetAbilityIndex >= 0)
         {
             return;
         }
 
         Vector2Int direction = Vector2Int.zero;
-        if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
+        if (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
         {
-            direction = Vector2Int.up;
+            direction = Vector2Int.down;
         }
         else if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
         {
@@ -263,7 +281,7 @@ public class GameTurnManager : MonoBehaviour
         }
         else if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow))
         {
-            direction = Vector2Int.down;
+            direction = Vector2Int.up;
         }
         else if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
         {
@@ -294,7 +312,7 @@ public class GameTurnManager : MonoBehaviour
             switch (touch.phase)
             {
                 case TouchPhase.Began:
-                    if (IsPointerOverUI(touch.position, touch.fingerId))
+                    if (!IsTargetingModeActive(character) && IsPointerOverUI(touch.position, touch.fingerId))
                     {
                         return;
                     }
@@ -321,7 +339,7 @@ public class GameTurnManager : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            if (IsPointerOverUI(Input.mousePosition, -1))
+            if (!IsTargetingModeActive(character) && IsPointerOverUI(Input.mousePosition, -1))
             {
                 return;
             }
@@ -463,6 +481,11 @@ public class GameTurnManager : MonoBehaviour
         }
 
         return -1;
+    }
+
+    private bool IsTargetingModeActive(Character character)
+    {
+        return pendingCellTargetAbilityIndex >= 0 || GetActiveCellSelectableAbilityIndex(character) >= 0;
     }
 
     private bool TryGetTargetCellFromScreen(Vector2 screenPosition, out Vector2Int targetCell)

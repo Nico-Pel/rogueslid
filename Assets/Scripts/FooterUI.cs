@@ -11,6 +11,7 @@ public class FooterUI : MonoBehaviour
     [SerializeField] private RectTransform itemsList;
     [SerializeField] private TMP_Text characterNameLabel;
     [SerializeField] private Image characterPortraitImage;
+    [SerializeField] private Button portraitButton;
 
     public RectTransform AbilitiesBar => abilitiesBar;
     public AbilityButtonUI AbilityButton1 => abilityButton1;
@@ -19,6 +20,7 @@ public class FooterUI : MonoBehaviour
     public RectTransform ItemsList => itemsList;
     public TMP_Text CharacterNameLabel => characterNameLabel;
     public Image CharacterPortraitImage => characterPortraitImage;
+    public Button PortraitButton => portraitButton;
 
     private void Awake()
     {
@@ -94,6 +96,11 @@ public class FooterUI : MonoBehaviour
         if (characterPortraitImage == null)
         {
             characterPortraitImage = transform.Find("iChara")?.GetComponent<Image>();
+        }
+
+        if (portraitButton == null)
+        {
+            portraitButton = transform.Find("BPortrait")?.GetComponent<Button>();
         }
     }
 

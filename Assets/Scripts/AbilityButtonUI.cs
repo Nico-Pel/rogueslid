@@ -68,8 +68,10 @@ public class AbilityButtonUI : MonoBehaviour
         bool isPlayerTurn = gameTurnManager != null && gameTurnManager.CurrentTurn == TurnSide.Player;
         bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character);
         bool isTargetingThis = hasAbility && gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex;
-        bool showUnlimitedCount = hasAbility
-            && (runtime.Definition.UsesPerTurn > 0 || runtime.Definition.UsesPerCombat > 0 || runtime.RemainingCooldown > 0);
+        bool isOnCooldown = hasAbility && runtime.RemainingCooldown > 0;
+        bool showUsageCount = hasAbility
+            && !isOnCooldown
+            && (runtime.Definition.UsesPerTurn > 0 || runtime.Definition.UsesPerCombat > 0);
 
         if (button != null)
         {
@@ -121,12 +123,12 @@ public class AbilityButtonUI : MonoBehaviour
 
         if (countRoot != null)
         {
-            countRoot.SetActive(showUnlimitedCount);
+            countRoot.SetActive(showUsageCount);
         }
 
         if (countLabel != null)
         {
-            countLabel.text = runtime.Definition.GetCounterText(runtime);
+            countLabel.text = showUsageCount ? runtime.Definition.GetCounterText(runtime) : string.Empty;
         }
     }
 

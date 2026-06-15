@@ -29,6 +29,16 @@ public class CharacterProcFxConfig
     public float DestroyAfterSeconds => destroyAfterSeconds;
 }
 
+[Serializable]
+public class CharacterBasicAttackVisualConfig
+{
+    [SerializeField] private AbilityDefinition basicAttackAbility;
+    [SerializeField] private List<GameObject> visualRoots = new List<GameObject>();
+
+    public AbilityDefinition BasicAttackAbility => basicAttackAbility;
+    public IReadOnlyList<GameObject> VisualRoots => visualRoots;
+}
+
 public class Character : MonoBehaviour
 {
     [Header("Core Stats")]
@@ -55,6 +65,7 @@ public class Character : MonoBehaviour
     [SerializeField] private bool orientTowardsDashDirection = true;
     [SerializeField] private bool resetBodyRotationAfterSlide = true;
     [SerializeField] private List<CharacterProcFxConfig> procFxConfigs = new List<CharacterProcFxConfig>();
+    [SerializeField] private List<CharacterBasicAttackVisualConfig> basicAttackVisuals = new List<CharacterBasicAttackVisualConfig>();
     private float dashBodyRotateDuration = 0.05f;
     private float dashBodyResetDuration = 0.05f;
 
@@ -95,6 +106,7 @@ public class Character : MonoBehaviour
     private Enemy markedEnemy;
     private DeathMarkAbility deathMarkAbility;
     private int actionLockCount;
+    private readonly Dictionary<AbilityDefinition, HashSet<Enemy>> abilityTargetsHitThisTurn = new Dictionary<AbilityDefinition, HashSet<Enemy>>();
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -158,6 +170,7 @@ public class Character : MonoBehaviour
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
         actionLockCount = 0;
+        abilityTargetsHitThisTurn.Clear();
         markedEnemy = null;
         deathMarkAbility = null;
         SnapToGrid();
@@ -195,6 +208,7 @@ public class Character : MonoBehaviour
         runRewardState = state;
         RecalculateItemDrivenStats();
         ClearNextAttackBonusDamage();
+        abilityTargetsHitThisTurn.Clear();
         markedEnemy = null;
         deathMarkAbility = null;
 
@@ -218,6 +232,7 @@ public class Character : MonoBehaviour
         remainingMovementPoints = movementPointsPerTurn;
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
+        abilityTargetsHitThisTurn.Clear();
         for (int index = 0; index < abilities.Count; index++)
         {
             abilities[index].BeginTurn(this);
@@ -386,7 +401,8 @@ public class Character : MonoBehaviour
         int baseDamage,
         bool addBonusDamage,
         bool isAbilityDamage = false,
-        DamageSoundType hitSoundType = DamageSoundType.Default)
+        DamageSoundType hitSoundType = DamageSoundType.Default,
+        AbilityDefinition sourceAbility = null)
     {
         if (enemy == null)
         {
@@ -404,6 +420,11 @@ public class Character : MonoBehaviour
         int appliedDamage = enemy.TakeDamage(totalDamage, hitSoundType);
         if (isAbilityDamage)
         {
+            if (appliedDamage > 0)
+            {
+                PlayAbilityDamageFx(sourceAbility, enemy.EffectAnchor);
+            }
+
             HandleAbilityDamageSideEffects(enemy);
             if (enemy == markedEnemy && enemy.CurrentHealth > 0)
             {
@@ -421,6 +442,37 @@ public class Character : MonoBehaviour
         }
 
         return appliedDamage;
+    }
+
+    public void DealDamageToEnemyWithAbilityTiming(
+        AbilityDefinition abilityDefinition,
+        Enemy enemy,
+        int baseDamage,
+        bool addBonusDamage,
+        bool isAbilityDamage = false,
+        DamageSoundType hitSoundType = DamageSoundType.Default,
+        Vector2Int? originCellOverride = null,
+        AbilityDefinition sourceAbility = null,
+        Action<Enemy, int> onDamageApplied = null)
+    {
+        if (enemy == null)
+        {
+            return;
+        }
+
+        Vector2Int originCell = originCellOverride ?? gridPosition;
+        float delay = abilityDefinition != null
+            ? abilityDefinition.GetDamageApplyDelay(originCell, enemy.GridPosition)
+            : 0f;
+
+        if (delay <= 0f)
+        {
+            int appliedDamage = DealDamageToEnemy(enemy, baseDamage, addBonusDamage, isAbilityDamage, hitSoundType, sourceAbility);
+            onDamageApplied?.Invoke(enemy, appliedDamage);
+            return;
+        }
+
+        StartCoroutine(DealDamageToEnemyAfterDelay(enemy, baseDamage, addBonusDamage, isAbilityDamage, hitSoundType, delay, sourceAbility, onDamageApplied));
     }
 
     public int TakeDamage(
@@ -546,6 +598,34 @@ public class Character : MonoBehaviour
         CharacterAbilityRuntime runtime = FindAbilityRuntime(ability);
         runtime?.ResetAvailability();
         NotifyAbilitiesChanged();
+    }
+
+    public bool HasAbilityTargetHitThisTurn(AbilityDefinition ability, Enemy enemy)
+    {
+        if (ability == null || enemy == null)
+        {
+            return false;
+        }
+
+        return abilityTargetsHitThisTurn.TryGetValue(ability, out HashSet<Enemy> hitTargets)
+            && hitTargets != null
+            && hitTargets.Contains(enemy);
+    }
+
+    public bool MarkAbilityTargetHitThisTurn(AbilityDefinition ability, Enemy enemy)
+    {
+        if (ability == null || enemy == null)
+        {
+            return false;
+        }
+
+        if (!abilityTargetsHitThisTurn.TryGetValue(ability, out HashSet<Enemy> hitTargets) || hitTargets == null)
+        {
+            hitTargets = new HashSet<Enemy>();
+            abilityTargetsHitThisTurn[ability] = hitTargets;
+        }
+
+        return hitTargets.Add(enemy);
     }
 
     public void HandleEnemyCountChanged(int remainingEnemies)
@@ -1046,6 +1126,8 @@ public class Character : MonoBehaviour
             runtime.ResetCombat();
             abilities.Add(runtime);
         }
+
+        RefreshBasicAttackVisuals();
     }
 
     private bool CanTraverseUnits()
@@ -1206,6 +1288,27 @@ public class Character : MonoBehaviour
         }
     }
 
+    private IEnumerator DealDamageToEnemyAfterDelay(
+        Enemy enemy,
+        int baseDamage,
+        bool addBonusDamage,
+        bool isAbilityDamage,
+        DamageSoundType hitSoundType,
+        float delay,
+        AbilityDefinition sourceAbility,
+        Action<Enemy, int> onDamageApplied)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (enemy == null || enemy.CurrentHealth <= 0)
+        {
+            yield break;
+        }
+
+        int appliedDamage = DealDamageToEnemy(enemy, baseDamage, addBonusDamage, isAbilityDamage, hitSoundType, sourceAbility);
+        onDamageApplied?.Invoke(enemy, appliedDamage);
+    }
+
     private IEnumerator SpawnSecondaryEffectFxRoutine(SecondaryEffectFxSpawnConfig fxConfig, AbilityExecutionContext context)
     {
         if (fxConfig == null || fxConfig.FxPrefab == null || Board == null)
@@ -1269,7 +1372,34 @@ public class Character : MonoBehaviour
 
     private void NotifyAbilitiesChanged()
     {
+        RefreshBasicAttackVisuals();
         AbilitiesChanged?.Invoke(this);
+    }
+
+    private void RefreshBasicAttackVisuals()
+    {
+        AbilityDefinition equippedBasicAttack = GetAbilityForSlot(0)?.Definition;
+        for (int index = 0; index < basicAttackVisuals.Count; index++)
+        {
+            CharacterBasicAttackVisualConfig config = basicAttackVisuals[index];
+            if (config == null || config.VisualRoots == null)
+            {
+                continue;
+            }
+
+            bool shouldBeVisible = equippedBasicAttack != null
+                && config.BasicAttackAbility != null
+                && config.BasicAttackAbility == equippedBasicAttack;
+
+            for (int visualIndex = 0; visualIndex < config.VisualRoots.Count; visualIndex++)
+            {
+                GameObject visualRoot = config.VisualRoots[visualIndex];
+                if (visualRoot != null)
+                {
+                    visualRoot.SetActive(shouldBeVisible);
+                }
+            }
+        }
     }
 
     private void CacheAnimator()
@@ -1446,6 +1576,19 @@ public class Character : MonoBehaviour
             .OnComplete(() => bodyRotationTween = null);
     }
 
+    public void FaceTargetCell(Vector2Int targetCell)
+    {
+        Vector2Int direction = targetCell - gridPosition;
+        if (direction == Vector2Int.zero)
+        {
+            return;
+        }
+
+        FaceDashDirection(new Vector2Int(
+            Mathf.Clamp(direction.x, -1, 1),
+            Mathf.Clamp(direction.y, -1, 1)));
+    }
+
     private void ResetBodyRotation()
     {
         CacheBody();
@@ -1550,6 +1693,21 @@ public class Character : MonoBehaviour
         }
 
         enemy.ApplyMobilityPenaltyNextTurn(1);
+    }
+
+    private void PlayAbilityDamageFx(AbilityDefinition sourceAbility, Transform targetAnchor)
+    {
+        if (sourceAbility != null && sourceAbility.HasDamageFxOverride)
+        {
+            PlayFeedbackFx(
+                sourceAbility.DamageFxOverridePrefab,
+                targetAnchor,
+                sourceAbility.DamageFxOverridePositionOffset,
+                sourceAbility.DamageFxOverrideDestroyAfterSeconds);
+            return;
+        }
+
+        PlayProcFx(CharacterProcFxKey.Damage, targetAnchor);
     }
 
     private void DamageHighestHealthEnemy(int damage)

@@ -20,7 +20,7 @@ MonoBehaviour:
   resistance: 0
   movementPointsPerTurn: 4
   startingAbilities:
-  - {fileID: 11400000, guid: f61c2a496edf5072ea028cb28ab6ff56, type: 2}
+  - {fileID: 11400000, guid: 2517299324c84c25b12b5db893e60098, type: 2}
   - {fileID: 11400000, guid: 364ec113b09a42ffb823f413bdad6b22, type: 2}
   - {fileID: 0}
   unlockableAbilityRewards:
@@ -30,3 +30,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c2010000000000000000000000000006, type: 2}
   - {fileID: 11400000, guid: c2010000000000000000000000000002, type: 2}
   - {fileID: 11400000, guid: c2010000000000000000000000000007, type: 2}
+  - {fileID: 11400000, guid: c2010000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: a6c8dc089e1d24388b12c46576264bf1, type: 2}
