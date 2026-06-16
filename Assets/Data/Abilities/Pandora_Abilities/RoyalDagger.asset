@@ -16,7 +16,12 @@ MonoBehaviour:
   icon: {fileID: -1282944587, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: 33a959b33d4c045a0a539b82b228aae7, type: 2}
-  linkedUpgradeRewards: []
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: debe986fdb232412a8e0e2960c513064, type: 2}
+  - {fileID: 11400000, guid: a2abb4df854bc44059043a0104c17cf1, type: 2}
+  - {fileID: 11400000, guid: b9be9953474d74e2894e4dd5a35db374, type: 2}
+  - {fileID: 11400000, guid: 5a9fe7c3a4c56451294ea32e7abfb756, type: 2}
+  - {fileID: 11400000, guid: 7fc31c37907424e38a913b28ac6859a8, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 0

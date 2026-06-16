@@ -98,7 +98,10 @@ public class Character : MonoBehaviour
     private bool luckyCoinUsedThisCombat;
     private bool sandglassTalismanTriggeredThisCombat;
     private bool tookDamageDuringEnemyTurn;
+    private bool tookDamageSinceLastPlayerTurn;
     private bool isDying;
+    private bool attackedThisTurn;
+    private bool attackedLastTurn;
     private readonly HashSet<Enemy> frostCharmedEnemiesThisTurn = new HashSet<Enemy>();
     private int nextAttackBonusDamage;
     private GameObject nextAttackBonusAuraPrefab;
@@ -167,6 +170,9 @@ public class Character : MonoBehaviour
         luckyCoinUsedThisCombat = false;
         sandglassTalismanTriggeredThisCombat = false;
         tookDamageDuringEnemyTurn = false;
+        tookDamageSinceLastPlayerTurn = false;
+        attackedThisTurn = false;
+        attackedLastTurn = false;
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
         actionLockCount = 0;
@@ -228,6 +234,13 @@ public class Character : MonoBehaviour
 
     public void ResetTurn()
     {
+        if (HasItem(ItemRewardKey.Sakura) && tookDamageSinceLastPlayerTurn)
+        {
+            Heal(1);
+        }
+
+        tookDamageSinceLastPlayerTurn = false;
+        attackedThisTurn = false;
         RecalculateItemDrivenStats();
         remainingMovementPoints = movementPointsPerTurn;
         frostCharmedEnemiesThisTurn.Clear();
@@ -411,6 +424,7 @@ public class Character : MonoBehaviour
 
         RecalculateItemDrivenStats();
         int totalDamage = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
+        totalDamage += GetAbilityItemBonusDamage(sourceAbility);
         if (HasItem(ItemRewardKey.ThornedBracer)
             && enemy.CurrentHealth <= Mathf.Max(1, totalDamage - enemy.Resistance))
         {
@@ -527,6 +541,11 @@ public class Character : MonoBehaviour
         if (currentHealth <= 0)
         {
             Die();
+        }
+
+        if (finalDamage > 0)
+        {
+            tookDamageSinceLastPlayerTurn = true;
         }
 
         return finalDamage;
@@ -679,10 +698,16 @@ public class Character : MonoBehaviour
             Heal(1);
         }
 
+        CommitCurrentTurnStateForNextTurn();
         isFirstPlayerTurnOfArena = false;
         ClearDeathMark();
         ClearNextAttackBonusDamage();
         RecalculateItemDrivenStats();
+    }
+
+    public void CommitCurrentTurnStateForNextTurn()
+    {
+        attackedLastTurn = attackedThisTurn;
     }
 
     public void BeginEnemyTurn()
@@ -728,7 +753,12 @@ public class Character : MonoBehaviour
         markedEnemy?.SetDeathMarkActive(true);
     }
 
-    public int DamageEnemiesAround(Vector2Int centerCell, int range, int damage, bool includeDiagonals = true)
+    public int DamageEnemiesAround(
+        Vector2Int centerCell,
+        int range,
+        int damage,
+        bool includeDiagonals = true,
+        AbilityDefinition sourceAbility = null)
     {
         if (Board == null || range <= 0 || damage <= 0)
         {
@@ -762,7 +792,7 @@ public class Character : MonoBehaviour
                     continue;
                 }
 
-                DealDamageToEnemy(enemy, damage, false, true);
+                DealDamageToEnemy(enemy, damage, false, true, DamageSoundType.Default, sourceAbility);
                 hits++;
             }
         }
@@ -1227,7 +1257,8 @@ public class Character : MonoBehaviour
                 continue;
             }
 
-            DealDamageToEnemy(enemy, traversalDamage, false, true);
+            AbilityDefinition traversalSourceAbility = traversalAbilities.Count > 0 ? traversalAbilities[0].Definition : null;
+            DealDamageToEnemy(enemy, traversalDamage, false, true, DamageSoundType.Default, traversalSourceAbility);
         }
 
         if (damagedEnemies.Count == 0)
@@ -1695,6 +1726,23 @@ public class Character : MonoBehaviour
         enemy.ApplyMobilityPenaltyNextTurn(1);
     }
 
+    private int GetAbilityItemBonusDamage(AbilityDefinition sourceAbility)
+    {
+        if (sourceAbility == null)
+        {
+            return 0;
+        }
+
+        attackedThisTurn = true;
+
+        if (HasItem(ItemRewardKey.PumpkinHead) && sourceAbility.Category != AbilityCategory.BasicAttack)
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
     private void PlayAbilityDamageFx(AbilityDefinition sourceAbility, Transform targetAnchor)
     {
         if (sourceAbility != null && sourceAbility.HasDamageFxOverride)
@@ -1823,6 +1871,7 @@ public class Character : MonoBehaviour
         int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
         int dynamicBonusDamage = nextAttackBonusDamage;
         int dynamicResistance = 0;
+        int dynamicMovementPoints = 0;
 
         if (HasItem(ItemRewardKey.DuelistsSpur) && remainingEnemies == 1)
         {
@@ -1849,10 +1898,15 @@ public class Character : MonoBehaviour
             dynamicResistance += 1;
         }
 
+        if (HasItem(ItemRewardKey.ScholarsCape) && !attackedLastTurn)
+        {
+            dynamicMovementPoints += 1;
+        }
+
         maxHealth = staticMaxHealth + dynamicMaxHealth;
         bonusDamage = staticBonusDamage + dynamicBonusDamage;
         resistance = staticResistance + dynamicResistance;
-        movementPointsPerTurn = staticMovementPoints;
+        movementPointsPerTurn = staticMovementPoints + dynamicMovementPoints;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         RefreshHpBar();
         SyncRunStateHealth();

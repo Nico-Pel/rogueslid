@@ -72,7 +72,10 @@ public enum ItemRewardKey
     RunicBelt,
     FrostCharm,
     LuckyCoin,
-    SandglassTalisman
+    SandglassTalisman,
+    Sakura,
+    PumpkinHead,
+    ScholarsCape
 }
 
 public sealed class RewardOffer

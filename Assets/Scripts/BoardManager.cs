@@ -99,6 +99,10 @@ public class BoardManager : MonoBehaviour
 
     [Header("Spawn Rules")]
     [SerializeField] private List<EnemyPoolAvailability> enemyPoolsByArenaCount = new List<EnemyPoolAvailability>();
+#if UNITY_EDITOR
+    [Header("Editor Debug")]
+    [SerializeField] private EnemyPoolDefinition forcedEnemyPoolDefinition;
+#endif
 
     [Header("Rewards")]
     [SerializeField] private List<ItemRewardDefinition> itemRewardDefinitions = new List<ItemRewardDefinition>();
@@ -812,6 +816,13 @@ public class BoardManager : MonoBehaviour
 
     private List<GameObject> ResolveEnemyPrefabsForCurrentArena()
     {
+#if UNITY_EDITOR
+        if (forcedEnemyPoolDefinition != null)
+        {
+            return ExtractValidEnemyPrefabs(forcedEnemyPoolDefinition);
+        }
+#endif
+
         EnemyPoolAvailability selectedAvailability = null;
         int selectedRangeSize = int.MaxValue;
 
@@ -858,8 +869,18 @@ public class BoardManager : MonoBehaviour
         }
 
         EnemyPoolDefinition selectedPool = eligiblePools[UnityEngine.Random.Range(0, eligiblePools.Count)];
+        return ExtractValidEnemyPrefabs(selectedPool);
+    }
+
+    private static List<GameObject> ExtractValidEnemyPrefabs(EnemyPoolDefinition poolDefinition)
+    {
         List<GameObject> poolEnemies = new List<GameObject>();
-        List<GameObject> enemyPrefabs = selectedPool.GetValidEnemyPrefabs();
+        if (poolDefinition == null)
+        {
+            return poolEnemies;
+        }
+
+        List<GameObject> enemyPrefabs = poolDefinition.GetValidEnemyPrefabs();
         for (int index = 0; index < enemyPrefabs.Count; index++)
         {
             GameObject enemyPrefab = enemyPrefabs[index];

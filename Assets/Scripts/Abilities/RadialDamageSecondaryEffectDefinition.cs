@@ -19,6 +19,6 @@ public class RadialDamageSecondaryEffectDefinition : SecondaryAbilityEffectDefin
 
         PlayFeedback(character, context);
         Vector2Int centerCell = ResolveAnchorCell(character, context, anchor);
-        character.DamageEnemiesAround(centerCell, range, damage, includeDiagonals);
+        character.DamageEnemiesAround(centerCell, range, damage, includeDiagonals, context.SourceAbility);
     }
 }

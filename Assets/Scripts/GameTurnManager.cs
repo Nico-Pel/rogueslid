@@ -20,6 +20,9 @@ public class GameTurnManager : MonoBehaviour
     [SerializeField] private float endTurnLockDuration = 6f;
     [SerializeField] private float enemyTurnStartDelay = 0.5f;
     [SerializeField] private float rewardMenuDelay = 2f;
+#if UNITY_EDITOR
+    [SerializeField] private KeyCode debugRewardMenuKey = KeyCode.K;
+#endif
 
     private bool isEnemyTurnRunning;
     private bool isPointerTracking;
@@ -246,6 +249,14 @@ public class GameTurnManager : MonoBehaviour
             RequestEndTurn();
             return;
         }
+
+#if UNITY_EDITOR
+        if (Input.GetKeyDown(debugRewardMenuKey))
+        {
+            RequestDebugRewardChoice();
+            return;
+        }
+#endif
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
@@ -667,6 +678,7 @@ public class GameTurnManager : MonoBehaviour
         StopEndTurnUnlockTimer();
         ClearPendingAbility();
         SetCanEndTurn(false);
+        board.Player?.ControlledCharacter?.CommitCurrentTurnStateForNextTurn();
         soundManager?.PlayVictoryJingle();
 
         if (nextArenaCoroutine != null)
@@ -676,6 +688,52 @@ public class GameTurnManager : MonoBehaviour
 
         nextArenaCoroutine = StartCoroutine(LoadNextArenaAfterDelay());
     }
+
+#if UNITY_EDITOR
+    private void RequestDebugRewardChoice()
+    {
+        if (board == null || uiGame == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)
+        {
+            return;
+        }
+
+        List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
+        if (rewardChoices == null || rewardChoices.Count == 0)
+        {
+            return;
+        }
+
+        isPointerTracking = false;
+        ClearPendingAbility();
+        isRewardMenuOpen = true;
+        SetCanEndTurn(false);
+        uiGame.ShowRewards(rewardChoices, HandleDebugRewardSelected, HandleDebugRewardIgnored);
+    }
+
+    private void HandleDebugRewardSelected(RewardOffer rewardOffer)
+    {
+        if (board != null && rewardOffer != null)
+        {
+            board.ApplyReward(rewardOffer);
+        }
+
+        CloseDebugRewardChoice();
+    }
+
+    private void HandleDebugRewardIgnored()
+    {
+        CloseDebugRewardChoice();
+    }
+
+    private void CloseDebugRewardChoice()
+    {
+        isRewardMenuOpen = false;
+        uiGame?.HideRewards();
+        bool shouldAllowEndTurn = CurrentTurn == TurnSide.Player
+            && (hasPlayerActedThisTurn || endTurnLockDuration <= 0f || endTurnUnlockCoroutine == null);
+        SetCanEndTurn(shouldAllowEndTurn);
+    }
+#endif
 
     private IEnumerator LoadNextArenaAfterDelay()
     {

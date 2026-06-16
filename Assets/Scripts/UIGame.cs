@@ -23,6 +23,16 @@ public class UIGame : MonoBehaviour
     [SerializeField] private GameObject targetCellIndicatorPrefab;
     [SerializeField] private UnitStatsMenuUI enemyStatsMenu;
     [SerializeField] private UnitStatsMenuUI characterStatsMenu;
+    [SerializeField] private GameObject rewardCheckMenu;
+    [SerializeField] private Button rewardCheckBackgroundButton;
+    [SerializeField] private Button rewardCheckChooseButton;
+    [SerializeField] private RewardButtonUI rewardCheckCard;
+    [SerializeField] private GameObject switchAbilityMenu;
+    [SerializeField] private TMP_Text switchAbilityInfoText;
+    [SerializeField] private Image switchAbilityNewIcon;
+    [SerializeField] private Image switchAbilityOldIcon;
+    [SerializeField] private Button switchAbilityConfirmButton;
+    [SerializeField] private Button switchAbilityCancelButton;
     [SerializeField] private float statsMenuClickThreshold = 16f;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
@@ -41,6 +51,9 @@ public class UIGame : MonoBehaviour
     private Sprite objectRewardIcon;
     private bool isStatsPointerTracking;
     private Vector2 statsPointerStartPosition;
+    private RewardOffer pendingRewardConfirmation;
+    private ItemRewardDefinition currentPreviewedItemDefinition;
+    private AbilityDefinition pendingAbilityReplacementOldAbility;
 
     private void Awake()
     {
@@ -146,10 +159,15 @@ public class UIGame : MonoBehaviour
         CacheAbilityButtons();
         CacheRewardsMenu();
         CacheStatsMenus();
+        CacheRewardCheckMenu();
+        CacheSwitchAbilityMenu();
         if (rewardsMenu != null)
         {
             rewardsMenu.SetActive(false);
         }
+
+        HideRewardCheck();
+        HideSwitchAbilityMenu();
     }
 
     private void OnEnable()
@@ -194,6 +212,8 @@ public class UIGame : MonoBehaviour
         CacheRewardsMenu();
         CacheRewardTypeIcons();
         HideStatsMenus();
+        HideRewardCheck();
+        HideSwitchAbilityMenu();
 
         onRewardSelected = rewardSelectedCallback;
         onRewardsIgnored = rewardsIgnoredCallback;
@@ -212,7 +232,7 @@ public class UIGame : MonoBehaviour
             RewardOffer rewardOffer = rewardOffers != null && index < rewardOffers.Count ? rewardOffers[index] : null;
             RewardButtonStyle style = rewardOffer != null && rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
             Sprite typeSprite = rewardOffer != null ? ResolveTypeIconSprite(rewardOffer.IconKind) : null;
-            rewardCards[index].Bind(rewardOffer, style, typeSprite, HandleRewardSelected);
+            rewardCards[index].Bind(rewardOffer, style, typeSprite, HandleRewardPreviewRequested);
         }
     }
 
@@ -225,6 +245,9 @@ public class UIGame : MonoBehaviour
 
         onRewardSelected = null;
         onRewardsIgnored = null;
+        pendingRewardConfirmation = null;
+        HideRewardCheck();
+        HideSwitchAbilityMenu();
         UpdateEndTurnButtonVisibility();
         RefreshTargetCellIndicators();
     }
@@ -366,10 +389,60 @@ public class UIGame : MonoBehaviour
 
     private void HandleRewardSelected(RewardOffer rewardOffer)
     {
-        SoundManager.Instance?.PlayClick();
         Action<RewardOffer> selectedCallback = onRewardSelected;
         HideRewards();
         selectedCallback?.Invoke(rewardOffer);
+    }
+
+    private void HandleRewardPreviewRequested(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null)
+        {
+            return;
+        }
+
+        currentPreviewedItemDefinition = null;
+        pendingRewardConfirmation = rewardOffer;
+        ShowRewardCheck(rewardOffer, true);
+    }
+
+    private void HandleRewardCheckChooseClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        if (pendingRewardConfirmation == null)
+        {
+            HideRewardCheck();
+            return;
+        }
+
+        if (TryPrepareAbilityReplacementConfirmation(pendingRewardConfirmation))
+        {
+            HideRewardCheck();
+            ShowSwitchAbilityMenu(pendingRewardConfirmation, pendingAbilityReplacementOldAbility);
+            return;
+        }
+
+        ConfirmPendingRewardSelection();
+    }
+
+    private void HandleRewardCheckBackgroundClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        pendingRewardConfirmation = null;
+        HideRewardCheck();
+    }
+
+    private void HandleSwitchAbilityConfirmClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        ConfirmPendingRewardSelection();
+    }
+
+    private void HandleSwitchAbilityCancelClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        pendingRewardConfirmation = null;
+        HideSwitchAbilityMenu();
     }
 
     private void UpdateEndTurnButtonVisibility()
@@ -648,6 +721,108 @@ public class UIGame : MonoBehaviour
         }
     }
 
+    private void CacheRewardCheckMenu()
+    {
+        if (rewardCheckMenu == null)
+        {
+            Transform rewardCheckTransform = transform.Find("MenuRewardCheck");
+            if (rewardCheckTransform != null)
+            {
+                rewardCheckMenu = rewardCheckTransform.gameObject;
+            }
+        }
+
+        if (rewardCheckMenu == null)
+        {
+            return;
+        }
+
+        if (rewardCheckBackgroundButton == null)
+        {
+            rewardCheckBackgroundButton = rewardCheckMenu.GetComponent<Button>();
+        }
+
+        if (rewardCheckChooseButton == null)
+        {
+            rewardCheckChooseButton = rewardCheckMenu.transform.Find("BChoose")?.GetComponent<Button>();
+        }
+
+        if (rewardCheckCard == null)
+        {
+            rewardCheckCard = rewardCheckMenu.GetComponentInChildren<RewardButtonUI>(true);
+        }
+
+        if (rewardCheckBackgroundButton != null)
+        {
+            rewardCheckBackgroundButton.onClick.RemoveListener(HandleRewardCheckBackgroundClicked);
+            rewardCheckBackgroundButton.onClick.AddListener(HandleRewardCheckBackgroundClicked);
+        }
+
+        if (rewardCheckChooseButton != null)
+        {
+            rewardCheckChooseButton.onClick.RemoveListener(HandleRewardCheckChooseClicked);
+            rewardCheckChooseButton.onClick.AddListener(HandleRewardCheckChooseClicked);
+        }
+    }
+
+    private void CacheSwitchAbilityMenu()
+    {
+        if (switchAbilityMenu == null)
+        {
+            Transform switchMenuTransform = transform.Find("MenuSwitchAbility");
+            if (switchMenuTransform != null)
+            {
+                switchAbilityMenu = switchMenuTransform.gameObject;
+            }
+        }
+
+        if (switchAbilityMenu == null)
+        {
+            return;
+        }
+
+        if (switchAbilityInfoText == null)
+        {
+            switchAbilityInfoText = switchAbilityMenu.transform.Find("Info/tInfo")?.GetComponent<TMP_Text>();
+            if (switchAbilityInfoText == null)
+            {
+                switchAbilityInfoText = switchAbilityMenu.transform.Find("Title/tTitle")?.GetComponent<TMP_Text>();
+            }
+        }
+
+        if (switchAbilityNewIcon == null)
+        {
+            switchAbilityNewIcon = switchAbilityMenu.transform.Find("Background/AbilityNew/Mask/iAbility")?.GetComponent<Image>();
+        }
+
+        if (switchAbilityOldIcon == null)
+        {
+            switchAbilityOldIcon = switchAbilityMenu.transform.Find("Background/AbilityToReplace/Mask/iAbility")?.GetComponent<Image>();
+        }
+
+        if (switchAbilityConfirmButton == null)
+        {
+            switchAbilityConfirmButton = switchAbilityMenu.transform.Find("Background/BConfirm")?.GetComponent<Button>();
+        }
+
+        if (switchAbilityCancelButton == null)
+        {
+            switchAbilityCancelButton = switchAbilityMenu.transform.Find("Background/BCancel")?.GetComponent<Button>();
+        }
+
+        if (switchAbilityConfirmButton != null)
+        {
+            switchAbilityConfirmButton.onClick.RemoveListener(HandleSwitchAbilityConfirmClicked);
+            switchAbilityConfirmButton.onClick.AddListener(HandleSwitchAbilityConfirmClicked);
+        }
+
+        if (switchAbilityCancelButton != null)
+        {
+            switchAbilityCancelButton.onClick.RemoveListener(HandleSwitchAbilityCancelClicked);
+            switchAbilityCancelButton.onClick.AddListener(HandleSwitchAbilityCancelClicked);
+        }
+    }
+
     private void CacheRewardTypeIcons()
     {
         if (basicAttackRewardIcon != null && mobilityRewardIcon != null && specialRewardIcon != null)
@@ -797,9 +972,30 @@ public class UIGame : MonoBehaviour
                 itemIcon = itemIconObject.AddComponent<ItemIconUI>();
             }
 
-            itemIcon.Bind(itemRewardDefinition.Artwork);
+            itemIcon.Bind(itemRewardDefinition, HandleItemIconClicked);
             itemIcons.Add(itemIconObject);
         }
+    }
+
+    private void HandleItemIconClicked(ItemRewardDefinition itemRewardDefinition)
+    {
+        if (itemRewardDefinition == null)
+        {
+            return;
+        }
+
+        if (rewardCheckMenu != null
+            && rewardCheckMenu.activeSelf
+            && pendingRewardConfirmation == null
+            && currentPreviewedItemDefinition == itemRewardDefinition)
+        {
+            HideRewardCheck();
+            return;
+        }
+
+        pendingRewardConfirmation = null;
+        currentPreviewedItemDefinition = itemRewardDefinition;
+        ShowRewardCheck(itemRewardDefinition.CreateOffer(), false);
     }
 
     private void RefreshFooterCharacterInfo()
@@ -936,6 +1132,134 @@ public class UIGame : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void ShowRewardCheck(RewardOffer rewardOffer, bool canChoose)
+    {
+        CacheRewardCheckMenu();
+        CacheRewardTypeIcons();
+        if (rewardCheckMenu == null || rewardCheckCard == null || rewardOffer == null)
+        {
+            return;
+        }
+
+        RewardButtonStyle style = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
+        Sprite typeSprite = ResolveTypeIconSprite(rewardOffer.IconKind);
+        rewardCheckCard.Bind(rewardOffer, style, typeSprite, null);
+
+        if (rewardCheckChooseButton != null)
+        {
+            rewardCheckChooseButton.gameObject.SetActive(canChoose);
+        }
+
+        rewardCheckMenu.SetActive(true);
+    }
+
+    private void HideRewardCheck()
+    {
+        currentPreviewedItemDefinition = null;
+        if (rewardCheckMenu != null)
+        {
+            rewardCheckMenu.SetActive(false);
+        }
+    }
+
+    private void ShowSwitchAbilityMenu(RewardOffer rewardOffer, AbilityDefinition oldAbility)
+    {
+        CacheSwitchAbilityMenu();
+        if (switchAbilityMenu == null || rewardOffer?.Ability == null || oldAbility == null)
+        {
+            return;
+        }
+
+        if (switchAbilityInfoText != null)
+        {
+            switchAbilityInfoText.text = $"REPLACE \"{oldAbility.AbilityName.ToUpperInvariant()}\" WITH \"{rewardOffer.Ability.AbilityName.ToUpperInvariant()}\"";
+        }
+
+        if (switchAbilityNewIcon != null)
+        {
+            switchAbilityNewIcon.sprite = rewardOffer.Ability.Icon;
+            switchAbilityNewIcon.enabled = rewardOffer.Ability.Icon != null;
+        }
+
+        if (switchAbilityOldIcon != null)
+        {
+            switchAbilityOldIcon.sprite = oldAbility.Icon;
+            switchAbilityOldIcon.enabled = oldAbility.Icon != null;
+        }
+
+        switchAbilityMenu.SetActive(true);
+    }
+
+    private void HideSwitchAbilityMenu()
+    {
+        pendingAbilityReplacementOldAbility = null;
+        if (switchAbilityMenu != null)
+        {
+            switchAbilityMenu.SetActive(false);
+        }
+    }
+
+    private bool TryPrepareAbilityReplacementConfirmation(RewardOffer rewardOffer)
+    {
+        pendingAbilityReplacementOldAbility = null;
+        if (rewardOffer == null
+            || rewardOffer.Kind != RewardOfferKind.AbilityUnlock
+            || rewardOffer.Ability == null
+            || observedCharacter == null)
+        {
+            return false;
+        }
+
+        AbilityDefinition currentlyEquippedAbility = GetEquippedAbilityForCategory(rewardOffer.Ability.Category);
+        if (currentlyEquippedAbility == null || currentlyEquippedAbility == rewardOffer.Ability)
+        {
+            return false;
+        }
+
+        pendingAbilityReplacementOldAbility = currentlyEquippedAbility;
+        return true;
+    }
+
+    private AbilityDefinition GetEquippedAbilityForCategory(AbilityCategory category)
+    {
+        if (observedCharacter?.RunRewardState != null)
+        {
+            AbilityDefinition equippedFromRunState = observedCharacter.RunRewardState.GetEquippedAbility(category);
+            if (equippedFromRunState != null)
+            {
+                return equippedFromRunState;
+            }
+        }
+
+        for (int index = 0; observedCharacter != null && index < observedCharacter.Abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = observedCharacter.GetAbility(index);
+            if (runtime?.Definition != null && runtime.Definition.Category == category)
+            {
+                return runtime.Definition;
+            }
+        }
+
+        return null;
+    }
+
+    private void ConfirmPendingRewardSelection()
+    {
+        if (pendingRewardConfirmation == null)
+        {
+            HideRewardCheck();
+            HideSwitchAbilityMenu();
+            return;
+        }
+
+        RewardOffer rewardToConfirm = pendingRewardConfirmation;
+        pendingRewardConfirmation = null;
+        pendingAbilityReplacementOldAbility = null;
+        HideRewardCheck();
+        HideSwitchAbilityMenu();
+        HandleRewardSelected(rewardToConfirm);
     }
 
     private Sprite ResolveTypeIconSprite(RewardPresentationIconKind iconKind)
