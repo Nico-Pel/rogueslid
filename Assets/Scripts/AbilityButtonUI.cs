@@ -1,8 +1,10 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public class AbilityButtonUI : MonoBehaviour
+public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
     [SerializeField] private Button button;
     [SerializeField] private Image abilityImage;
@@ -17,11 +19,18 @@ public class AbilityButtonUI : MonoBehaviour
     [SerializeField] private Sprite basicAttackTypeSprite;
     [SerializeField] private Sprite mobilityTypeSprite;
     [SerializeField] private Sprite specialPowerTypeSprite;
+    private float abilityCheckLongPressDuration = 1f;
 
     private GameTurnManager gameTurnManager;
     private Character character;
     private int abilitySlotIndex = -1;
     private ActiveIndicator activeIndicatorEffect;
+    private Func<AbilityButtonUI, bool> clickInterceptor;
+    private Action<AbilityButtonUI> longPressCallback;
+    private bool isPointerDown;
+    private bool longPressTriggered;
+    private bool suppressNextClick;
+    private float pointerDownStartTime;
 
     public int AbilityIndex => abilitySlotIndex;
     public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
@@ -41,11 +50,30 @@ public class AbilityButtonUI : MonoBehaviour
         }
     }
 
-    public void Setup(GameTurnManager turnManager, Character boundCharacter, int index)
+    private void Update()
+    {
+        if (!isPointerDown || longPressTriggered || abilityCheckLongPressDuration <= 0f)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime - pointerDownStartTime < abilityCheckLongPressDuration)
+        {
+            return;
+        }
+
+        longPressTriggered = true;
+        suppressNextClick = true;
+        longPressCallback?.Invoke(this);
+    }
+
+    public void Setup(GameTurnManager turnManager, Character boundCharacter, int index, Func<AbilityButtonUI, bool> onPrimaryClick = null, Action<AbilityButtonUI> onLongPress = null)
     {
         gameTurnManager = turnManager;
         character = boundCharacter;
         abilitySlotIndex = index;
+        clickInterceptor = onPrimaryClick;
+        longPressCallback = onLongPress;
         Refresh();
     }
 
@@ -53,6 +81,11 @@ public class AbilityButtonUI : MonoBehaviour
     {
         character = null;
         abilitySlotIndex = -1;
+        clickInterceptor = null;
+        longPressCallback = null;
+        isPointerDown = false;
+        longPressTriggered = false;
+        suppressNextClick = false;
         Refresh();
     }
 
@@ -139,7 +172,16 @@ public class AbilityButtonUI : MonoBehaviour
             return;
         }
 
-        SoundManager.Instance?.PlayClick();
+        if (suppressNextClick)
+        {
+            suppressNextClick = false;
+            return;
+        }
+
+        if (clickInterceptor != null && clickInterceptor.Invoke(this))
+        {
+            return;
+        }
 
         int runtimeIndex = character.GetRuntimeIndexForSlot(abilitySlotIndex);
         if (runtimeIndex < 0)
@@ -148,6 +190,28 @@ public class AbilityButtonUI : MonoBehaviour
         }
 
         gameTurnManager?.RequestAbilityUse(runtimeIndex);
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
+        {
+            return;
+        }
+
+        isPointerDown = true;
+        longPressTriggered = false;
+        pointerDownStartTime = Time.unscaledTime;
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        isPointerDown = false;
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        isPointerDown = false;
     }
 
     private void CacheReferences()

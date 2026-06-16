@@ -227,6 +227,31 @@ public abstract class AbilityDefinition : ScriptableObject
         return string.Empty;
     }
 
+    public int CountOwnedDistinctUpgrades(PlayerRunRewardState runRewardState)
+    {
+        if (runRewardState == null || linkedUpgradeRewards == null)
+        {
+            return 0;
+        }
+
+        int distinctCount = 0;
+        for (int index = 0; index < linkedUpgradeRewards.Count; index++)
+        {
+            AbilityUpgradeRewardDefinition upgradeDefinition = linkedUpgradeRewards[index];
+            if (upgradeDefinition == null)
+            {
+                continue;
+            }
+
+            if (runRewardState.GetUpgradeStacks(upgradeDefinition.UpgradeKey) > 0)
+            {
+                distinctCount++;
+            }
+        }
+
+        return distinctCount;
+    }
+
     protected void PlayConfiguredFx(Character character, IEnumerable<Enemy> hitTargets = null)
     {
         if (character == null || fxSpawns == null || fxSpawns.Count == 0)

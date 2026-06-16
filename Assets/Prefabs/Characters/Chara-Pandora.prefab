@@ -1916,13 +1916,13 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
-      propertyPath: hpFillBar
-      value: 
-      objectReference: {fileID: 1578293956684712627}
-    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: partyIndex
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: canvasUnitUI
+      value: 
+      objectReference: {fileID: 995334754841259197}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: characterBody
       value: 
@@ -2075,15 +2075,15 @@ PrefabInstance:
       addedObject: {fileID: 8922063283189531563}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
---- !u!114 &1578293956684712627 stripped
+--- !u!114 &995334754841259197 stripped
 MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6708919912438632488, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+  m_CorrespondingSourceObject: {fileID: 4984857306715682342, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
   m_PrefabInstance: {fileID: 5259613792272489115}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Script: {fileID: 11500000, guid: 9a3f1d2c7b8e4f1aa6c3d5e9b7f20411, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!4 &6776620691815119314 stripped

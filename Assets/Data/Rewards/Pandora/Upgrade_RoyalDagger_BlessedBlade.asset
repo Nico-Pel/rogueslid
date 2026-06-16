@@ -16,7 +16,7 @@ MonoBehaviour:
   rewardTitle: Blessed Blade
   rewardDescription: Increase Royal Dagger damage by 2. Max 2 stacks.
   artwork: {fileID: 0}
-  ability: {fileID: 11400000, guid: 2517299324c84c25b12b5db893e60098, type: 2}
+  ability: {fileID: 11400000, guid: 21ebb8d225ab94d4198d6f11a0dfde9d, type: 2}
   upgradeKey: 29
   stackable: 1
   maxStacks: 2

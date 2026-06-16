@@ -8,6 +8,8 @@ public class UnitStatRowUI
     [SerializeField] private GameObject root;
     [SerializeField] private Image icon;
     [SerializeField] private TMP_Text valueLabel;
+    private Color defaultValueColor = Color.white;
+    private bool hasCachedDefaultValueColor;
 
     public void CacheFrom(Transform parent, string rowName)
     {
@@ -35,9 +37,15 @@ public class UnitStatRowUI
         {
             valueLabel = root.transform.Find("tStats")?.GetComponent<TMP_Text>();
         }
+
+        if (valueLabel != null && !hasCachedDefaultValueColor)
+        {
+            defaultValueColor = valueLabel.color;
+            hasCachedDefaultValueColor = true;
+        }
     }
 
-    public void Bind(bool isVisible, string value, Sprite spriteOverride = null)
+    public void Bind(bool isVisible, string value, Sprite spriteOverride = null, Color? valueColorOverride = null)
     {
         if (root == null)
         {
@@ -53,6 +61,7 @@ public class UnitStatRowUI
         if (valueLabel != null)
         {
             valueLabel.text = value;
+            valueLabel.color = valueColorOverride ?? defaultValueColor;
         }
 
         if (icon != null && spriteOverride != null)
@@ -65,6 +74,9 @@ public class UnitStatRowUI
 
 public class UnitStatsMenuUI : MonoBehaviour
 {
+    private static readonly Color BuffedStatColor = new Color32(0x71, 0xF0, 0x6A, 0xFF);
+    private static readonly Color DebuffedStatColor = new Color32(0xFF, 0x63, 0x63, 0xFF);
+
     [Header("Common")]
     [SerializeField] private Button closeButton;
     [SerializeField] private Image portraitImage;
@@ -76,6 +88,7 @@ public class UnitStatsMenuUI : MonoBehaviour
 
     [Header("Stats")]
     [SerializeField] private UnitStatRowUI attackStat = new UnitStatRowUI();
+    [SerializeField] private UnitStatRowUI forceStat = new UnitStatRowUI();
     [SerializeField] private UnitStatRowUI hpStat = new UnitStatRowUI();
     [SerializeField] private UnitStatRowUI resistanceStat = new UnitStatRowUI();
     [SerializeField] private UnitStatRowUI mobilityStat = new UnitStatRowUI();
@@ -107,6 +120,7 @@ public class UnitStatsMenuUI : MonoBehaviour
         BindCommon(enemy.EnemyName, enemy.EnemyPortrait, enemy.EnemySpecialInfo);
 
         attackStat.Bind(data == null || data.ShowAttack, enemy.Force.ToString(), data != null ? data.AttackSprite : null);
+        forceStat.Bind(false, string.Empty);
         hpStat.Bind(data == null || data.ShowHealth, $"{enemy.CurrentHealth}/{enemy.MaxHealth}");
         resistanceStat.Bind(data != null && data.ShowResistance, enemy.Resistance.ToString());
         mobilityStat.Bind(data == null || data.ShowMobility, enemy.Mobility.ToString());
@@ -127,10 +141,22 @@ public class UnitStatsMenuUI : MonoBehaviour
 
         BindCommon(character.CharacterName, character.CharacterPortrait, character.CharacterDescription);
 
-        attackStat.Bind(true, character.BonusDamage.ToString());
-        hpStat.Bind(true, $"{character.CurrentHealth}/{character.MaxHealth}");
-        resistanceStat.Bind(true, character.Resistance.ToString());
-        mobilityStat.Bind(true, $"{character.RemainingMovementPoints}/{character.BaseMovementPoints}");
+        int naturalAttack = character.GetDisplayedBasicAttackDamage(false);
+        int currentAttack = character.GetDisplayedBasicAttackDamage(true);
+        int naturalForce = character.GetNaturalBonusDamage();
+        int currentForce = character.BonusDamage;
+        int naturalHp = character.GetNaturalMaxHealth();
+        int currentHp = character.MaxHealth;
+        int naturalResistance = character.GetNaturalResistance();
+        int currentResistance = character.Resistance;
+        int naturalMobility = character.GetNaturalMovementPointsPerTurn();
+        int currentMobility = character.BaseMovementPoints;
+
+        attackStat.Bind(true, currentAttack.ToString(), null, GetStatColor(currentAttack, naturalAttack));
+        forceStat.Bind(true, currentForce.ToString(), null, GetStatColor(currentForce, naturalForce));
+        hpStat.Bind(true, currentHp.ToString(), null, GetStatColor(currentHp, naturalHp));
+        resistanceStat.Bind(true, currentResistance.ToString(), null, GetStatColor(currentResistance, naturalResistance));
+        mobilityStat.Bind(true, currentMobility.ToString(), null, GetStatColor(currentMobility, naturalMobility));
         regenStat.Bind(false, string.Empty);
         specialStat.Bind(false, string.Empty);
 
@@ -217,10 +243,26 @@ public class UnitStatsMenuUI : MonoBehaviour
         }
 
         attackStat.CacheFrom(transform, "StatAttack");
+        forceStat.CacheFrom(transform, "StatForce");
         hpStat.CacheFrom(transform, "StatHP");
         resistanceStat.CacheFrom(transform, "StatResistance");
         mobilityStat.CacheFrom(transform, "StatMobility");
         regenStat.CacheFrom(transform, "StatRegen");
         specialStat.CacheFrom(transform, "StatSpecial");
+    }
+
+    private static Color? GetStatColor(int currentValue, int naturalValue)
+    {
+        if (currentValue > naturalValue)
+        {
+            return BuffedStatColor;
+        }
+
+        if (currentValue < naturalValue)
+        {
+            return DebuffedStatColor;
+        }
+
+        return null;
     }
 }

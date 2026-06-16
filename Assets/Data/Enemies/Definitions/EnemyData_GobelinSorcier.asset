@@ -21,7 +21,7 @@ MonoBehaviour:
   mobility: 2
   attackPattern: 2
   attackRange: 10
-  damageSoundType: 2
+  damageSoundType: 3
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0
@@ -42,15 +42,15 @@ MonoBehaviour:
   optionalHealAmount: 4
   moveDuration: 0.16
   projectileTravelHeight: 0.5
-  projectileTravelSpeed: 20
+  projectileTravelSpeed: 10
   useFlyAnimationOnObstacle: 0
   showAttack: 1
-  attackSprite: {fileID: 85107637, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  attackSprite: {fileID: -466392962, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1
   showResistance: 0
   showMobility: 1
   showRegen: 0
   regenPerTurn: 0
   showSpecial: 1
-  specialStatSprite: {fileID: 21300000, guid: b888433dfb21a48d7a9942deb55740de, type: 3}
+  specialStatSprite: {fileID: 387457842, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   specialStatValue: 4

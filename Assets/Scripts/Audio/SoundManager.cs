@@ -4,7 +4,8 @@ public enum DamageSoundType
 {
     Default,
     Sword,
-    ArrowHit
+    ArrowHit,
+    MagicHit
 }
 
 public class SoundManager : MonoBehaviour
@@ -27,9 +28,11 @@ public class SoundManager : MonoBehaviour
     [Header("Music")]
     [SerializeField] private AudioClip arenaMusic;
     [SerializeField] private AudioClip victoryJingle;
+    [SerializeField] private AudioClip victoryChoiceMusic;
     [SerializeField] [Range(0f, 1f)] private float musicVolume = 0.7f;
     [SerializeField] [Range(0f, 1f)] private float jingleVolume = 1f;
     [SerializeField] private bool loopArenaMusic = true;
+    [SerializeField] private bool loopVictoryChoiceMusic = true;
 
     [Header("General")]
     [SerializeField] [Range(0f, 1f)] private float sfxVolumeMultiplier = 1f;
@@ -40,6 +43,7 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip arrowShotSound;
     [SerializeField] private AudioClip arrowHitSound;
     [SerializeField] private AudioClip swordHitSound;
+    [SerializeField] private AudioClip magicHitSound;
     [SerializeField] private AudioClip powerUpSound;
     [SerializeField] private AudioClip healSound;
     [SerializeField] private AudioClip dashSound;
@@ -119,12 +123,34 @@ public class SoundManager : MonoBehaviour
         oneShotSource.PlayOneShot(victoryJingle, jingleVolume);
     }
 
+    public void PlayVictoryChoiceMusic()
+    {
+        if (victoryChoiceMusic == null)
+        {
+            return;
+        }
+
+        EnsureAudioSources();
+
+        if (musicSource.isPlaying && musicSource.clip == victoryChoiceMusic)
+        {
+            return;
+        }
+
+        musicSource.Stop();
+        musicSource.clip = victoryChoiceMusic;
+        musicSource.loop = loopVictoryChoiceMusic;
+        musicSource.volume = musicVolume;
+        musicSource.Play();
+    }
+
     public void PlayDamageSound(DamageSoundType soundType, Vector3 position, float volume = 1f)
     {
         AudioClip clip = soundType switch
         {
             DamageSoundType.Sword => swordHitSound != null ? swordHitSound : defaultHitSound,
             DamageSoundType.ArrowHit => arrowHitSound != null ? arrowHitSound : defaultHitSound,
+            DamageSoundType.MagicHit => magicHitSound != null ? magicHitSound : defaultHitSound,
             _ => defaultHitSound
         };
 

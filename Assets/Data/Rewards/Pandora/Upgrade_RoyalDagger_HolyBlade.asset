@@ -16,7 +16,7 @@ MonoBehaviour:
   rewardTitle: Holy Blade
   rewardDescription: Uninjured enemies take 2 additional damage from Royal Dagger.
   artwork: {fileID: 0}
-  ability: {fileID: 11400000, guid: 2517299324c84c25b12b5db893e60098, type: 2}
+  ability: {fileID: 11400000, guid: 21ebb8d225ab94d4198d6f11a0dfde9d, type: 2}
   upgradeKey: 26
   stackable: 0
   maxStacks: 0

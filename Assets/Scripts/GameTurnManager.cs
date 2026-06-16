@@ -708,6 +708,7 @@ public class GameTurnManager : MonoBehaviour
         isRewardMenuOpen = true;
         SetCanEndTurn(false);
         uiGame.ShowRewards(rewardChoices, HandleDebugRewardSelected, HandleDebugRewardIgnored);
+        soundManager?.PlayVictoryChoiceMusic();
     }
 
     private void HandleDebugRewardSelected(RewardOffer rewardOffer)
@@ -754,6 +755,7 @@ public class GameTurnManager : MonoBehaviour
 
         isRewardMenuOpen = true;
         uiGame?.ShowRewards(rewardChoices, HandleRewardSelected, HandleRewardsIgnored);
+        soundManager?.PlayVictoryChoiceMusic();
     }
 
     private void HandleRewardSelected(RewardOffer rewardOffer)

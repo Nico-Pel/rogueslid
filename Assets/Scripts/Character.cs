@@ -3,7 +3,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 public enum CharacterProcFxKey
 {
@@ -55,7 +54,7 @@ public class Character : MonoBehaviour
     [SerializeField] private float spawnHeight = 0.08f;
     [SerializeField] private float deathDestroyDelay = 0.12f;
     [SerializeField] private GameObject fxDeathPrefab;
-    [SerializeField] private Image hpFillBar;
+    [SerializeField] private CanvasUnitUI canvasUnitUI;
     [SerializeField] private Transform characterBody;
     [SerializeField] private Animator characterAnimator;
     [SerializeField] private TrailRenderer characterTrail;
@@ -593,6 +592,52 @@ public class Character : MonoBehaviour
         return runRewardState != null ? runRewardState.GetUpgradeStacks(upgradeKey) : 0;
     }
 
+    public int GetNaturalMaxHealth()
+    {
+        return baseMaxHealth + (runRewardState != null ? runRewardState.GetBonusMaxHealth() : 0);
+    }
+
+    public int GetNaturalBonusDamage()
+    {
+        return baseBonusDamage + (runRewardState != null ? runRewardState.GetBonusDamage() : 0);
+    }
+
+    public int GetNaturalResistance()
+    {
+        return baseResistance + (runRewardState != null ? runRewardState.GetBonusResistance() : 0);
+    }
+
+    public int GetNaturalMovementPointsPerTurn()
+    {
+        return baseMovementPointsPerTurn + (runRewardState != null ? runRewardState.GetBonusMovementPoints() : 0);
+    }
+
+    public int GetDisplayedBasicAttackDamage(bool includeTemporaryModifiers)
+    {
+        AbilityDefinition basicAttack = GetAbilityForSlot(0)?.Definition;
+        if (basicAttack == null)
+        {
+            return 0;
+        }
+
+        int weaponDamage = 0;
+        switch (basicAttack)
+        {
+            case SpinningBladesAbility:
+                weaponDamage = 5 + GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesSharpening);
+                break;
+            case DemonicChainAbility:
+                weaponDamage = 4;
+                break;
+            case ThiefsDaggerAbility:
+                weaponDamage = 5 + (2 * GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade));
+                break;
+        }
+
+        int bonus = includeTemporaryModifiers ? BonusDamage : GetNaturalBonusDamage();
+        return Mathf.Max(0, weaponDamage + bonus);
+    }
+
     public bool HasItem(ItemRewardKey itemKey)
     {
         return runRewardState != null && runRewardState.HasItem(itemKey);
@@ -1116,27 +1161,23 @@ public class Character : MonoBehaviour
 
     private void CacheHpBar()
     {
-        if (hpFillBar != null)
+        if (canvasUnitUI != null)
         {
             return;
         }
 
-        Transform hpFillTransform = transform.Find("Canvas/hpBar/hpFillBar");
-        if (hpFillTransform != null)
-        {
-            hpFillBar = hpFillTransform.GetComponent<Image>();
-        }
+        canvasUnitUI = GetComponentInChildren<CanvasUnitUI>(true);
     }
 
     private void RefreshHpBar()
     {
-        if (hpFillBar == null)
+        CacheHpBar();
+        if (canvasUnitUI == null)
         {
             return;
         }
 
-        float fillRatio = maxHealth > 0 ? (float)currentHealth / maxHealth : 0f;
-        hpFillBar.fillAmount = Mathf.Clamp01(fillRatio);
+        canvasUnitUI.RefreshHealth(currentHealth, maxHealth);
     }
 
     private void InitializeAbilities(IReadOnlyList<AbilityDefinition> abilityDefinitions = null)

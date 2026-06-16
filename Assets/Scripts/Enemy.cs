@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System;
 using DG.Tweening;
 using UnityEngine;
-using UnityEngine.UI;
 
 public enum EnemyAttackPattern
 {
@@ -62,7 +61,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private GameObject fxDeathPrefab;
     [SerializeField] private Transform deathMarkAnchor;
     [SerializeField] private GameObject fxDeathMarkPrefab;
-    [SerializeField] private Image hpFillBar;
+    [SerializeField] private CanvasUnitUI canvasUnitUI;
 
     [Header("Projectile")]
     [SerializeField] private GameObject projectilePrefab;
@@ -600,15 +599,9 @@ public class Enemy : MonoBehaviour
 
     private void CacheHpBar()
     {
-        if (hpFillBar != null)
+        if (canvasUnitUI == null)
         {
-            return;
-        }
-
-        Transform hpFillTransform = transform.Find("Canvas/hpBar/hpFillBar");
-        if (hpFillTransform != null)
-        {
-            hpFillBar = hpFillTransform.GetComponent<Image>();
+            canvasUnitUI = GetComponentInChildren<CanvasUnitUI>(true);
         }
     }
 
@@ -616,11 +609,8 @@ public class Enemy : MonoBehaviour
     {
         if (enemyCanvas == null)
         {
-            Transform canvasTransform = transform.Find("Canvas");
-            if (canvasTransform != null)
-            {
-                enemyCanvas = canvasTransform;
-            }
+            CacheHpBar();
+            enemyCanvas = canvasUnitUI != null ? canvasUnitUI.RootTransform : transform.Find("Canvas");
         }
 
         if (!hasCachedCanvasDefaultPosition && enemyCanvas != null)
@@ -648,13 +638,13 @@ public class Enemy : MonoBehaviour
 
     private void RefreshHpBar()
     {
-        if (hpFillBar == null)
+        CacheHpBar();
+        if (canvasUnitUI == null)
         {
             return;
         }
 
-        float fillRatio = maxHealth > 0 ? (float)currentHealth / maxHealth : 0f;
-        hpFillBar.fillAmount = Mathf.Clamp01(fillRatio);
+        canvasUnitUI.RefreshHealth(currentHealth, maxHealth);
     }
 
     private bool ShouldUseFleeBehaviour()

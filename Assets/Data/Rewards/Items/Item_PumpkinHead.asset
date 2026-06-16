@@ -15,5 +15,5 @@ MonoBehaviour:
   rewardId: item_pumpkin_head
   rewardTitle: Pumpkin Head
   rewardDescription: Gain 1 bonus damage for abilities that are not Weapons.
-  artwork: {fileID: -486384575, guid: 82815694f6d7e4eba94663ced4be4c1b, type: 3}
+  artwork: {fileID: 1097908162, guid: 1e73d525c312240ef83c8996da75647e, type: 3}
   itemKey: 22

@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_royal_dagger_royal_blessing
   rewardTitle: Royal Blessing
-  rewardDescription: Pandora recovers 2 health after eliminating an enemy with Royal Dagger. Max 3 stacks.
+  rewardDescription: Pandora recovers 2 health after eliminating an enemy with Royal
+    Dagger. Max 3 stacks.
   artwork: {fileID: 0}
-  ability: {fileID: 11400000, guid: 2517299324c84c25b12b5db893e60098, type: 2}
+  ability: {fileID: 11400000, guid: 21ebb8d225ab94d4198d6f11a0dfde9d, type: 2}
   upgradeKey: 28
   stackable: 1
   maxStacks: 3

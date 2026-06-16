@@ -19,12 +19,26 @@ public class AbilityUpgradeRewardDefinition : RewardDefinition
     public override bool CanOffer(PlayerRunRewardState runRewardState)
     {
         int currentStacks = runRewardState != null ? runRewardState.GetUpgradeStacks(upgradeKey) : 0;
-        return ability != null
-            && runRewardState != null
-            && runRewardState.HasAbility(ability)
-            && (!stackable
-                ? currentStacks == 0
-                : maxStacks <= 0 || currentStacks < maxStacks);
+        if (ability == null || runRewardState == null || !runRewardState.HasAbility(ability))
+        {
+            return false;
+        }
+
+        bool canAddMoreStacks = !stackable
+            ? currentStacks == 0
+            : maxStacks <= 0 || currentStacks < maxStacks;
+        if (!canAddMoreStacks)
+        {
+            return false;
+        }
+
+        if (currentStacks > 0)
+        {
+            return true;
+        }
+
+        const int maxDistinctUpgradesPerAbility = 5;
+        return ability.CountOwnedDistinctUpgrades(runRewardState) < maxDistinctUpgradesPerAbility;
     }
 
     public override void Apply(PlayerRunRewardState runRewardState)

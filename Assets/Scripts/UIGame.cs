@@ -27,6 +27,11 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button rewardCheckBackgroundButton;
     [SerializeField] private Button rewardCheckChooseButton;
     [SerializeField] private RewardButtonUI rewardCheckCard;
+    [SerializeField] private GameObject abilityCheckMenu;
+    [SerializeField] private Button abilityCheckBackgroundButton;
+    [SerializeField] private RewardButtonUI abilityCheckCard;
+    [SerializeField] private List<Button> abilityCheckOptionButtons = new List<Button>();
+    [SerializeField] private List<GameObject> abilityCheckOptionSelectors = new List<GameObject>();
     [SerializeField] private GameObject switchAbilityMenu;
     [SerializeField] private TMP_Text switchAbilityInfoText;
     [SerializeField] private Image switchAbilityNewIcon;
@@ -54,6 +59,8 @@ public class UIGame : MonoBehaviour
     private RewardOffer pendingRewardConfirmation;
     private ItemRewardDefinition currentPreviewedItemDefinition;
     private AbilityDefinition pendingAbilityReplacementOldAbility;
+    private AbilityButtonUI currentAbilityCheckSourceButton;
+    private readonly List<RewardOffer> currentAbilityCheckOffers = new List<RewardOffer>();
 
     private void Awake()
     {
@@ -160,6 +167,7 @@ public class UIGame : MonoBehaviour
         CacheRewardsMenu();
         CacheStatsMenus();
         CacheRewardCheckMenu();
+        CacheAbilityCheckMenu();
         CacheSwitchAbilityMenu();
         if (rewardsMenu != null)
         {
@@ -167,6 +175,7 @@ public class UIGame : MonoBehaviour
         }
 
         HideRewardCheck();
+        HideAbilityCheck();
         HideSwitchAbilityMenu();
     }
 
@@ -213,6 +222,7 @@ public class UIGame : MonoBehaviour
         CacheRewardTypeIcons();
         HideStatsMenus();
         HideRewardCheck();
+        HideAbilityCheck();
         HideSwitchAbilityMenu();
 
         onRewardSelected = rewardSelectedCallback;
@@ -247,6 +257,7 @@ public class UIGame : MonoBehaviour
         onRewardsIgnored = null;
         pendingRewardConfirmation = null;
         HideRewardCheck();
+        HideAbilityCheck();
         HideSwitchAbilityMenu();
         UpdateEndTurnButtonVisibility();
         RefreshTargetCellIndicators();
@@ -261,6 +272,7 @@ public class UIGame : MonoBehaviour
     private void HandleTurnChanged(TurnSide turnSide)
     {
         HideStatsMenus();
+        HideAbilityCheck();
 
         if (endTurnButton != null)
         {
@@ -300,6 +312,7 @@ public class UIGame : MonoBehaviour
 
         UnbindCharacter();
         observedCharacter = currentCharacter;
+        HideAbilityCheck();
 
         if (observedCharacter != null)
         {
@@ -334,6 +347,7 @@ public class UIGame : MonoBehaviour
 
     private void HandleAbilitiesChanged(Character character)
     {
+        HideAbilityCheck();
         RefreshAbilityButtons();
         RefreshItemsList();
         RefreshFooterCharacterInfo();
@@ -366,11 +380,18 @@ public class UIGame : MonoBehaviour
     private void HandleCharacterPortraitClicked()
     {
         SoundManager.Instance?.PlayClick();
+        if (characterStatsMenu != null && characterStatsMenu.gameObject.activeSelf)
+        {
+            characterStatsMenu.Hide();
+            return;
+        }
+
         if (observedCharacter == null)
         {
             return;
         }
 
+        HideAbilityCheck();
         enemyStatsMenu?.Hide();
         characterStatsMenu?.ShowCharacter(observedCharacter);
     }
@@ -443,6 +464,48 @@ public class UIGame : MonoBehaviour
         SoundManager.Instance?.PlayClick();
         pendingRewardConfirmation = null;
         HideSwitchAbilityMenu();
+    }
+
+    private bool HandleAbilityButtonPrimaryClick(AbilityButtonUI button)
+    {
+        if (button == null)
+        {
+            return false;
+        }
+
+        if (abilityCheckMenu != null && abilityCheckMenu.activeSelf)
+        {
+            SoundManager.Instance?.PlayClick();
+            if (currentAbilityCheckSourceButton == button)
+            {
+                HideAbilityCheck();
+            }
+            else
+            {
+                ShowAbilityCheck(button, 0);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private void HandleAbilityButtonLongPress(AbilityButtonUI button)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        SoundManager.Instance?.PlayClick();
+        if (abilityCheckMenu != null && abilityCheckMenu.activeSelf && currentAbilityCheckSourceButton == button)
+        {
+            HideAbilityCheck();
+            return;
+        }
+
+        ShowAbilityCheck(button, 0);
     }
 
     private void UpdateEndTurnButtonVisibility()
@@ -765,6 +828,66 @@ public class UIGame : MonoBehaviour
         }
     }
 
+    private void CacheAbilityCheckMenu()
+    {
+        if (abilityCheckMenu == null)
+        {
+            Transform abilityCheckTransform = transform.Find("MenuAbilityCheck");
+            if (abilityCheckTransform != null)
+            {
+                abilityCheckMenu = abilityCheckTransform.gameObject;
+            }
+        }
+
+        if (abilityCheckMenu == null)
+        {
+            return;
+        }
+
+        if (abilityCheckBackgroundButton == null)
+        {
+            abilityCheckBackgroundButton = abilityCheckMenu.GetComponent<Button>();
+        }
+
+        if (abilityCheckCard == null)
+        {
+            abilityCheckCard = abilityCheckMenu.GetComponentInChildren<RewardButtonUI>(true);
+        }
+
+        if (abilityCheckBackgroundButton != null)
+        {
+            abilityCheckBackgroundButton.onClick.RemoveListener(HandleAbilityCheckBackgroundClicked);
+            abilityCheckBackgroundButton.onClick.AddListener(HandleAbilityCheckBackgroundClicked);
+        }
+
+        if (abilityCheckOptionButtons.Count == 0)
+        {
+            Transform upgradesTransform = abilityCheckMenu.transform.Find("Upgrades");
+            if (upgradesTransform != null)
+            {
+                for (int index = 0; index < upgradesTransform.childCount; index++)
+                {
+                    Transform child = upgradesTransform.GetChild(index);
+                    Button optionButton = child.GetComponent<Button>();
+                    if (optionButton == null)
+                    {
+                        continue;
+                    }
+
+                    abilityCheckOptionButtons.Add(optionButton);
+                    abilityCheckOptionSelectors.Add(child.Find("iSelector")?.gameObject);
+                }
+            }
+        }
+
+        for (int index = 0; index < abilityCheckOptionButtons.Count; index++)
+        {
+            int capturedIndex = index;
+            abilityCheckOptionButtons[index].onClick.RemoveAllListeners();
+            abilityCheckOptionButtons[index].onClick.AddListener(() => HandleAbilityCheckOptionClicked(capturedIndex));
+        }
+    }
+
     private void CacheSwitchAbilityMenu()
     {
         if (switchAbilityMenu == null)
@@ -922,7 +1045,7 @@ public class UIGame : MonoBehaviour
                 continue;
             }
 
-            button.Setup(gameTurnManager, observedCharacter, index);
+            button.Setup(gameTurnManager, observedCharacter, index, HandleAbilityButtonPrimaryClick, HandleAbilityButtonLongPress);
         }
     }
 
@@ -996,6 +1119,23 @@ public class UIGame : MonoBehaviour
         pendingRewardConfirmation = null;
         currentPreviewedItemDefinition = itemRewardDefinition;
         ShowRewardCheck(itemRewardDefinition.CreateOffer(), false);
+    }
+
+    private void HandleAbilityCheckBackgroundClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        HideAbilityCheck();
+    }
+
+    private void HandleAbilityCheckOptionClicked(int optionIndex)
+    {
+        if (optionIndex < 0 || optionIndex >= currentAbilityCheckOffers.Count)
+        {
+            return;
+        }
+
+        SoundManager.Instance?.PlayClick();
+        UpdateAbilityCheckSelection(optionIndex);
     }
 
     private void RefreshFooterCharacterInfo()
@@ -1081,6 +1221,7 @@ public class UIGame : MonoBehaviour
             return;
         }
 
+        HideAbilityCheck();
         characterStatsMenu?.Hide();
         enemyStatsMenu?.ShowEnemy(enemy);
     }
@@ -1138,6 +1279,7 @@ public class UIGame : MonoBehaviour
     {
         CacheRewardCheckMenu();
         CacheRewardTypeIcons();
+        HideAbilityCheck();
         if (rewardCheckMenu == null || rewardCheckCard == null || rewardOffer == null)
         {
             return;
@@ -1161,6 +1303,168 @@ public class UIGame : MonoBehaviour
         if (rewardCheckMenu != null)
         {
             rewardCheckMenu.SetActive(false);
+        }
+    }
+
+    private void ShowAbilityCheck(AbilityButtonUI sourceButton, int selectedIndex)
+    {
+        CacheAbilityCheckMenu();
+        CacheRewardTypeIcons();
+        if (abilityCheckMenu == null || abilityCheckCard == null || sourceButton == null)
+        {
+            return;
+        }
+
+        RewardOffer baseOffer = BuildAbilityBaseOffer(sourceButton.BoundDefinition);
+        if (baseOffer == null)
+        {
+            return;
+        }
+
+        currentAbilityCheckSourceButton = sourceButton;
+        currentAbilityCheckOffers.Clear();
+        currentAbilityCheckOffers.Add(baseOffer);
+        CollectAcquiredUpgradeOffers(sourceButton.BoundDefinition, currentAbilityCheckOffers);
+
+        abilityCheckMenu.SetActive(true);
+        UpdateAbilityCheckSelection(Mathf.Clamp(selectedIndex, 0, Mathf.Max(0, currentAbilityCheckOffers.Count - 1)));
+    }
+
+    private void HideAbilityCheck()
+    {
+        currentAbilityCheckSourceButton = null;
+        currentAbilityCheckOffers.Clear();
+        if (abilityCheckMenu != null)
+        {
+            abilityCheckMenu.SetActive(false);
+        }
+    }
+
+    private void UpdateAbilityCheckSelection(int selectedIndex)
+    {
+        if (abilityCheckCard == null || currentAbilityCheckOffers.Count == 0)
+        {
+            return;
+        }
+
+        int clampedIndex = Mathf.Clamp(selectedIndex, 0, currentAbilityCheckOffers.Count - 1);
+        RewardOffer rewardOffer = currentAbilityCheckOffers[clampedIndex];
+        RewardButtonStyle style = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
+        abilityCheckCard.Bind(rewardOffer, style, ResolveTypeIconSprite(rewardOffer.IconKind), null);
+
+        for (int index = 0; index < abilityCheckOptionButtons.Count; index++)
+        {
+            bool isAvailable = index < currentAbilityCheckOffers.Count;
+            if (abilityCheckOptionButtons[index] != null)
+            {
+                abilityCheckOptionButtons[index].gameObject.SetActive(isAvailable);
+            }
+
+            if (index < abilityCheckOptionSelectors.Count && abilityCheckOptionSelectors[index] != null)
+            {
+                abilityCheckOptionSelectors[index].SetActive(isAvailable && index == clampedIndex);
+            }
+        }
+    }
+
+    private RewardOffer BuildAbilityBaseOffer(AbilityDefinition abilityDefinition)
+    {
+        if (abilityDefinition == null)
+        {
+            return null;
+        }
+
+        return new RewardOffer
+        {
+            Id = $"ability_preview_{abilityDefinition.name}",
+            Title = abilityDefinition.AbilityName,
+            Description = ResolveAbilityDescription(abilityDefinition),
+            Artwork = abilityDefinition.Icon,
+            Kind = RewardOfferKind.AbilityUnlock,
+            IconKind = GetIconKindForAbilityCategory(abilityDefinition.Category),
+            ShowPowerStroke = false,
+            Ability = abilityDefinition
+        };
+    }
+
+    private string ResolveAbilityDescription(AbilityDefinition abilityDefinition)
+    {
+        if (abilityDefinition == null || observedCharacter?.Data == null)
+        {
+            return string.Empty;
+        }
+
+        IReadOnlyList<AbilityRewardDefinition> unlockableRewards = observedCharacter.Data.UnlockableAbilityRewards;
+        for (int index = 0; index < unlockableRewards.Count; index++)
+        {
+            AbilityRewardDefinition rewardDefinition = unlockableRewards[index];
+            if (rewardDefinition != null && rewardDefinition.Ability == abilityDefinition)
+            {
+                return rewardDefinition.RewardDescription;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private void CollectAcquiredUpgradeOffers(AbilityDefinition abilityDefinition, List<RewardOffer> offers)
+    {
+        if (abilityDefinition == null || offers == null || observedCharacter == null)
+        {
+            return;
+        }
+
+        IReadOnlyList<AbilityUpgradeRewardDefinition> linkedUpgrades = abilityDefinition.LinkedUpgradeRewards;
+        for (int index = 0; index < linkedUpgrades.Count && offers.Count < 6; index++)
+        {
+            AbilityUpgradeRewardDefinition upgradeDefinition = linkedUpgrades[index];
+            if (upgradeDefinition == null)
+            {
+                continue;
+            }
+
+            int stacks = observedCharacter.GetUpgradeStacks(upgradeDefinition.UpgradeKey);
+            if (stacks <= 0)
+            {
+                continue;
+            }
+
+            RewardOffer offer = upgradeDefinition.CreateOffer();
+            offer.Description = BuildUpgradeDisplayDescription(upgradeDefinition, stacks);
+            offers.Add(offer);
+        }
+    }
+
+    private string BuildUpgradeDisplayDescription(AbilityUpgradeRewardDefinition upgradeDefinition, int stacks)
+    {
+        if (upgradeDefinition == null)
+        {
+            return string.Empty;
+        }
+
+        if (stacks <= 1 || !upgradeDefinition.Stackable)
+        {
+            return upgradeDefinition.RewardDescription;
+        }
+
+        switch (upgradeDefinition.UpgradeKey)
+        {
+            case AbilityUpgradeKey.GhostStepsAdrenaline:
+                return $"If Pandora dealt damage to at least one enemy with Ghost Steps, she has a {5 * stacks}% chance to recover 1 movement point.";
+            case AbilityUpgradeKey.SpinningBladesSharpening:
+                return $"Increase Spinning Blades damage by {stacks}.";
+            case AbilityUpgradeKey.AssassinsRushShadowPulse:
+                return $"Increase Assassin's Rush range by {stacks}.";
+            case AbilityUpgradeKey.AssassinsRushTasteOfBlood:
+                return $"After using Assassin's Rush, Pandora gains {stacks} bonus damage for her next attack.";
+            case AbilityUpgradeKey.NighttimeMenaceShadowArea:
+                return $"Increase Nighttime Menace range by {stacks}.";
+            case AbilityUpgradeKey.RoyalDaggerBlessedBlade:
+                return $"Increase Royal Dagger damage by {2 * stacks}.";
+            case AbilityUpgradeKey.RoyalDaggerRoyalBlessing:
+                return $"Pandora recovers {2 * stacks} health when she kills an enemy with Royal Dagger.";
+            default:
+                return upgradeDefinition.RewardDescription.Replace("(Stackable).", string.Empty).Replace("(Cumulable).", string.Empty).Trim();
         }
     }
 
@@ -1274,6 +1578,19 @@ public class UIGame : MonoBehaviour
                 return specialRewardIcon;
             default:
                 return objectRewardIcon;
+        }
+    }
+
+    private static RewardPresentationIconKind GetIconKindForAbilityCategory(AbilityCategory category)
+    {
+        switch (category)
+        {
+            case AbilityCategory.MobilitySkill:
+                return RewardPresentationIconKind.MobilitySkill;
+            case AbilityCategory.SpecialPower:
+                return RewardPresentationIconKind.SpecialPower;
+            default:
+                return RewardPresentationIconKind.BasicAttack;
         }
     }
 
