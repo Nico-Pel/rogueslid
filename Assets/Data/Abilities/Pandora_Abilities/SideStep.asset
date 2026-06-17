@@ -13,15 +13,21 @@ MonoBehaviour:
   m_Name: SideStep
   m_EditorClassIdentifier: 
   abilityName: Side Step
-  icon: {fileID: 2026301262, guid: 82815694f6d7e4eba94663ced4be4c1b, type: 3}
+  icon: {fileID: 485811783, guid: c197f5166538a4f4494e44a8222986e0, type: 3}
   category: 1
   attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards: []
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 1
   consumesMovementPoint: 0
   isToggle: 1
   fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
   trailColorMode: 2
   trailMaterialColor: {r: 0, g: 0.7398896, b: 1, a: 1}
   temporaryTrailColorDuration: 0.5

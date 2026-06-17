@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1b1e0cb96d54742b62c9b4bb7215004, type: 3}
+  m_Name: Item_WhiteFlag
+  m_EditorClassIdentifier: 
+  rewardId: item_white_flag
+  rewardTitle: White Flag
+  rewardDescription: Enemies only deal 1 damage during the first enemy turn of each
+    battle.
+  artwork: {fileID: -689892468, guid: c197f5166538a4f4494e44a8222986e0, type: 3}
+  itemKey: 25
+  showCombatStartYesNoPrompt: 0
+  activationQuestionOverride: 
+  consumeOnYes: 0
+  yesNoEffect: 0
+  activationSound: {fileID: 0}

@@ -74,6 +74,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private Animator enemyAnimator;
     [SerializeField] private string attackTriggerParameter = "Attack";
     [SerializeField] private string optionalActionTriggerParameter = "AltAttack";
+    [SerializeField] private float bodySpawnScaleDuration = 0.5f;
     [ReadOnly] [SerializeField] private bool useFlyAnimationOnObstacle;
     [SerializeField] private string flyingBoolParameter = "Flying";
     [SerializeField] private float obstacleCanvasHeightOffset = 1f;
@@ -86,6 +87,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float optionalActionFxLifetime = 1f;
 
     private Tween moveTween;
+    private Tween bodySpawnScaleTween;
     private RendererBlinkFeedback blinkFeedback;
     private bool isDying;
     private GameObject activeDeathMarkFxInstance;
@@ -93,6 +95,7 @@ public class Enemy : MonoBehaviour
     private bool hasCachedCanvasDefaultPosition;
     private int consecutiveFleeTurns;
     private bool fleePermanentlyDisabled;
+    private Vector3 cachedBodyOriginalScale = Vector3.one;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -186,6 +189,7 @@ public class Enemy : MonoBehaviour
         consecutiveFleeTurns = 0;
         fleePermanentlyDisabled = false;
         RefreshFlyingAnimationState();
+        PlayBodySpawnTween();
     }
 
     public void SetDeathMarkActive(bool isActive)
@@ -591,6 +595,7 @@ public class Enemy : MonoBehaviour
     private void OnDisable()
     {
         moveTween?.Kill();
+        bodySpawnScaleTween?.Kill();
         IsMoving = false;
         SetFlyingAnimation(false);
         RefreshCanvasHeight(false);
@@ -634,6 +639,24 @@ public class Enemy : MonoBehaviour
         {
             enemyBody = transform.GetChild(0);
         }
+
+        if (enemyBody != null)
+        {
+            cachedBodyOriginalScale = enemyBody.localScale;
+        }
+    }
+
+    private void PlayBodySpawnTween()
+    {
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : transform;
+        Vector3 targetScale = enemyBody != null ? cachedBodyOriginalScale : targetBody.localScale;
+
+        bodySpawnScaleTween?.Kill();
+        targetBody.localScale = Vector3.zero;
+        bodySpawnScaleTween = targetBody.DOScale(targetScale, bodySpawnScaleDuration)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() => bodySpawnScaleTween = null);
     }
 
     private void RefreshHpBar()
@@ -1473,7 +1496,7 @@ public class Enemy : MonoBehaviour
         }
 
         TriggerOptionalActionAnimation();
-        PlayOptionalActionFx(optionalActionCasterFxPrefab, EffectAnchor, optionalActionCasterFxOffset, optionalActionCasterFxDelay);
+        PlayOptionalActionFx(optionalActionCasterFxPrefab, transform, optionalActionCasterFxOffset, optionalActionCasterFxDelay);
         PlayOptionalActionFx(optionalActionTargetFxPrefab, targetAlly.EffectAnchor, optionalActionTargetFxOffset, optionalActionTargetFxDelay);
         targetAlly.Heal(optionalHealAmount);
         yield return new WaitForSeconds(0.08f);
@@ -1568,11 +1591,16 @@ public class Enemy : MonoBehaviour
                     continue;
                 }
 
-                Character targetCharacter = cell.Occupant.GetComponent<Character>();
-                if (targetCharacter == null)
+            Character targetCharacter = cell.Occupant.GetComponent<Character>();
+            if (targetCharacter == null)
+            {
+                if (Board.TryGetBarrel(cell.GridPosition, out BarrelObstacle barrel) && barrel != null)
                 {
-                    continue;
+                    barrel.TakeHit();
                 }
+
+                continue;
+            }
 
                 targetsInRange.Add(targetCharacter);
             }

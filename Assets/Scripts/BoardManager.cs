@@ -107,6 +107,12 @@ public class BoardManager : MonoBehaviour
     [Header("Rewards")]
     [SerializeField] private List<ItemRewardDefinition> itemRewardDefinitions = new List<ItemRewardDefinition>();
 
+    [Header("Special Encounters")]
+    [SerializeField] private List<GameObject> spawnableEnemies = new List<GameObject>();
+    [SerializeField] private GameObject defaultEnemySpawnFxPrefab;
+    [SerializeField] private float defaultEnemySpawnFxLifetime = 2f;
+    [SerializeField] private float extraEnemySpawnDelay = 1f;
+
     private BoardCell[,] cells;
     private Transform generatedRoot;
     private Transform obstaclesRoot;
@@ -118,6 +124,9 @@ public class BoardManager : MonoBehaviour
     private bool currentArenaMirroredOnYAxis;
     private bool hasGeneratedBoardThisSession;
     private PlayerRunRewardState runRewardState = new PlayerRunRewardState();
+    private readonly List<Vector2Int> currentEnemySpawnCells = new List<Vector2Int>();
+    private readonly List<GameObject> currentArenaEnemyPrefabs = new List<GameObject>();
+    private bool bonusRewardForCurrentArena;
 
     public int Width => BoardWidth;
     public int Height => BoardHeight;
@@ -126,6 +135,7 @@ public class BoardManager : MonoBehaviour
     public IReadOnlyList<Enemy> SpawnedEnemies => spawnedEnemies;
     public int ArenaCount => arenaCount;
     public PlayerRunRewardState RunRewardState => runRewardState;
+    public float ExtraEnemySpawnDelay => Mathf.Max(0f, extraEnemySpawnDelay);
     public event Action AllEnemiesDefeated;
 
     private enum ArenaMarker
@@ -169,6 +179,9 @@ public class BoardManager : MonoBehaviour
         EnsureGeneratedRoots();
         ClearGeneratedContent();
         InitializeCells();
+        currentEnemySpawnCells.Clear();
+        currentArenaEnemyPrefabs.Clear();
+        bonusRewardForCurrentArena = false;
 
         List<Vector2Int> playerSpawnCandidates = new List<Vector2Int>();
         List<Vector2Int> enemySpawnCandidates = new List<Vector2Int>();
@@ -200,6 +213,8 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+
+        currentEnemySpawnCells.AddRange(enemySpawnCandidates);
 
         SpawnPlayerCharacter(playerSpawnCandidates);
         SpawnEnemies(enemySpawnCandidates);
@@ -563,6 +578,35 @@ public class BoardManager : MonoBehaviour
         return enemy != null;
     }
 
+    public bool TryGetBarrel(Vector2Int gridPosition, out BarrelObstacle barrel)
+    {
+        barrel = null;
+        if (!TryGetCell(gridPosition, out BoardCell cell) || cell.StaticObstacle == null)
+        {
+            return false;
+        }
+
+        barrel = cell.StaticObstacle.GetComponent<BarrelObstacle>();
+        return barrel != null && !barrel.IsDestroyed;
+    }
+
+    public void ClearStaticObstacle(Vector2Int gridPosition, GameObject expectedObstacle = null)
+    {
+        if (!TryGetCell(gridPosition, out BoardCell cell))
+        {
+            return;
+        }
+
+        if (expectedObstacle != null && cell.StaticObstacle != expectedObstacle)
+        {
+            return;
+        }
+
+        cell.StaticObstacle = null;
+        cell.Type = BoardCellType.Classic;
+        cell.Walkable = true;
+    }
+
     public bool TryWorldToGridPosition(Vector3 worldPosition, out Vector2Int gridPosition)
     {
         Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
@@ -695,6 +739,14 @@ public class BoardManager : MonoBehaviour
     {
         GameObject obstacle = InstantiateFromList(obstacles, $"Obstacle_{cell.GridPosition.x}_{cell.GridPosition.y}", obstaclesRoot, cell.WorldPosition);
         cell.SetStaticObstacle(obstacle, BoardCellType.Rock);
+        if (obstacle != null)
+        {
+            BarrelObstacle barrel = obstacle.GetComponent<BarrelObstacle>();
+            if (barrel != null)
+            {
+                barrel.Assign(this, cell.GridPosition);
+            }
+        }
     }
 
     private void SpawnPlayerCharacter(List<Vector2Int> spawnCandidates)
@@ -732,6 +784,8 @@ public class BoardManager : MonoBehaviour
         }
 
         List<GameObject> enemyPrefabsToSpawn = ResolveEnemyPrefabsForCurrentArena();
+        currentArenaEnemyPrefabs.Clear();
+        currentArenaEnemyPrefabs.AddRange(enemyPrefabsToSpawn);
         if (enemyPrefabsToSpawn.Count == 0)
         {
             return;
@@ -947,7 +1001,10 @@ public class BoardManager : MonoBehaviour
         List<RewardOffer> itemOffers = BuildAvailableItemOffers();
         List<RewardOffer> choices = new List<RewardOffer>();
 
-        int desiredPowerCount = UnityEngine.Random.value < 0.5f ? 2 : 1;
+        bool rewardBoostActive = bonusRewardForCurrentArena;
+        bonusRewardForCurrentArena = false;
+
+        int desiredPowerCount = rewardBoostActive ? 2 : (UnityEngine.Random.value < 0.5f ? 2 : 1);
         int desiredItemCount = 3 - desiredPowerCount;
 
         AddRandomUniqueRewards(choices, powerOffers, desiredPowerCount);
@@ -999,6 +1056,35 @@ public class BoardManager : MonoBehaviour
         {
             player.ControlledCharacter.ApplyRunRewardState(runRewardState);
         }
+    }
+
+    public List<ItemRewardDefinition> GetCombatStartYesNoItemDefinitions()
+    {
+        List<ItemRewardDefinition> promptDefinitions = new List<ItemRewardDefinition>();
+        if (runRewardState == null)
+        {
+            return promptDefinitions;
+        }
+
+        for (int index = 0; index < itemRewardDefinitions.Count; index++)
+        {
+            ItemRewardDefinition itemRewardDefinition = itemRewardDefinitions[index];
+            if (itemRewardDefinition == null
+                || !itemRewardDefinition.ShowCombatStartYesNoPrompt
+                || !runRewardState.HasItem(itemRewardDefinition.ItemKey))
+            {
+                continue;
+            }
+
+            promptDefinitions.Add(itemRewardDefinition);
+        }
+
+        return promptDefinitions;
+    }
+
+    public void MarkBonusRewardForCurrentArena()
+    {
+        bonusRewardForCurrentArena = true;
     }
 
     public ItemRewardDefinition GetItemRewardDefinition(ItemRewardKey itemKey)
@@ -1141,6 +1227,118 @@ public class BoardManager : MonoBehaviour
 
             target.Add(rewardOffer);
             desiredCount--;
+        }
+    }
+
+    public bool TrySpawnExtraEnemyWithDefaultFx(out Enemy enemy)
+    {
+        enemy = null;
+
+        List<GameObject> candidateEnemies = new List<GameObject>();
+        AddNonNullPrefabs(candidateEnemies, spawnableEnemies);
+        if (candidateEnemies.Count == 0)
+        {
+            AddNonNullPrefabs(candidateEnemies, currentArenaEnemyPrefabs);
+        }
+
+        if (candidateEnemies.Count == 0)
+        {
+            return false;
+        }
+
+        List<Vector2Int> candidateCells = GetAvailableExtraEnemySpawnCells();
+        if (candidateCells.Count == 0)
+        {
+            return false;
+        }
+
+        Vector2Int spawnPoint = candidateCells[UnityEngine.Random.Range(0, candidateCells.Count)];
+        GameObject enemyPrefab = candidateEnemies[UnityEngine.Random.Range(0, candidateEnemies.Count)];
+        if (enemyPrefab == null)
+        {
+            return false;
+        }
+
+        BoardCell cell = cells[spawnPoint.x, spawnPoint.y];
+        Vector3 spawnWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
+
+        if (defaultEnemySpawnFxPrefab != null)
+        {
+            GameObject spawnFx = Instantiate(defaultEnemySpawnFxPrefab, spawnWorldPosition, defaultEnemySpawnFxPrefab.transform.rotation, generatedRoot);
+            if (spawnFx != null && defaultEnemySpawnFxLifetime > 0f)
+            {
+                Destroy(spawnFx, defaultEnemySpawnFxLifetime);
+            }
+        }
+
+        GameObject enemyObject = InstantiateOrCreate(
+            enemyPrefab,
+            $"Enemy_{spawnPoint.x}_{spawnPoint.y}_Extra",
+            enemiesRoot,
+            spawnWorldPosition);
+        enemy = GetOrAddComponent<Enemy>(enemyObject);
+        enemy.Assign(spawnPoint, this);
+        spawnedEnemies.Add(enemy);
+        cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
+        player?.ControlledCharacter?.HandleEnemyCountChanged(spawnedEnemies.Count);
+        return true;
+    }
+
+    private static void AddNonNullPrefabs(List<GameObject> target, IReadOnlyList<GameObject> source)
+    {
+        if (target == null || source == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < source.Count; index++)
+        {
+            GameObject prefab = source[index];
+            if (prefab != null)
+            {
+                target.Add(prefab);
+            }
+        }
+    }
+
+    private List<Vector2Int> GetAvailableExtraEnemySpawnCells()
+    {
+        List<Vector2Int> availableCells = new List<Vector2Int>();
+        AddAvailableSpawnCells(currentEnemySpawnCells, availableCells);
+        if (availableCells.Count > 0)
+        {
+            return availableCells;
+        }
+
+        for (int x = 0; x < BoardWidth; x++)
+        {
+            for (int y = 0; y < BoardHeight; y++)
+            {
+                Vector2Int candidate = new Vector2Int(x, y);
+                if (IsCellWalkable(candidate))
+                {
+                    availableCells.Add(candidate);
+                }
+            }
+        }
+
+        return availableCells;
+    }
+
+    private void AddAvailableSpawnCells(IReadOnlyList<Vector2Int> sourceCells, List<Vector2Int> targetCells)
+    {
+        if (sourceCells == null || targetCells == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < sourceCells.Count; index++)
+        {
+            Vector2Int candidate = sourceCells[index];
+            if (IsCellWalkable(candidate))
+            {
+                targetCells.Add(candidate);
+            }
         }
     }
 }

@@ -98,11 +98,13 @@ public class Character : MonoBehaviour
     private bool sandglassTalismanTriggeredThisCombat;
     private bool tookDamageDuringEnemyTurn;
     private bool tookDamageSinceLastPlayerTurn;
+    private bool isFirstEnemyTurnOfArena;
     private bool isDying;
     private bool attackedThisTurn;
     private bool attackedLastTurn;
     private readonly HashSet<Enemy> frostCharmedEnemiesThisTurn = new HashSet<Enemy>();
     private int nextAttackBonusDamage;
+    private int samuraiMaskBonusDamage;
     private GameObject nextAttackBonusAuraPrefab;
     private GameObject activeNextAttackBonusAuraInstance;
     private Enemy markedEnemy;
@@ -170,10 +172,12 @@ public class Character : MonoBehaviour
         sandglassTalismanTriggeredThisCombat = false;
         tookDamageDuringEnemyTurn = false;
         tookDamageSinceLastPlayerTurn = false;
+        isFirstEnemyTurnOfArena = true;
         attackedThisTurn = false;
         attackedLastTurn = false;
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
+        samuraiMaskBonusDamage = 0;
         actionLockCount = 0;
         abilityTargetsHitThisTurn.Clear();
         markedEnemy = null;
@@ -213,6 +217,8 @@ public class Character : MonoBehaviour
         runRewardState = state;
         RecalculateItemDrivenStats();
         ClearNextAttackBonusDamage();
+        samuraiMaskBonusDamage = 0;
+        isFirstEnemyTurnOfArena = true;
         abilityTargetsHitThisTurn.Clear();
         markedEnemy = null;
         deathMarkAbility = null;
@@ -424,6 +430,7 @@ public class Character : MonoBehaviour
         RecalculateItemDrivenStats();
         int totalDamage = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
         totalDamage += GetAbilityItemBonusDamage(sourceAbility);
+        totalDamage += GetDistanceBonusDamageAgainstEnemy(enemy);
         if (HasItem(ItemRewardKey.ThornedBracer)
             && enemy.CurrentHealth <= Mathf.Max(1, totalDamage - enemy.Resistance))
         {
@@ -501,6 +508,11 @@ public class Character : MonoBehaviour
 
         RecalculateItemDrivenStats();
         int finalDamage = Mathf.Max(1, incomingDamage - resistance);
+        if (HasItem(ItemRewardKey.WhiteFlag) && isFirstEnemyTurnOfArena)
+        {
+            finalDamage = Mathf.Min(finalDamage, 1);
+        }
+
         if (HasItem(ItemRewardKey.LuckyCoin) && !luckyCoinUsedThisCombat && currentHealth - finalDamage <= 0)
         {
             luckyCoinUsedThisCombat = true;
@@ -747,6 +759,7 @@ public class Character : MonoBehaviour
         isFirstPlayerTurnOfArena = false;
         ClearDeathMark();
         ClearNextAttackBonusDamage();
+        samuraiMaskBonusDamage = 0;
         RecalculateItemDrivenStats();
     }
 
@@ -762,6 +775,7 @@ public class Character : MonoBehaviour
 
     public void HandleEnemyTurnEnded()
     {
+        isFirstEnemyTurnOfArena = false;
         if (HasItem(ItemRewardKey.GuardMedal) && !tookDamageDuringEnemyTurn)
         {
             Heal(1);
@@ -832,17 +846,37 @@ public class Character : MonoBehaviour
                 }
 
                 Vector2Int targetCell = centerCell + new Vector2Int(offsetX, offsetY);
-                if (!Board.TryGetEnemy(targetCell, out Enemy enemy) || enemy == null || !hitEnemies.Add(enemy))
+                if (Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null && hitEnemies.Add(enemy))
                 {
-                    continue;
+                    DealDamageToEnemy(enemy, damage, false, true, DamageSoundType.Default, sourceAbility);
+                    hits++;
                 }
-
-                DealDamageToEnemy(enemy, damage, false, true, DamageSoundType.Default, sourceAbility);
-                hits++;
+                else if (Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null)
+                {
+                    barrel.TakeHit();
+                    hits++;
+                }
             }
         }
 
         return hits;
+    }
+
+    public void DealDamageToBarrelWithAbilityTiming(AbilityDefinition sourceAbility, BarrelObstacle barrel)
+    {
+        if (sourceAbility == null || barrel == null || Board == null)
+        {
+            return;
+        }
+
+        float delay = sourceAbility.GetDamageApplyDelay(gridPosition, barrel.GridPosition);
+        if (delay <= 0f)
+        {
+            barrel.TakeHit();
+            return;
+        }
+
+        StartCoroutine(DamageBarrelAfterDelay(barrel, delay));
     }
 
     public void PlayAttackAnimation(AnimationClip attackAnimationClip)
@@ -1381,6 +1415,19 @@ public class Character : MonoBehaviour
         onDamageApplied?.Invoke(enemy, appliedDamage);
     }
 
+    private IEnumerator DamageBarrelAfterDelay(BarrelObstacle barrel, float delay)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        if (barrel != null && !barrel.IsDestroyed)
+        {
+            barrel.TakeHit();
+        }
+    }
+
     private IEnumerator SpawnSecondaryEffectFxRoutine(SecondaryEffectFxSpawnConfig fxConfig, AbilityExecutionContext context)
     {
         if (fxConfig == null || fxConfig.FxPrefab == null || Board == null)
@@ -1718,6 +1765,12 @@ public class Character : MonoBehaviour
             GainMovementPoints(1);
         }
 
+        if (HasItem(ItemRewardKey.SamuraiMask))
+        {
+            samuraiMaskBonusDamage += 2;
+            RecalculateItemDrivenStats();
+        }
+
         if (enemy != null && enemy == markedEnemy)
         {
             if (GetUpgradeStacks(AbilityUpgradeKey.DeathMarkHuntingBonus) > 0)
@@ -1782,6 +1835,17 @@ public class Character : MonoBehaviour
         }
 
         return 0;
+    }
+
+    private int GetDistanceBonusDamageAgainstEnemy(Enemy enemy)
+    {
+        if (enemy == null || !HasItem(ItemRewardKey.ScopeGlasses))
+        {
+            return 0;
+        }
+
+        int distance = Mathf.Abs(enemy.GridPosition.x - gridPosition.x) + Mathf.Abs(enemy.GridPosition.y - gridPosition.y);
+        return distance >= 3 ? 1 : 0;
     }
 
     private void PlayAbilityDamageFx(AbilityDefinition sourceAbility, Transform targetAnchor)
@@ -1910,7 +1974,7 @@ public class Character : MonoBehaviour
         int remainingEnemies = GetRemainingEnemyCount();
 
         int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
-        int dynamicBonusDamage = nextAttackBonusDamage;
+        int dynamicBonusDamage = nextAttackBonusDamage + samuraiMaskBonusDamage;
         int dynamicResistance = 0;
         int dynamicMovementPoints = 0;
 

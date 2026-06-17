@@ -41,7 +41,8 @@ public class ThiefsDaggerAbility : AbilityDefinition
             scan += direction;
         }
 
-        return character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null;
+        return (character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null)
+            || (character.Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null);
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
@@ -51,49 +52,57 @@ public class ThiefsDaggerAbility : AbilityDefinition
             return false;
         }
 
-        if (!character.Board.TryGetEnemy(targetCell.Value, out Enemy enemy) || enemy == null)
-        {
-            return false;
-        }
-
-        int damage = baseDamage;
-        damage += 2 * character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade);
-        if (character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerHolyBlade) > 0
-            && enemy.CurrentHealth >= enemy.MaxHealth)
-        {
-            damage += 2;
-        }
-
         character.FaceTargetCell(targetCell.Value);
         PlayActivationAnimation(character);
-        int blessingStacks = character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerRoyalBlessing);
-        character.DealDamageToEnemyWithAbilityTiming(
-            this,
-            enemy,
-            damage,
-            true,
-            true,
-            DamageSoundType.Sword,
-            null,
-            this,
-            (targetEnemy, appliedDamage) =>
-            {
-                if (targetEnemy != null && targetEnemy.CurrentHealth <= 0 && blessingStacks > 0)
-                {
-                    character.Heal(2 * blessingStacks);
-                }
-            });
-        PlayConfiguredFx(character, new[] { enemy });
 
-        bool targetWasNewThisTurn = character.MarkAbilityTargetHitThisTurn(this, enemy);
-        if (character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerRoyalPunishment) > 0
-            && targetWasNewThisTurn
-            && HasAnotherUnhitTargetInRange(character, enemy))
+        if (character.Board.TryGetEnemy(targetCell.Value, out Enemy enemy) && enemy != null)
         {
-            character.GrantAbilityBonusTurnUse(this, 1);
+            int damage = baseDamage;
+            damage += 2 * character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade);
+            if (character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerHolyBlade) > 0
+                && enemy.CurrentHealth >= enemy.MaxHealth)
+            {
+                damage += 2;
+            }
+
+            int blessingStacks = character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerRoyalBlessing);
+            character.DealDamageToEnemyWithAbilityTiming(
+                this,
+                enemy,
+                damage,
+                true,
+                true,
+                DamageSoundType.Sword,
+                null,
+                this,
+                (targetEnemy, appliedDamage) =>
+                {
+                    if (targetEnemy != null && targetEnemy.CurrentHealth <= 0 && blessingStacks > 0)
+                    {
+                        character.Heal(2 * blessingStacks);
+                    }
+                });
+            PlayConfiguredFx(character, new[] { enemy });
+
+            bool targetWasNewThisTurn = character.MarkAbilityTargetHitThisTurn(this, enemy);
+            if (character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerRoyalPunishment) > 0
+                && targetWasNewThisTurn
+                && HasAnotherUnhitTargetInRange(character, enemy))
+            {
+                character.GrantAbilityBonusTurnUse(this, 1);
+            }
+
+            return true;
         }
 
-        return true;
+        if (character.Board.TryGetBarrel(targetCell.Value, out BarrelObstacle barrel) && barrel != null)
+        {
+            character.DealDamageToBarrelWithAbilityTiming(this, barrel);
+            PlayConfiguredFx(character);
+            return true;
+        }
+
+        return false;
     }
 
     private bool HasAnotherUnhitTargetInRange(Character character, Enemy currentTarget)

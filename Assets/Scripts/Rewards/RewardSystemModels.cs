@@ -75,7 +75,11 @@ public enum ItemRewardKey
     SandglassTalisman,
     Sakura,
     PumpkinHead,
-    ScholarsCape
+    ScholarsCape,
+    BarbarianHorn,
+    WhiteFlag,
+    SamuraiMask,
+    ScopeGlasses
 }
 
 public sealed class RewardOffer
@@ -230,6 +234,11 @@ public sealed class PlayerRunRewardState
     public bool HasItem(ItemRewardKey itemKey)
     {
         return ownedItems.Contains(itemKey);
+    }
+
+    public void RemoveItem(ItemRewardKey itemKey)
+    {
+        ownedItems.Remove(itemKey);
     }
 
     public List<ItemRewardKey> GetOwnedItems()

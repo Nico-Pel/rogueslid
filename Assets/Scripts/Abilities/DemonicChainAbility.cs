@@ -109,11 +109,6 @@ public class DemonicChainAbility : AbilityDefinition
             Vector2Int current = character.GridPosition + direction;
             while (character.Board.TryGetCell(current, out BoardCell cell))
             {
-                if (cell.HasBlockingTerrain)
-                {
-                    break;
-                }
-
                 if (character.Board.TryGetEnemy(current, out Enemy enemy) && enemy != null)
                 {
                     if (added.Add(enemy))
@@ -125,6 +120,11 @@ public class DemonicChainAbility : AbilityDefinition
                     {
                         break;
                     }
+                }
+
+                if (cell.HasBlockingTerrain)
+                {
+                    break;
                 }
 
                 current += direction;

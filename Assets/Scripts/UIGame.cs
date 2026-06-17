@@ -27,6 +27,14 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button rewardCheckBackgroundButton;
     [SerializeField] private Button rewardCheckChooseButton;
     [SerializeField] private RewardButtonUI rewardCheckCard;
+    [SerializeField] private GameObject yesNoMenu;
+    [SerializeField] private Image yesNoArtworkImage;
+    [SerializeField] private TMP_Text yesNoTitleText;
+    [SerializeField] private TMP_Text yesNoDescriptionText;
+    [SerializeField] private TMP_Text yesNoQuestionText;
+    [SerializeField] private Button yesNoButton;
+    [SerializeField] private Button yesNoYesButton;
+    [SerializeField] private Button yesNoNoButton;
     [SerializeField] private GameObject abilityCheckMenu;
     [SerializeField] private Button abilityCheckBackgroundButton;
     [SerializeField] private RewardButtonUI abilityCheckCard;
@@ -61,6 +69,8 @@ public class UIGame : MonoBehaviour
     private AbilityDefinition pendingAbilityReplacementOldAbility;
     private AbilityButtonUI currentAbilityCheckSourceButton;
     private readonly List<RewardOffer> currentAbilityCheckOffers = new List<RewardOffer>();
+    private Action onYesNoAccepted;
+    private Action onYesNoDeclined;
 
     private void Awake()
     {
@@ -167,6 +177,7 @@ public class UIGame : MonoBehaviour
         CacheRewardsMenu();
         CacheStatsMenus();
         CacheRewardCheckMenu();
+        CacheYesNoMenu();
         CacheAbilityCheckMenu();
         CacheSwitchAbilityMenu();
         if (rewardsMenu != null)
@@ -175,6 +186,7 @@ public class UIGame : MonoBehaviour
         }
 
         HideRewardCheck();
+        HideYesNoPrompt();
         HideAbilityCheck();
         HideSwitchAbilityMenu();
     }
@@ -257,6 +269,7 @@ public class UIGame : MonoBehaviour
         onRewardsIgnored = null;
         pendingRewardConfirmation = null;
         HideRewardCheck();
+        HideYesNoPrompt();
         HideAbilityCheck();
         HideSwitchAbilityMenu();
         UpdateEndTurnButtonVisibility();
@@ -267,6 +280,60 @@ public class UIGame : MonoBehaviour
     {
         enemyStatsMenu?.Hide();
         characterStatsMenu?.Hide();
+    }
+
+    public void ShowYesNoPrompt(ItemRewardDefinition itemRewardDefinition, Action acceptedCallback, Action declinedCallback)
+    {
+        CacheYesNoMenu();
+        HideStatsMenus();
+        HideRewardCheck();
+        HideAbilityCheck();
+        HideSwitchAbilityMenu();
+
+        if (yesNoMenu == null || itemRewardDefinition == null)
+        {
+            declinedCallback?.Invoke();
+            return;
+        }
+
+        onYesNoAccepted = acceptedCallback;
+        onYesNoDeclined = declinedCallback;
+
+        if (yesNoArtworkImage != null)
+        {
+            yesNoArtworkImage.sprite = itemRewardDefinition.Artwork;
+            yesNoArtworkImage.enabled = itemRewardDefinition.Artwork != null;
+        }
+
+        if (yesNoTitleText != null)
+        {
+            yesNoTitleText.text = itemRewardDefinition.RewardTitle;
+        }
+
+        if (yesNoDescriptionText != null)
+        {
+            yesNoDescriptionText.text = itemRewardDefinition.RewardDescription;
+        }
+
+        if (yesNoQuestionText != null)
+        {
+            yesNoQuestionText.text = itemRewardDefinition.GetActivationQuestion();
+        }
+
+        yesNoMenu.SetActive(true);
+        UpdateEndTurnButtonVisibility();
+    }
+
+    public void HideYesNoPrompt()
+    {
+        onYesNoAccepted = null;
+        onYesNoDeclined = null;
+        if (yesNoMenu != null)
+        {
+            yesNoMenu.SetActive(false);
+        }
+
+        UpdateEndTurnButtonVisibility();
     }
 
     private void HandleTurnChanged(TurnSide turnSide)
@@ -464,6 +531,22 @@ public class UIGame : MonoBehaviour
         SoundManager.Instance?.PlayClick();
         pendingRewardConfirmation = null;
         HideSwitchAbilityMenu();
+    }
+
+    private void HandleYesNoAcceptedClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        Action acceptedCallback = onYesNoAccepted;
+        HideYesNoPrompt();
+        acceptedCallback?.Invoke();
+    }
+
+    private void HandleYesNoDeclinedClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        Action declinedCallback = onYesNoDeclined;
+        HideYesNoPrompt();
+        declinedCallback?.Invoke();
     }
 
     private bool HandleAbilityButtonPrimaryClick(AbilityButtonUI button)
@@ -825,6 +908,74 @@ public class UIGame : MonoBehaviour
         {
             rewardCheckChooseButton.onClick.RemoveListener(HandleRewardCheckChooseClicked);
             rewardCheckChooseButton.onClick.AddListener(HandleRewardCheckChooseClicked);
+        }
+    }
+
+    private void CacheYesNoMenu()
+    {
+        if (yesNoMenu == null)
+        {
+            Transform yesNoTransform = transform.Find("MenuYesNo");
+            if (yesNoTransform != null)
+            {
+                yesNoMenu = yesNoTransform.gameObject;
+            }
+        }
+
+        if (yesNoMenu == null)
+        {
+            return;
+        }
+
+        if (yesNoArtworkImage == null)
+        {
+            yesNoArtworkImage = FindComponentByName<Image>(yesNoMenu.transform, "iAbility");
+        }
+
+        if (yesNoTitleText == null)
+        {
+            yesNoTitleText = FindComponentByName<TMP_Text>(yesNoMenu.transform, "Chara-Name");
+            if (yesNoTitleText == null)
+            {
+                yesNoTitleText = FindComponentByName<TMP_Text>(yesNoMenu.transform, "tTitle");
+            }
+        }
+
+        if (yesNoDescriptionText == null)
+        {
+            yesNoDescriptionText = FindComponentByName<TMP_Text>(yesNoMenu.transform, "tDescription");
+        }
+
+        if (yesNoQuestionText == null)
+        {
+            yesNoQuestionText = FindComponentByName<TMP_Text>(yesNoMenu.transform, "tQuestion");
+        }
+
+        if (yesNoButton == null)
+        {
+            yesNoButton = yesNoMenu.GetComponent<Button>();
+        }
+
+        if (yesNoYesButton == null)
+        {
+            yesNoYesButton = FindComponentByName<Button>(yesNoMenu.transform, "BYes");
+        }
+
+        if (yesNoNoButton == null)
+        {
+            yesNoNoButton = FindComponentByName<Button>(yesNoMenu.transform, "BNo");
+        }
+
+        if (yesNoYesButton != null)
+        {
+            yesNoYesButton.onClick.RemoveListener(HandleYesNoAcceptedClicked);
+            yesNoYesButton.onClick.AddListener(HandleYesNoAcceptedClicked);
+        }
+
+        if (yesNoNoButton != null)
+        {
+            yesNoNoButton.onClick.RemoveListener(HandleYesNoDeclinedClicked);
+            yesNoNoButton.onClick.AddListener(HandleYesNoDeclinedClicked);
         }
     }
 
@@ -1613,6 +1764,25 @@ public class UIGame : MonoBehaviour
         {
             spriteRenderer.color = color;
         }
+    }
+
+    private static T FindComponentByName<T>(Transform root, string objectName) where T : Component
+    {
+        if (root == null || string.IsNullOrEmpty(objectName))
+        {
+            return null;
+        }
+
+        T[] components = root.GetComponentsInChildren<T>(true);
+        for (int index = 0; index < components.Length; index++)
+        {
+            if (components[index] != null && components[index].name == objectName)
+            {
+                return components[index];
+            }
+        }
+
+        return null;
     }
 
     private static bool IsPointerOverUI(Vector2 screenPosition, int fingerId)

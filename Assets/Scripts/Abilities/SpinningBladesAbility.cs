@@ -35,6 +35,12 @@ public class SpinningBladesAbility : AbilityDefinition
                 Vector2Int cell = character.GridPosition + new Vector2Int(offsetX, offsetY);
                 if (!character.Board.TryGetEnemy(cell, out Enemy enemy) || enemy == null)
                 {
+                    if (character.Board.TryGetBarrel(cell, out BarrelObstacle barrel) && barrel != null)
+                    {
+                        barrel.TakeHit();
+                        hitAtLeastOneEnemy = true;
+                    }
+
                     continue;
                 }
 

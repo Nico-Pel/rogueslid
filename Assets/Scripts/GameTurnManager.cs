@@ -30,11 +30,15 @@ public class GameTurnManager : MonoBehaviour
     private bool hasPlayerActedThisTurn;
     private bool isArenaTransitionRunning;
     private bool isRewardMenuOpen;
+    private bool combatStartChoiceResolved;
+    private bool combatStartChoiceAccepted;
     private bool canEndTurn = true;
     private Coroutine endTurnUnlockCoroutine;
     private Coroutine nextArenaCoroutine;
+    private Coroutine combatStartSequenceCoroutine;
     private Vector2 pointerStartPosition;
     private int pendingCellTargetAbilityIndex = -1;
+    private ItemRewardDefinition activeCombatStartPrompt;
 
     public TurnSide CurrentTurn { get; private set; } = TurnSide.Player;
     public BoardManager Board => board;
@@ -74,7 +78,7 @@ public class GameTurnManager : MonoBehaviour
 
         hasStarted = true;
         soundManager?.PlayArenaMusic();
-        BeginPlayerTurn();
+        StartCombatEntryFlow();
     }
 
     private void OnDestroy()
@@ -126,10 +130,15 @@ public class GameTurnManager : MonoBehaviour
         isArenaTransitionRunning = false;
         isRewardMenuOpen = false;
         nextArenaCoroutine = null;
+        combatStartSequenceCoroutine = null;
+        activeCombatStartPrompt = null;
+        combatStartChoiceResolved = false;
+        combatStartChoiceAccepted = false;
         ClearPendingAbility();
         uiGame?.HideRewards();
+        uiGame?.HideYesNoPrompt();
         soundManager?.PlayArenaMusic();
-        BeginPlayerTurn();
+        StartCombatEntryFlow();
     }
 
     public bool RequestAbilityUse(int abilityIndex)
@@ -551,6 +560,117 @@ public class GameTurnManager : MonoBehaviour
         SetCanEndTurn(false);
         StartEndTurnUnlockTimer();
         TurnChanged?.Invoke(CurrentTurn);
+    }
+
+    private void StartCombatEntryFlow()
+    {
+        if (board == null)
+        {
+            BeginPlayerTurn();
+            return;
+        }
+
+        if (combatStartSequenceCoroutine != null)
+        {
+            StopCoroutine(combatStartSequenceCoroutine);
+        }
+
+        List<ItemRewardDefinition> promptDefinitions = board.GetCombatStartYesNoItemDefinitions();
+        if (promptDefinitions == null || promptDefinitions.Count == 0 || uiGame == null)
+        {
+            isRewardMenuOpen = false;
+            uiGame?.HideYesNoPrompt();
+            BeginPlayerTurn();
+            return;
+        }
+
+        isRewardMenuOpen = true;
+        SetCanEndTurn(false);
+        combatStartSequenceCoroutine = StartCoroutine(RunCombatStartSequence(promptDefinitions));
+    }
+
+    private IEnumerator RunCombatStartSequence(IReadOnlyList<ItemRewardDefinition> promptDefinitions)
+    {
+        for (int index = 0; index < promptDefinitions.Count; index++)
+        {
+            ItemRewardDefinition promptDefinition = promptDefinitions[index];
+            if (promptDefinition == null)
+            {
+                continue;
+            }
+
+            activeCombatStartPrompt = promptDefinition;
+            combatStartChoiceResolved = false;
+            combatStartChoiceAccepted = false;
+            uiGame.ShowYesNoPrompt(promptDefinition, HandleCombatStartPromptAccepted, HandleCombatStartPromptDeclined);
+
+            while (!combatStartChoiceResolved)
+            {
+                yield return null;
+            }
+
+            uiGame.HideYesNoPrompt();
+
+            if (!combatStartChoiceAccepted)
+            {
+                continue;
+            }
+
+            if (promptDefinition.ActivationSound != null)
+            {
+                soundManager?.Play2DSound(promptDefinition.ActivationSound);
+            }
+
+            switch (promptDefinition.YesNoEffect)
+            {
+                case ItemYesNoEffect.SpawnExtraEnemy:
+                    if (board.ExtraEnemySpawnDelay > 0f)
+                    {
+                        yield return new WaitForSeconds(board.ExtraEnemySpawnDelay);
+                    }
+
+                    if (board.TrySpawnExtraEnemyWithDefaultFx(out _))
+                    {
+                        board.MarkBonusRewardForCurrentArena();
+                    }
+
+                    break;
+            }
+
+            if (promptDefinition.ConsumeOnYes)
+            {
+                board.RunRewardState?.RemoveItem(promptDefinition.ItemKey);
+                board.Player?.ControlledCharacter?.ApplyRunRewardState(board.RunRewardState);
+            }
+        }
+
+        activeCombatStartPrompt = null;
+        combatStartSequenceCoroutine = null;
+        isRewardMenuOpen = false;
+        uiGame?.HideYesNoPrompt();
+        BeginPlayerTurn();
+    }
+
+    private void HandleCombatStartPromptAccepted()
+    {
+        if (activeCombatStartPrompt == null)
+        {
+            return;
+        }
+
+        combatStartChoiceAccepted = true;
+        combatStartChoiceResolved = true;
+    }
+
+    private void HandleCombatStartPromptDeclined()
+    {
+        if (activeCombatStartPrompt == null)
+        {
+            return;
+        }
+
+        combatStartChoiceAccepted = false;
+        combatStartChoiceResolved = true;
     }
 
     private IEnumerator RunEnemyTurn()

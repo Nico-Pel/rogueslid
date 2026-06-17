@@ -6,6 +6,13 @@ public class SideStepAbility : AbilityDefinition
     public override bool KeepsActiveStateBetweenTurns => false;
     public override bool RefundUseIfDeactivatedWithoutConsumption => true;
 
+    public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)
+    {
+        return character != null
+            && runtime != null
+            && character.RemainingMovementPoints > 0;
+    }
+
     public override bool LimitsNextSlideToOneCell(Character character, CharacterAbilityRuntime runtime)
     {
         return runtime != null && runtime.IsActive;
