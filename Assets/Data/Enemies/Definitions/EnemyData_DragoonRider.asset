@@ -55,7 +55,7 @@ MonoBehaviour:
   regenPerTurn: 0
   showSpecial: 1
   specialStatSprite: {fileID: -466392962, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
-  specialStatValue: Fire Immune
+  specialStatValue: 2
   meleeDamage: 3
   rangedDamage: 2
   rangedAttackRange: 99

@@ -79,21 +79,27 @@ public class SoundManager : MonoBehaviour
 
     public void PlayArenaMusic()
     {
-        if (arenaMusic == null)
+        PlayArenaMusic(arenaMusic);
+    }
+
+    public void PlayArenaMusic(AudioClip musicOverride)
+    {
+        AudioClip targetMusic = musicOverride != null ? musicOverride : arenaMusic;
+        if (targetMusic == null)
         {
             return;
         }
 
         EnsureAudioSources();
 
-        if (musicSource.isPlaying && musicSource.clip == arenaMusic)
+        if (musicSource.isPlaying && musicSource.clip == targetMusic)
         {
             return;
         }
 
         oneShotSource.Stop();
         musicSource.Stop();
-        musicSource.clip = arenaMusic;
+        musicSource.clip = targetMusic;
         musicSource.loop = loopArenaMusic;
         musicSource.volume = musicVolume;
         musicSource.Play();

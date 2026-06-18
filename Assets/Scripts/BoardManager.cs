@@ -74,32 +74,17 @@ public class BoardCell
 
 public class BoardManager : MonoBehaviour
 {
-    [System.Serializable]
-    private class EnemyPoolAvailability
-    {
-        [SerializeField] private List<EnemyPoolDefinition> pools = new List<EnemyPoolDefinition>();
-        [Min(1)]
-        [SerializeField] private int minArenaCount = 1;
-        [Min(1)]
-        [SerializeField] private int maxArenaCount = 1;
-
-        public IReadOnlyList<EnemyPoolDefinition> Pools => pools;
-        public int MinArenaCount => minArenaCount;
-        public int MaxArenaCount => Mathf.Max(minArenaCount, maxArenaCount);
-
-        public bool MatchesArenaCount(int arenaCount)
-        {
-            return arenaCount >= MinArenaCount && arenaCount <= MaxArenaCount;
-        }
-    }
-
     private const int BoardWidth = 7;
     private const int BoardHeight = 10;
 
     [Header("Board")]
     [SerializeField] [ReadOnly] private int arenaCount = 1;
-    [SerializeField] private Texture2D arenaLayout;
-    [SerializeField] private List<Texture2D> arenaLayouts = new List<Texture2D>();
+    [SerializeField] [ReadOnly] private int currentBiomeIndex;
+    [SerializeField] private List<BiomeData> biomes = new List<BiomeData>();
+    [SerializeField] private MeshRenderer boardModelRenderer;
+    [SerializeField] private MeshRenderer gridRenderer;
+    [SerializeField] private SpriteRenderer backgroundDecorsRenderer;
+
     [SerializeField] private bool generateOnStart = true;
     [SerializeField] private float cellSizeX = 1f;
     [SerializeField] private float cellSizeZ = 1f;
@@ -112,12 +97,10 @@ public class BoardManager : MonoBehaviour
 
     [Header("Prefabs")]
     [SerializeField] private GameObject playerCharacterPrefab;
-    [SerializeField] private List<GameObject> obstacles = new List<GameObject>();
-
-    [Header("Spawn Rules")]
-    [SerializeField] private List<EnemyPoolAvailability> enemyPoolsByArenaCount = new List<EnemyPoolAvailability>();
 #if UNITY_EDITOR
     [Header("Editor Debug")]
+    [SerializeField] private bool useForcedDatas;
+    [SerializeField] private BiomeData forcedBiome;
     [SerializeField] private EnemyPoolDefinition forcedEnemyPoolDefinition;
 #endif
 
@@ -125,7 +108,6 @@ public class BoardManager : MonoBehaviour
     [SerializeField] private List<ItemRewardDefinition> itemRewardDefinitions = new List<ItemRewardDefinition>();
 
     [Header("Special Encounters")]
-    [SerializeField] private List<GameObject> spawnableEnemies = new List<GameObject>();
     [SerializeField] private GameObject defaultEnemySpawnFxPrefab;
     [SerializeField] private float defaultEnemySpawnFxLifetime = 2f;
     [SerializeField] private float extraEnemySpawnDelay = 1f;
@@ -145,7 +127,10 @@ public class BoardManager : MonoBehaviour
     private readonly List<GameObject> currentArenaEnemyPrefabs = new List<GameObject>();
     private bool bonusRewardForCurrentArena;
     private readonly List<BoardHazard> spawnedHazards = new List<BoardHazard>();
+    private readonly List<SkullObject> activeSkullObjects = new List<SkullObject>();
     private EnemyPoolDefinition currentSelectedEnemyPool;
+    private bool isResolvingSkullsForVictory;
+    private static readonly int ColorShaderProperty = Shader.PropertyToID("_Color");
 
     public int Width => BoardWidth;
     public int Height => BoardHeight;
@@ -153,8 +138,13 @@ public class BoardManager : MonoBehaviour
     public Player Player => player;
     public IReadOnlyList<Enemy> SpawnedEnemies => spawnedEnemies;
     public int ArenaCount => arenaCount;
+    public int CurrentBiomeIndex => currentBiomeIndex;
+    public BiomeData CurrentBiome => GetCurrentBiomeData();
+    public AudioClip CurrentCombatMusic => GetCurrentBiomeData() != null ? GetCurrentBiomeData().CombatMusic : null;
     public PlayerRunRewardState RunRewardState => runRewardState;
     public float ExtraEnemySpawnDelay => Mathf.Max(0f, extraEnemySpawnDelay);
+    public GameObject DefaultSpawnFxPrefab => defaultEnemySpawnFxPrefab;
+    public float DefaultSpawnFxLifetime => Mathf.Max(0f, defaultEnemySpawnFxLifetime);
     public event Action AllEnemiesDefeated;
 
     private enum ArenaMarker
@@ -178,6 +168,7 @@ public class BoardManager : MonoBehaviour
     [ContextMenu("Generate Board")]
     public void GenerateBoard()
     {
+        ApplyCurrentBiomeVisuals();
         currentSelectedEnemyPool = ResolveSelectedEnemyPoolForCurrentArena();
         Texture2D selectedArenaLayout = SelectArenaLayout(currentSelectedEnemyPool);
         if (selectedArenaLayout == null)
@@ -198,8 +189,6 @@ public class BoardManager : MonoBehaviour
         {
             currentArenaMirroredOnYAxis = false;
         }
-        arenaLayout = currentArenaLayout;
-
         EnsureGeneratedRoots();
         ClearGeneratedContent();
         DestroyAllSpawnedHazards();
@@ -208,6 +197,8 @@ public class BoardManager : MonoBehaviour
         currentArenaEnemyPrefabs.Clear();
         bonusRewardForCurrentArena = false;
         spawnedHazards.Clear();
+        activeSkullObjects.Clear();
+        isResolvingSkullsForVictory = false;
 
         List<Vector2Int> playerSpawnCandidates = new List<Vector2Int>();
         List<Vector2Int> enemySpawnCandidates = new List<Vector2Int>();
@@ -256,16 +247,28 @@ public class BoardManager : MonoBehaviour
 
     public void ResetArenaProgression()
     {
+        currentBiomeIndex = 0;
         arenaCount = 1;
         hasGeneratedBoardThisSession = false;
+        currentSelectedEnemyPool = null;
+        activeSkullObjects.Clear();
+        isResolvingSkullsForVictory = false;
         runRewardState = new PlayerRunRewardState();
+        ApplyCurrentBiomeVisuals();
     }
 
     public void GenerateNextArena()
     {
         if (hasGeneratedBoardThisSession)
         {
-            arenaCount++;
+            if (IsCurrentArenaBossBattle())
+            {
+                AdvanceToNextBiome();
+            }
+            else
+            {
+                arenaCount++;
+            }
         }
 
         GenerateBoard();
@@ -546,6 +549,21 @@ public class BoardManager : MonoBehaviour
 
     public void HandlePlayerTurnStarted(Character playerCharacter)
     {
+        if (activeSkullObjects.Count > 0)
+        {
+            List<SkullObject> skullSnapshot = new List<SkullObject>(activeSkullObjects);
+            for (int index = 0; index < skullSnapshot.Count; index++)
+            {
+                SkullObject skullObject = skullSnapshot[index];
+                if (skullObject == null)
+                {
+                    continue;
+                }
+
+                skullObject.HandlePlayerTurnStarted();
+            }
+        }
+
         if (spawnedHazards.Count == 0)
         {
             return;
@@ -757,6 +775,18 @@ public class BoardManager : MonoBehaviour
         return barrel != null && !barrel.IsDestroyed;
     }
 
+    public bool TryGetSkullObject(Vector2Int gridPosition, out SkullObject skullObject)
+    {
+        skullObject = null;
+        if (!TryGetCell(gridPosition, out BoardCell cell) || cell.StaticObstacle == null)
+        {
+            return false;
+        }
+
+        skullObject = cell.StaticObstacle.GetComponent<SkullObject>();
+        return skullObject != null && !skullObject.IsResolving;
+    }
+
     public void ClearStaticObstacle(Vector2Int gridPosition, GameObject expectedObstacle = null)
     {
         if (!TryGetCell(gridPosition, out BoardCell cell))
@@ -803,10 +833,105 @@ public class BoardManager : MonoBehaviour
             player.ControlledCharacter.HandleEnemyCountChanged(spawnedEnemies.Count);
         }
 
-        if (Application.isPlaying && spawnedEnemies.Count == 0)
+        if (!Application.isPlaying || spawnedEnemies.Count != 0)
         {
+            return;
+        }
+
+        if (activeSkullObjects.Count > 0)
+        {
+            ResolveRemainingSkullsForVictory();
+            return;
+        }
+
+        AllEnemiesDefeated?.Invoke();
+    }
+
+    public void RegisterSkullObject(SkullObject skullObject)
+    {
+        if (skullObject == null || activeSkullObjects.Contains(skullObject))
+        {
+            return;
+        }
+
+        activeSkullObjects.Add(skullObject);
+    }
+
+    public void UnregisterSkullObject(SkullObject skullObject)
+    {
+        if (skullObject == null)
+        {
+            return;
+        }
+
+        activeSkullObjects.Remove(skullObject);
+        if (Application.isPlaying && spawnedEnemies.Count == 0 && activeSkullObjects.Count == 0)
+        {
+            isResolvingSkullsForVictory = false;
             AllEnemiesDefeated?.Invoke();
         }
+    }
+
+    public bool SpawnSkeletonSkull(Enemy enemy)
+    {
+        if (enemy == null || enemy.Data is not SkeletonEnemyData skeletonData || skeletonData.SkullObjectPrefab == null)
+        {
+            return false;
+        }
+
+        if (!TryGetCell(enemy.GridPosition, out BoardCell cell))
+        {
+            return false;
+        }
+
+        Vector3 spawnWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
+        GameObject skullObjectInstance = InstantiateOrCreate(
+            skeletonData.SkullObjectPrefab.gameObject,
+            $"Skull_{enemy.GridPosition.x}_{enemy.GridPosition.y}",
+            obstaclesRoot,
+            spawnWorldPosition);
+        SkullObject skullObject = GetOrAddComponent<SkullObject>(skullObjectInstance);
+        skullObject.Assign(this, enemy.GridPosition, skeletonData);
+        cell.SetStaticObstacle(skullObjectInstance, BoardCellType.Rock);
+        RegisterSkullObject(skullObject);
+        return true;
+    }
+
+    public bool ReviveSkeletonFromSkull(SkullObject skullObject, SkeletonEnemyData skeletonData)
+    {
+        if (skullObject == null || skeletonData == null)
+        {
+            return false;
+        }
+
+        GameObject enemyPrefab = ResolveEnemyPrefabForData(skeletonData);
+        if (enemyPrefab == null || !TryGetCell(skullObject.GridPosition, out BoardCell cell) || cell.IsOccupied)
+        {
+            return false;
+        }
+
+        Vector3 spawnWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
+        if (defaultEnemySpawnFxPrefab != null)
+        {
+            GameObject spawnFx = Instantiate(defaultEnemySpawnFxPrefab, spawnWorldPosition, defaultEnemySpawnFxPrefab.transform.rotation, generatedRoot);
+            if (spawnFx != null && defaultEnemySpawnFxLifetime > 0f)
+            {
+                Destroy(spawnFx, defaultEnemySpawnFxLifetime);
+            }
+        }
+
+        GameObject enemyObject = InstantiateOrCreate(
+            enemyPrefab,
+            $"Enemy_{skullObject.GridPosition.x}_{skullObject.GridPosition.y}_Revived",
+            enemiesRoot,
+            spawnWorldPosition);
+        Enemy enemy = GetOrAddComponent<Enemy>(enemyObject);
+        enemy.Assign(skullObject.GridPosition, this);
+        enemy.PlayReviveAnimation();
+        spawnedEnemies.Add(enemy);
+        cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
+        player?.ControlledCharacter?.HandleEnemyCountChanged(spawnedEnemies.Count);
+        return true;
     }
 
     private bool IsSightBlockedCell(Vector2Int gridPosition, Vector2Int targetCell)
@@ -853,14 +978,15 @@ public class BoardManager : MonoBehaviour
             return selectedPool.ArenaLayoutOverride;
         }
 
-        if (arenaLayouts != null && arenaLayouts.Count > 0)
+        IReadOnlyList<Texture2D> biomeArenaLayouts = GetArenaLayoutsForCurrentBiome();
+        if (biomeArenaLayouts != null && biomeArenaLayouts.Count > 0)
         {
             List<Texture2D> validArenas = new List<Texture2D>();
-            for (int index = 0; index < arenaLayouts.Count; index++)
+            for (int index = 0; index < biomeArenaLayouts.Count; index++)
             {
-                if (arenaLayouts[index] != null)
+                if (biomeArenaLayouts[index] != null)
                 {
-                    validArenas.Add(arenaLayouts[index]);
+                    validArenas.Add(biomeArenaLayouts[index]);
                 }
             }
 
@@ -870,7 +996,7 @@ public class BoardManager : MonoBehaviour
             }
         }
 
-        return arenaLayout;
+        return null;
     }
 
     private ArenaMarker GetMarkerForCell(int column, int row, Texture2D layout, bool mirrorOnYAxis)
@@ -909,15 +1035,19 @@ public class BoardManager : MonoBehaviour
 
     private void SpawnObstacle(BoardCell cell)
     {
-        GameObject obstacle = InstantiateFromList(obstacles, $"Obstacle_{cell.GridPosition.x}_{cell.GridPosition.y}", obstaclesRoot, cell.WorldPosition);
-        cell.SetStaticObstacle(obstacle, BoardCellType.Rock);
-        if (obstacle != null)
+        GameObject obstacle = InstantiateFromList(GetObstaclePrefabsForCurrentBiome(), $"Obstacle_{cell.GridPosition.x}_{cell.GridPosition.y}", obstaclesRoot, cell.WorldPosition);
+        if (obstacle == null)
         {
-            BarrelObstacle barrel = obstacle.GetComponent<BarrelObstacle>();
-            if (barrel != null)
-            {
-                barrel.Assign(this, cell.GridPosition);
-            }
+            return;
+        }
+
+        ApplyBiomeRockColor(obstacle);
+        cell.SetStaticObstacle(obstacle, BoardCellType.Rock);
+
+        BarrelObstacle barrel = obstacle.GetComponent<BarrelObstacle>();
+        if (barrel != null)
+        {
+            barrel.Assign(this, cell.GridPosition);
         }
     }
 
@@ -1034,9 +1164,9 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private GameObject InstantiateFromList(List<GameObject> prefabs, string fallbackName, Transform parent, Vector3 position)
+    private GameObject InstantiateFromList(IReadOnlyList<GameObject> prefabs, string fallbackName, Transform parent, Vector3 position)
     {
-        GameObject prefab = prefabs.Count > 0 ? prefabs[UnityEngine.Random.Range(0, prefabs.Count)] : null;
+        GameObject prefab = prefabs != null && prefabs.Count > 0 ? prefabs[UnityEngine.Random.Range(0, prefabs.Count)] : null;
         return InstantiateOrCreate(prefab, fallbackName, parent, position);
     }
 
@@ -1051,18 +1181,19 @@ public class BoardManager : MonoBehaviour
     private EnemyPoolDefinition ResolveSelectedEnemyPoolForCurrentArena()
     {
 #if UNITY_EDITOR
-        if (forcedEnemyPoolDefinition != null)
+        if (useForcedDatas && forcedEnemyPoolDefinition != null)
         {
             return forcedEnemyPoolDefinition;
         }
 #endif
 
-        EnemyPoolAvailability selectedAvailability = null;
+        BiomeEnemyPoolAvailability selectedAvailability = null;
         int selectedRangeSize = int.MaxValue;
 
-        for (int index = 0; index < enemyPoolsByArenaCount.Count; index++)
+        IReadOnlyList<BiomeEnemyPoolAvailability> poolAvailabilities = GetEnemyPoolAvailabilitiesForCurrentBiome();
+        for (int index = 0; index < poolAvailabilities.Count; index++)
         {
-            EnemyPoolAvailability availability = enemyPoolsByArenaCount[index];
+            BiomeEnemyPoolAvailability availability = poolAvailabilities[index];
             if (availability == null || !availability.MatchesArenaCount(arenaCount))
             {
                 continue;
@@ -1442,7 +1573,7 @@ public class BoardManager : MonoBehaviour
         enemy = null;
 
         List<GameObject> candidateEnemies = new List<GameObject>();
-        AddNonNullPrefabs(candidateEnemies, spawnableEnemies);
+        AddNonNullPrefabs(candidateEnemies, GetSpawnableEnemiesForCurrentBiome());
         if (candidateEnemies.Count == 0)
         {
             AddNonNullPrefabs(candidateEnemies, currentArenaEnemyPrefabs);
@@ -1489,6 +1620,261 @@ public class BoardManager : MonoBehaviour
         cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
         player?.ControlledCharacter?.HandleEnemyCountChanged(spawnedEnemies.Count);
         return true;
+    }
+
+    private void ResolveRemainingSkullsForVictory()
+    {
+        if (isResolvingSkullsForVictory || activeSkullObjects.Count == 0)
+        {
+            return;
+        }
+
+        isResolvingSkullsForVictory = true;
+        List<SkullObject> skullSnapshot = new List<SkullObject>(activeSkullObjects);
+        for (int index = 0; index < skullSnapshot.Count; index++)
+        {
+            SkullObject skullObject = skullSnapshot[index];
+            if (skullObject == null)
+            {
+                continue;
+            }
+
+            skullObject.ShatterForVictory();
+        }
+    }
+
+    private GameObject ResolveEnemyPrefabForData(EnemyData enemyData)
+    {
+        if (enemyData == null)
+        {
+            return null;
+        }
+
+        for (int index = 0; index < currentArenaEnemyPrefabs.Count; index++)
+        {
+            GameObject prefab = currentArenaEnemyPrefabs[index];
+            if (PrefabMatchesEnemyData(prefab, enemyData))
+            {
+                return prefab;
+            }
+        }
+
+        EnemyPoolDefinition selectedPool = currentSelectedEnemyPool != null
+            ? currentSelectedEnemyPool
+            : ResolveSelectedEnemyPoolForCurrentArena();
+        if (selectedPool != null)
+        {
+            IReadOnlyList<GameObject> poolPrefabs = selectedPool.EnemyPrefabs;
+            for (int index = 0; index < poolPrefabs.Count; index++)
+            {
+                GameObject prefab = poolPrefabs[index];
+                if (PrefabMatchesEnemyData(prefab, enemyData))
+                {
+                    return prefab;
+                }
+            }
+        }
+
+        IReadOnlyList<GameObject> biomeSpawnables = GetSpawnableEnemiesForCurrentBiome();
+        for (int index = 0; index < biomeSpawnables.Count; index++)
+        {
+            GameObject prefab = biomeSpawnables[index];
+            if (PrefabMatchesEnemyData(prefab, enemyData))
+            {
+                return prefab;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool PrefabMatchesEnemyData(GameObject prefab, EnemyData enemyData)
+    {
+        if (prefab == null || enemyData == null)
+        {
+            return false;
+        }
+
+        Enemy enemy = prefab.GetComponent<Enemy>();
+        return enemy != null && enemy.Data == enemyData;
+    }
+
+    private void AdvanceToNextBiome()
+    {
+        int biomeCount = GetValidBiomeCount();
+        if (biomeCount > 0)
+        {
+            currentBiomeIndex = Mathf.Min(currentBiomeIndex + 1, biomeCount - 1);
+        }
+
+        arenaCount = 1;
+        currentSelectedEnemyPool = null;
+        ApplyCurrentBiomeVisuals();
+    }
+
+    private int GetValidBiomeCount()
+    {
+        if (biomes == null)
+        {
+            return 0;
+        }
+
+        int validBiomeCount = 0;
+        for (int index = 0; index < biomes.Count; index++)
+        {
+            if (biomes[index] != null)
+            {
+                validBiomeCount++;
+            }
+        }
+
+        return validBiomeCount;
+    }
+
+    private BiomeData GetCurrentBiomeData()
+    {
+#if UNITY_EDITOR
+        if (useForcedDatas && forcedBiome != null)
+        {
+            return forcedBiome;
+        }
+#endif
+
+        if (biomes == null || biomes.Count == 0)
+        {
+            return null;
+        }
+
+        List<BiomeData> validBiomes = new List<BiomeData>();
+        for (int index = 0; index < biomes.Count; index++)
+        {
+            if (biomes[index] != null)
+            {
+                validBiomes.Add(biomes[index]);
+            }
+        }
+
+        if (validBiomes.Count == 0)
+        {
+            return null;
+        }
+
+        currentBiomeIndex = Mathf.Clamp(currentBiomeIndex, 0, validBiomes.Count - 1);
+        return validBiomes[currentBiomeIndex];
+    }
+
+    private IReadOnlyList<Texture2D> GetArenaLayoutsForCurrentBiome()
+    {
+        BiomeData biomeData = GetCurrentBiomeData();
+        if (biomeData != null)
+        {
+            return biomeData.ArenaLayouts;
+        }
+
+        return Array.Empty<Texture2D>();
+    }
+
+    private IReadOnlyList<GameObject> GetObstaclePrefabsForCurrentBiome()
+    {
+        BiomeData biomeData = GetCurrentBiomeData();
+        if (biomeData != null)
+        {
+            return biomeData.ObstaclePrefabs;
+        }
+
+        return Array.Empty<GameObject>();
+    }
+
+    private IReadOnlyList<BiomeEnemyPoolAvailability> GetEnemyPoolAvailabilitiesForCurrentBiome()
+    {
+        BiomeData biomeData = GetCurrentBiomeData();
+        if (biomeData != null)
+        {
+            return biomeData.EnemyPoolsByArenaCount;
+        }
+
+        return Array.Empty<BiomeEnemyPoolAvailability>();
+    }
+
+    private IReadOnlyList<GameObject> GetSpawnableEnemiesForCurrentBiome()
+    {
+        BiomeData biomeData = GetCurrentBiomeData();
+        if (biomeData != null)
+        {
+            return biomeData.SpawnableEnemies;
+        }
+
+        return Array.Empty<GameObject>();
+    }
+
+    private void ApplyCurrentBiomeVisuals()
+    {
+        BiomeData biomeData = GetCurrentBiomeData();
+        if (biomeData == null)
+        {
+            return;
+        }
+
+        if (backgroundDecorsRenderer != null && biomeData.BackgroundDecorSprite != null)
+        {
+            backgroundDecorsRenderer.sprite = biomeData.BackgroundDecorSprite;
+        }
+
+        if (boardModelRenderer == null)
+        {
+            if (gridRenderer != null)
+            {
+                ApplyColorToRenderer(gridRenderer, 0, biomeData.GroundColor);
+            }
+
+            return;
+        }
+
+        ApplyColorToRenderer(boardModelRenderer, 0, biomeData.GroundColor);
+        ApplyColorToRenderer(boardModelRenderer, 1, biomeData.CliffColor);
+
+        if (gridRenderer != null)
+        {
+            ApplyColorToRenderer(gridRenderer, 0, biomeData.GroundColor);
+        }
+    }
+
+    private void ApplyBiomeRockColor(GameObject obstacle)
+    {
+        if (obstacle == null)
+        {
+            return;
+        }
+
+        BiomeData biomeData = GetCurrentBiomeData();
+        if (biomeData == null)
+        {
+            return;
+        }
+
+        RockBiomeColorTarget[] colorTargets = obstacle.GetComponentsInChildren<RockBiomeColorTarget>(true);
+        for (int index = 0; index < colorTargets.Length; index++)
+        {
+            RockBiomeColorTarget colorTarget = colorTargets[index];
+            if (colorTarget != null)
+            {
+                colorTarget.ApplyColor(biomeData.RockColor);
+            }
+        }
+    }
+
+    private void ApplyColorToRenderer(Renderer targetRenderer, int materialIndex, Color color)
+    {
+        if (targetRenderer == null)
+        {
+            return;
+        }
+
+        int clampedMaterialIndex = Mathf.Clamp(materialIndex, 0, Mathf.Max(0, targetRenderer.sharedMaterials.Length - 1));
+        MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
+        targetRenderer.GetPropertyBlock(propertyBlock, clampedMaterialIndex);
+        propertyBlock.SetColor(ColorShaderProperty, color);
+        targetRenderer.SetPropertyBlock(propertyBlock, clampedMaterialIndex);
     }
 
     private static void AddNonNullPrefabs(List<GameObject> target, IReadOnlyList<GameObject> source)

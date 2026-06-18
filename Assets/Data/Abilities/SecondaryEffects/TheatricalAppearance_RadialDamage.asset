@@ -17,7 +17,7 @@ MonoBehaviour:
   - fxPrefab: {fileID: 6163134623645628608, guid: a310d18400d4243c3b9ca40b88c994b4, type: 3}
     spawnDelay: 0
     destroyAfterSeconds: 1
-    spawnAnchor: 0
+    spawnAnchor: 2
     offsetReference: 0
     positionOffset: {x: 0, y: 0, z: 0}
   anchor: 2

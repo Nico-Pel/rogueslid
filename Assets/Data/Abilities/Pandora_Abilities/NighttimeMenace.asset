@@ -49,4 +49,4 @@ MonoBehaviour:
     timing: 1
     effect: {fileID: 11400000, guid: 1938915dd9324bd9b2d1ad366e56d749, type: 2}
   delayAfterBloodyEscapeBeforeTeleport: 0.5
-  delayAfterTeleportBeforeTheatricalAppearance: 0.1
+  delayAfterTeleportBeforeTheatricalAppearance: 0.2

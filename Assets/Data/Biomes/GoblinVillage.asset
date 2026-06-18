@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bb4f9ba80a245c0bd68dfd7084ac6f1, type: 3}
+  m_Name: GoblinVillage
+  m_EditorClassIdentifier: 
+  biomeName: Goblin Village
+  groundColor: {r: 1, g: 0.81246656, b: 0.504717, a: 1}
+  cliffColor: {r: 1, g: 0.72826606, b: 0.4198113, a: 1}
+  rockColor: {r: 1, g: 0.7764706, b: 0.49411765, a: 1}
+  backgroundDecorSprite: {fileID: 21300000, guid: 48bd8f5d2949a49e593030e981b3b9a0, type: 3}
+  combatMusic: {fileID: 8300000, guid: b156696c87ad14685a1ddb108fcf308e, type: 3}
+  arenaLayouts:
+  - {fileID: 2800000, guid: 5972763937f2e40749f1f2a026933883, type: 3}
+  - {fileID: 2800000, guid: bd98e836e12c546ce8300a5855f48e3e, type: 3}
+  - {fileID: 2800000, guid: 2262e2349dcf94726a65eb90f4cc0e54, type: 3}
+  obstaclePrefabs:
+  - {fileID: 6748463629275346963, guid: a76b12e87250c449689e0e25f1c18354, type: 3}
+  - {fileID: 9205521067862607340, guid: 14e00a236f17545ebbee3ee97d65a7be, type: 3}
+  - {fileID: 2780441592490594640, guid: 964e69bf377264b57a0af30f084d2063, type: 3}
+  - {fileID: 8413043313061632029, guid: 8e388e2cd22cb40e1bff42f0071814e8, type: 3}
+  - {fileID: 3245583134270734714, guid: 4088561ea2b6c42c2afb2f8c9bea38a4, type: 3}
+  - {fileID: 3365203741406293010, guid: 9649119ab00a041e7838f49f7f273f4a, type: 3}
+  - {fileID: 6726293435134504919, guid: e0be35a2d3fda4473ab26a1b5c189d8e, type: 3}
+  - {fileID: 1439077524496680622, guid: d9a6e45c9eae741d3bf9066c02d1a120, type: 3}
+  - {fileID: 5706263804660975334, guid: 552f01ee0977e456aa99de95f0608bfc, type: 3}
+  - {fileID: 6836785853733531452, guid: 7c62e9c1bc41940dcb145f1a22d65376, type: 3}
+  - {fileID: 4167226560171851869, guid: 6dd35e2c197b74b7296e0fb32a65d8a9, type: 3}
+  - {fileID: 8881005637722542872, guid: e0f95da3587384bda918beb16d127642, type: 3}
+  - {fileID: 1362559067858712702, guid: 036589cf8f07348d7b825e99226f9d3c, type: 3}
+  - {fileID: 1115597412672182893, guid: cb62de1c2d0b74a9aad09264d8cfe440, type: 3}
+  enemyPoolsByArenaCount:
+  - pools:
+    - {fileID: 11400000, guid: 4eee32db599e45ed9642a665f59ffe73, type: 2}
+    - {fileID: 11400000, guid: b32754482b904ad8868655acbc7123df, type: 2}
+    minArenaCount: 1
+    maxArenaCount: 1
+  - pools:
+    - {fileID: 11400000, guid: d0fe480256104e8395eb8127c94e94be, type: 2}
+    - {fileID: 11400000, guid: bf05ef2fcdc34a61950d13208e0ea994, type: 2}
+    - {fileID: 11400000, guid: 959ff7254cd8445a8432fad8f5ee5398, type: 2}
+    - {fileID: 11400000, guid: 74638361c3ac4f4c91c3b9b6f4e6165b, type: 2}
+    minArenaCount: 2
+    maxArenaCount: 4
+  - pools:
+    - {fileID: 11400000, guid: dd91250aba2734d1a9fd8284e0eed864, type: 2}
+    - {fileID: 11400000, guid: 4b28585239e5f47bba6f06bf1b018da6, type: 2}
+    - {fileID: 11400000, guid: e52505bb079634583a7a486ecba83ebb, type: 2}
+    - {fileID: 11400000, guid: 7e3cea25a8d6740389cf9ce26ad9b6e5, type: 2}
+    - {fileID: 11400000, guid: 95a490c0c2adb49b19316b0083cec10f, type: 2}
+    - {fileID: 11400000, guid: 34a560534c7ac40b5801937a6dd89278, type: 2}
+    minArenaCount: 5
+    maxArenaCount: 6
+  - pools:
+    - {fileID: 11400000, guid: 29bd9bb23feca493aa7dac5529f45bec, type: 2}
+    - {fileID: 11400000, guid: a518e54b82328454fada50bf06c4fd7f, type: 2}
+    - {fileID: 11400000, guid: 75a3a377769d740eab00cd947472f05b, type: 2}
+    - {fileID: 11400000, guid: 4ec4de59d11c346d2a3a2034e5d1ed9b, type: 2}
+    - {fileID: 11400000, guid: f31344e0514574d888f54f099a376a37, type: 2}
+    - {fileID: 11400000, guid: ecdcb2a9a31e7431f857ef8c907ea960, type: 2}
+    minArenaCount: 7
+    maxArenaCount: 9
+  - pools:
+    - {fileID: 11400000, guid: de918da9dc1f044a392fc3ffde3f7cfa, type: 2}
+    minArenaCount: 10
+    maxArenaCount: 10
+  spawnableEnemies:
+  - {fileID: 2433636361208229482, guid: 41573dec7f1f3402ca627ff1402282f1, type: 3}
+  - {fileID: 2433636361208229482, guid: 559d230ea069b4ffab739e17342840a0, type: 3}
+  - {fileID: 2433636361208229482, guid: 0e3fe0f078dc646a0b6b1288dc54927d, type: 3}
+  - {fileID: 2433636361208229482, guid: eb8f8e624232448adb732b69b5d4cee4, type: 3}

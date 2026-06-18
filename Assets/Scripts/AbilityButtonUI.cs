@@ -19,7 +19,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     [SerializeField] private Sprite basicAttackTypeSprite;
     [SerializeField] private Sprite mobilityTypeSprite;
     [SerializeField] private Sprite specialPowerTypeSprite;
-    private float abilityCheckLongPressDuration = 1f;
+    private float abilityCheckLongPressDuration = 0.5f;
 
     private GameTurnManager gameTurnManager;
     private Character character;

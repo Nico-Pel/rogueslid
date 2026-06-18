@@ -8,7 +8,7 @@ public class NighttimeMenaceAbility : AbilityDefinition
     [SerializeField] private int baseRange = 3;
     [SerializeField] private List<UpgradedSecondaryEffectEntry> secondaryEffects = new List<UpgradedSecondaryEffectEntry>();
     [SerializeField] private float delayAfterBloodyEscapeBeforeTeleport = 0.5f;
-    [SerializeField] private float delayAfterTeleportBeforeTheatricalAppearance = 0.1f;
+    [SerializeField] private float delayAfterTeleportBeforeTheatricalAppearance = 0.2f;
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 

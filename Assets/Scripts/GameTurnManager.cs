@@ -22,7 +22,8 @@ public class GameTurnManager : MonoBehaviour
     [SerializeField] private float rewardMenuDelay = 2f;
     [SerializeField] private float loseMenuDelay = 1.5f;
 #if UNITY_EDITOR
-    [SerializeField] private KeyCode debugRewardMenuKey = KeyCode.K;
+    private const KeyCode DebugRewardMenuKey = KeyCode.K;
+    private const KeyCode DebugWinArenaKey = KeyCode.Z;
 #endif
 
     private bool isEnemyTurnRunning;
@@ -83,7 +84,7 @@ public class GameTurnManager : MonoBehaviour
         }
 
         hasStarted = true;
-        soundManager?.PlayArenaMusic();
+        soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
         BindToCurrentCharacter();
         StartCombatEntryFlow();
     }
@@ -150,7 +151,7 @@ public class GameTurnManager : MonoBehaviour
         uiGame?.HideRewards();
         uiGame?.HideYesNoPrompt();
         uiGame?.HideLoseMenu();
-        soundManager?.PlayArenaMusic();
+        soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
         BindToCurrentCharacter();
         StartCombatEntryFlow();
     }
@@ -274,7 +275,13 @@ public class GameTurnManager : MonoBehaviour
         }
 
 #if UNITY_EDITOR
-        if (Input.GetKeyDown(debugRewardMenuKey))
+        if (Input.GetKeyDown(DebugWinArenaKey))
+        {
+            RequestDebugWinArena();
+            return;
+        }
+
+        if (Input.GetKeyDown(DebugRewardMenuKey))
         {
             RequestDebugRewardChoice();
             return;
@@ -305,7 +312,7 @@ public class GameTurnManager : MonoBehaviour
         }
 
         Vector2Int direction = Vector2Int.zero;
-        if (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
+        if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
         {
             direction = Vector2Int.down;
         }
@@ -918,6 +925,16 @@ public class GameTurnManager : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    private void RequestDebugWinArena()
+    {
+        if (board == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)
+        {
+            return;
+        }
+
+        HandleAllEnemiesDefeated();
+    }
+
     private void RequestDebugRewardChoice()
     {
         if (board == null || uiGame == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)

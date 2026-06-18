@@ -952,6 +952,11 @@ public class Enemy : MonoBehaviour
             return false;
         }
 
+        if (Board != null && Board.TryGetSkullObject(candidateCell.GridPosition, out _))
+        {
+            return remainingMovesAfterThisStep > 0 && CanExitObstacleZone(candidateCell.GridPosition, remainingMovesAfterThisStep);
+        }
+
         if (canEndTurnOnObstacle)
         {
             return true;
@@ -1185,6 +1190,11 @@ public class Enemy : MonoBehaviour
         if (cell.Walkable)
         {
             return true;
+        }
+
+        if (Board != null && Board.TryGetSkullObject(cell.GridPosition, out _))
+        {
+            return false;
         }
 
         return ignoreObstaclesForMovement && canEndTurnOnObstacle;
@@ -2718,12 +2728,31 @@ public class Enemy : MonoBehaviour
         isDying = true;
         ClearDeathMarkFx();
         SpawnDeathFx();
+        Board?.SpawnSkeletonSkull(this);
         if (Board != null)
         {
             Board.RemoveEnemy(this);
         }
 
         Destroy(gameObject, deathDestroyDelay);
+    }
+
+    public void PlayReviveAnimation()
+    {
+        CacheBody();
+        CacheAnimator();
+        ClearAnimationTriggers();
+        SetFlyingAnimation(false);
+
+        if (enemyBody != null)
+        {
+            ApplyBodyLocalYaw(enemyBody, cachedBodyOriginalLocalEulerAngles.y);
+        }
+
+        if (enemyAnimator != null && !string.IsNullOrWhiteSpace(optionalActionTriggerParameter))
+        {
+            enemyAnimator.SetTrigger(optionalActionTriggerParameter);
+        }
     }
 
     private void SpawnDeathFx()

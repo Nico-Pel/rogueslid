@@ -2194,13 +2194,23 @@ public class Character : MonoBehaviour
 
     private void SpawnDeathFx()
     {
-        if (fxDeathPrefab == null)
+        GameObject deathFxPrefab = Board != null && Board.DefaultSpawnFxPrefab != null
+            ? Board.DefaultSpawnFxPrefab
+            : fxDeathPrefab;
+        if (deathFxPrefab == null)
         {
             return;
         }
 
-        GameObject deathFx = Instantiate(fxDeathPrefab, transform.position, fxDeathPrefab.transform.rotation);
-        deathFx.transform.localScale = fxDeathPrefab.transform.localScale;
+        GameObject deathFx = Instantiate(deathFxPrefab, transform.position, deathFxPrefab.transform.rotation);
+        deathFx.transform.localScale = deathFxPrefab.transform.localScale;
+        float destroyAfterSeconds = Board != null && Board.DefaultSpawnFxPrefab == deathFxPrefab
+            ? Board.DefaultSpawnFxLifetime
+            : 0f;
+        if (destroyAfterSeconds > 0f)
+        {
+            Destroy(deathFx, destroyAfterSeconds);
+        }
     }
 
     private int CountAdjacentEnemies()
