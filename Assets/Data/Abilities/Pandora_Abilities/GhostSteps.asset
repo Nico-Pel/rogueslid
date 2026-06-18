@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: GhostSteps
   m_EditorClassIdentifier: 
   abilityName: Ghost Steps
-  icon: {fileID: 1356344920, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  icon: {fileID: -767586726, guid: 3fdef4f697daa48018ccf6ccb468414c, type: 3}
   category: 2
   attackAnimationClip: {fileID: 0}
   linkedUpgradeRewards:

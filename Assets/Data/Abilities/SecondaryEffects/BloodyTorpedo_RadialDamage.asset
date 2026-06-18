@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterAnimationClip: {fileID: 7400000, guid: b38d7f7a102c24e0ca2516e2429bfbf1, type: 2}
   fxSpawns:
-  - fxPrefab: {fileID: 6163134623645628608, guid: daef018f4b5534fd5a80d729e554c9df, type: 3}
+  - fxPrefab: {fileID: 1391671794322985783, guid: aa27115c58d6246e59e84dcc0e9d6fca, type: 3}
     spawnDelay: 0
     destroyAfterSeconds: 1
     spawnAnchor: 0

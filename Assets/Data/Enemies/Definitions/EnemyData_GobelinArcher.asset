@@ -41,9 +41,10 @@ MonoBehaviour:
   optionalActionType: 0
   optionalHealAmount: 4
   moveDuration: 0.16
-  projectileTravelHeight: 0.5
+  projectileTravelHeight: 0.25
   projectileTravelSpeed: 20
   useFlyAnimationOnObstacle: 0
+  immuneToFire: 0
   showAttack: 1
   attackSprite: {fileID: -466392962, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1

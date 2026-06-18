@@ -53,6 +53,7 @@ public class EnemyData : ScriptableObject
     [Min(0f)]
     [SerializeField] private float projectileTravelSpeed = 10f;
     [SerializeField] private bool useFlyAnimationOnObstacle;
+    [SerializeField] private bool immuneToFire;
 
     [Header("Displayed Stats")]
     [SerializeField] private bool showAttack = true;
@@ -99,6 +100,7 @@ public class EnemyData : ScriptableObject
     public float ProjectileTravelHeight => Mathf.Max(0f, projectileTravelHeight);
     public float ProjectileTravelSpeed => Mathf.Max(0f, projectileTravelSpeed);
     public bool UseFlyAnimationOnObstacle => useFlyAnimationOnObstacle;
+    public bool ImmuneToFire => immuneToFire;
     public bool ShowAttack => showAttack;
     public Sprite AttackSprite => attackSprite;
     public bool ShowHealth => showHealth;

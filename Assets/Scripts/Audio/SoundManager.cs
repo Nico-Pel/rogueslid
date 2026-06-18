@@ -29,6 +29,7 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip arenaMusic;
     [SerializeField] private AudioClip victoryJingle;
     [SerializeField] private AudioClip victoryChoiceMusic;
+    [SerializeField] private AudioClip loseJingle;
     [SerializeField] [Range(0f, 1f)] private float musicVolume = 0.7f;
     [SerializeField] [Range(0f, 1f)] private float jingleVolume = 1f;
     [SerializeField] private bool loopArenaMusic = true;
@@ -142,6 +143,21 @@ public class SoundManager : MonoBehaviour
         musicSource.loop = loopVictoryChoiceMusic;
         musicSource.volume = musicVolume;
         musicSource.Play();
+    }
+
+    public void PlayLoseJingle()
+    {
+        StopArenaMusic();
+
+        if (loseJingle == null)
+        {
+            return;
+        }
+
+        EnsureAudioSources();
+        oneShotSource.Stop();
+        oneShotSource.pitch = 1f;
+        oneShotSource.PlayOneShot(loseJingle, jingleVolume);
     }
 
     public void PlayDamageSound(DamageSoundType soundType, Vector3 position, float volume = 1f)

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,8 @@ public class DemonicChainAbility : AbilityDefinition
     [SerializeField] private Vector3 chainEndOffset = new Vector3(0f, 0.1f, 0f);
     [Min(0f)]
     [SerializeField] private float chainLifetime = 0.4f;
+    [Min(0f)]
+    [SerializeField] private float chainedStrikeBumpDuration = 0.3f;
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
     {
@@ -34,6 +37,19 @@ public class DemonicChainAbility : AbilityDefinition
         }
 
         List<Enemy> hitEnemies = new List<Enemy>(targets);
+        character.StartCoroutine(ResolveDemonicChainSequence(character, runtime, targets, hitEnemies, damage));
+        return true;
+    }
+
+    private IEnumerator ResolveDemonicChainSequence(
+        Character character,
+        CharacterAbilityRuntime runtime,
+        List<Enemy> targets,
+        List<Enemy> hitEnemies,
+        int damage)
+    {
+        character.BeginActionLock();
+
         for (int index = 0; index < targets.Count; index++)
         {
             Enemy enemy = targets[index];
@@ -45,12 +61,14 @@ public class DemonicChainAbility : AbilityDefinition
             SpawnChainLine(character, enemy);
             character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Default, this);
             PullEnemyTowardsCharacter(character, enemy, false);
+            yield return WaitForEnemyMovement(enemy);
 
             if (character.GetUpgradeStacks(AbilityUpgradeKey.DemonicChainExecutionersChains) > 0
                 && enemy.CurrentHealth > 0
                 && enemy.CurrentHealth <= 3
                 && PullEnemyTowardsCharacter(character, enemy, true))
             {
+                yield return WaitForEnemyMovement(enemy);
                 character.DealDamageToEnemy(enemy, enemy.CurrentHealth, false);
             }
 
@@ -58,6 +76,7 @@ public class DemonicChainAbility : AbilityDefinition
                 && enemy.CurrentHealth > 0
                 && IsAdjacentOrDiagonal(character.GridPosition, enemy.GridPosition))
             {
+                enemy.PlayCharacterCollisionBump(character.transform.position, chainedStrikeBumpDuration);
                 AbilityExecutionContext chainedStrikeContext = new AbilityExecutionContext(
                     this,
                     runtime,
@@ -71,13 +90,30 @@ public class DemonicChainAbility : AbilityDefinition
                 }
                 else
                 {
-                    character.DealDamageToEnemy(enemy, 2, false, true, DamageSoundType.Default, this);
+                    yield return new WaitForSeconds(chainedStrikeBumpDuration);
+                    if (enemy != null && enemy.CurrentHealth > 0)
+                    {
+                        character.DealDamageToEnemy(enemy, 2, false, true, DamageSoundType.Default, this);
+                    }
+                    continue;
                 }
+
+                yield return new WaitForSeconds(chainedStrikeBumpDuration);
             }
         }
 
         PlayConfiguredFx(character, hitEnemies);
-        return true;
+        character.EndActionLock();
+    }
+
+    private static IEnumerator WaitForEnemyMovement(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            yield break;
+        }
+
+        yield return new WaitUntil(() => enemy == null || !enemy.IsMoving);
     }
 
     private List<Enemy> GatherTargets(Character character)

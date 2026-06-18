@@ -23,3 +23,4 @@ MonoBehaviour:
   damage: 2
   addBonusDamage: 0
   countsAsAbilityDamage: 1
+  impactDelay: 0.3

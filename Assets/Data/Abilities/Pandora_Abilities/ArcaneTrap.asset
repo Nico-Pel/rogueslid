@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97f6c25553d84bc5a1bb4801d1da5406, type: 3}
+  m_Name: ArcaneTrap
+  m_EditorClassIdentifier: 
+  abilityName: Arcane Trap
+  icon: {fileID: 1889169128, guid: 3fdef4f697daa48018ccf6ccb468414c, type: 3}
+  category: 2
+  attackAnimationClip: {fileID: 7400000, guid: 8a1c979f827d24949911a01112be6137, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: c2020000000000000000000000000039, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000040, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000041, type: 2}
+  - {fileID: 11400000, guid: c2020000000000000000000000000042, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 2
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 8704435054583446438, guid: fce90706add9c40bf8756231e7d73226, type: 3}
+  damageFxOverridePositionOffset: {x: 0, y: 0.5, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseRange: 4
+  baseDamage: 4
+  warningFxPrefab: {fileID: 5277658378885244339, guid: 102687219073549e88934d118ced6617, type: 3}
+  activeFxPrefab: {fileID: 6160909684301080723, guid: 1fbae4ab4a7ff4e2aac46df2ad4ff117, type: 3}

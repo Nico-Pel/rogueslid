@@ -99,6 +99,7 @@ public class Character : MonoBehaviour
     private bool tookDamageDuringEnemyTurn;
     private bool tookDamageSinceLastPlayerTurn;
     private bool isFirstEnemyTurnOfArena;
+    private bool enemyTurnInProgress;
     private bool isDying;
     private bool attackedThisTurn;
     private bool attackedLastTurn;
@@ -128,6 +129,7 @@ public class Character : MonoBehaviour
     public string CharacterName => characterData != null ? characterData.CharacterName : name;
     public string CharacterDescription => characterData != null ? characterData.Description : string.Empty;
     public Sprite CharacterPortrait => characterData != null ? characterData.Portrait : null;
+    public Sprite CharacterLosePortrait => characterData != null ? characterData.PortraitLose : null;
 
     public AbilityCategory GetAbilitySlotCategory(int slotIndex)
     {
@@ -143,8 +145,12 @@ public class Character : MonoBehaviour
     }
     public event Action<Character> MovementPointsChanged;
     public event Action<Character> AbilitiesChanged;
+    public event Action<Character, ItemRewardKey, bool, float> ItemActivationChanged;
+    public event Action<Character> Died;
     public IReadOnlyList<CharacterAbilityRuntime> Abilities => abilities;
     public PlayerRunRewardState RunRewardState => runRewardState;
+    private float itemActivationPulseDuration = 2.5f;
+    private readonly Dictionary<ItemRewardKey, bool> activeItemStates = new Dictionary<ItemRewardKey, bool>();
 
     private void OnValidate()
     {
@@ -173,6 +179,7 @@ public class Character : MonoBehaviour
         tookDamageDuringEnemyTurn = false;
         tookDamageSinceLastPlayerTurn = false;
         isFirstEnemyTurnOfArena = true;
+        enemyTurnInProgress = false;
         attackedThisTurn = false;
         attackedLastTurn = false;
         frostCharmedEnemiesThisTurn.Clear();
@@ -180,6 +187,7 @@ public class Character : MonoBehaviour
         samuraiMaskBonusDamage = 0;
         actionLockCount = 0;
         abilityTargetsHitThisTurn.Clear();
+        activeItemStates.Clear();
         markedEnemy = null;
         deathMarkAbility = null;
         SnapToGrid();
@@ -215,10 +223,12 @@ public class Character : MonoBehaviour
         ApplyCharacterDataDefinition();
         CacheBaseStatsIfNeeded();
         runRewardState = state;
+        activeItemStates.Clear();
         RecalculateItemDrivenStats();
         ClearNextAttackBonusDamage();
         samuraiMaskBonusDamage = 0;
         isFirstEnemyTurnOfArena = true;
+        enemyTurnInProgress = false;
         abilityTargetsHitThisTurn.Clear();
         markedEnemy = null;
         deathMarkAbility = null;
@@ -241,7 +251,7 @@ public class Character : MonoBehaviour
     {
         if (HasItem(ItemRewardKey.Sakura) && tookDamageSinceLastPlayerTurn)
         {
-            Heal(1);
+            Heal(1, ItemRewardKey.Sakura);
         }
 
         tookDamageSinceLastPlayerTurn = false;
@@ -267,6 +277,7 @@ public class Character : MonoBehaviour
             return false;
         }
 
+        Vector2Int startCell = gridPosition;
         traversedEnemiesBuffer.Clear();
         bool allowUnitTraversal = CanTraverseUnits();
         Vector2Int destination = ShouldLimitNextSlideToOneCell()
@@ -295,6 +306,7 @@ public class Character : MonoBehaviour
         gridPosition = destination;
         remainingMovementPoints--;
         NotifyMovementPointsChanged();
+        Board.NotifyCharacterTraversedPath(this, startCell, destination);
         ApplyTraversalEffects();
         ConsumeSingleStepModifiers();
         AnimateToGrid();
@@ -357,6 +369,7 @@ public class Character : MonoBehaviour
         {
             runtime.ReduceCooldown(1);
             sandglassTalismanTriggeredThisCombat = true;
+            TriggerItemActivationPulse(ItemRewardKey.SandglassTalisman);
         }
 
         if (nextAttackBonusDamage > 0
@@ -378,6 +391,7 @@ public class Character : MonoBehaviour
             return false;
         }
 
+        Vector2Int startCell = gridPosition;
         if (!Board.IsCellWalkable(targetCell))
         {
             return false;
@@ -389,6 +403,7 @@ public class Character : MonoBehaviour
         }
 
         gridPosition = targetCell;
+        Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
         AnimateToGrid();
         return true;
     }
@@ -517,6 +532,7 @@ public class Character : MonoBehaviour
         {
             luckyCoinUsedThisCombat = true;
             finalDamage = Mathf.Max(0, currentHealth - 1);
+            TriggerItemActivationPulse(ItemRewardKey.LuckyCoin);
         }
 
         currentHealth = Mathf.Max(0, currentHealth - finalDamage);
@@ -540,12 +556,14 @@ public class Character : MonoBehaviour
             {
                 DealDamageToEnemy(sourceEnemy, 1, false);
                 PlayProcFx(CharacterProcFxKey.RetaliationHit, sourceEnemy.EffectAnchor);
+                TriggerItemActivationPulse(ItemRewardKey.ThornArmor);
             }
 
             if (wasProjectile && HasItem(ItemRewardKey.Boomerang))
             {
                 DealDamageToEnemy(sourceEnemy, 2, false);
                 PlayProcFx(CharacterProcFxKey.RetaliationHit, sourceEnemy.EffectAnchor);
+                TriggerItemActivationPulse(ItemRewardKey.Boomerang);
             }
         }
 
@@ -562,7 +580,7 @@ public class Character : MonoBehaviour
         return finalDamage;
     }
 
-    public void Heal(int amount)
+    public void Heal(int amount, ItemRewardKey? sourceItemKey = null)
     {
         if (amount <= 0 || currentHealth <= 0)
         {
@@ -578,10 +596,14 @@ public class Character : MonoBehaviour
         {
             // SoundManager.Instance?.PlayHeal(transform.position);
             PlayProcFx(CharacterProcFxKey.Heal);
+            if (sourceItemKey.HasValue)
+            {
+                TriggerItemActivationPulse(sourceItemKey.Value);
+            }
         }
     }
 
-    public void GainMovementPoints(int amount)
+    public void GainMovementPoints(int amount, ItemRewardKey? sourceItemKey = null)
     {
         if (amount <= 0)
         {
@@ -592,6 +614,10 @@ public class Character : MonoBehaviour
         SoundManager.Instance?.PlayPowerUp(transform.position);
         NotifyMovementPointsChanged();
         PlayProcFx(CharacterProcFxKey.BonusMovement);
+        if (sourceItemKey.HasValue)
+        {
+            TriggerItemActivationPulse(sourceItemKey.Value);
+        }
     }
 
     public void RefreshAbilityState()
@@ -653,6 +679,11 @@ public class Character : MonoBehaviour
     public bool HasItem(ItemRewardKey itemKey)
     {
         return runRewardState != null && runRewardState.HasItem(itemKey);
+    }
+
+    public bool IsItemActivationActive(ItemRewardKey itemKey)
+    {
+        return activeItemStates.TryGetValue(itemKey, out bool isActive) && isActive;
     }
 
     public void RefundAbilityTurnUse(AbilityDefinition ability, int amount = 1)
@@ -747,12 +778,12 @@ public class Character : MonoBehaviour
 
         if (HasItem(ItemRewardKey.SacredChalice))
         {
-            Heal(1);
+            Heal(1, ItemRewardKey.SacredChalice);
         }
 
         if (HasItem(ItemRewardKey.SwiftAnklet) && remainingMovementPoints >= 2)
         {
-            Heal(1);
+            Heal(1, ItemRewardKey.SwiftAnklet);
         }
 
         CommitCurrentTurnStateForNextTurn();
@@ -770,16 +801,21 @@ public class Character : MonoBehaviour
 
     public void BeginEnemyTurn()
     {
+        enemyTurnInProgress = true;
         tookDamageDuringEnemyTurn = false;
+        RecalculateItemDrivenStats();
     }
 
     public void HandleEnemyTurnEnded()
     {
+        enemyTurnInProgress = false;
         isFirstEnemyTurnOfArena = false;
         if (HasItem(ItemRewardKey.GuardMedal) && !tookDamageDuringEnemyTurn)
         {
-            Heal(1);
+            Heal(1, ItemRewardKey.GuardMedal);
         }
+
+        RecalculateItemDrivenStats();
     }
 
     public void AddNextAttackBonusDamage(int amount, GameObject auraFxPrefab = null)
@@ -1757,17 +1793,18 @@ public class Character : MonoBehaviour
     {
         if (HasItem(ItemRewardKey.BloodAmulet))
         {
-            Heal(2);
+            Heal(2, ItemRewardKey.BloodAmulet);
         }
 
         if (HasItem(ItemRewardKey.RavenFeather))
         {
-            GainMovementPoints(1);
+            GainMovementPoints(1, ItemRewardKey.RavenFeather);
         }
 
         if (HasItem(ItemRewardKey.SamuraiMask))
         {
             samuraiMaskBonusDamage += 2;
+            TriggerItemActivationPulse(ItemRewardKey.SamuraiMask);
             RecalculateItemDrivenStats();
         }
 
@@ -1818,6 +1855,7 @@ public class Character : MonoBehaviour
         }
 
         enemy.ApplyMobilityPenaltyNextTurn(1);
+        TriggerItemActivationPulse(ItemRewardKey.FrostCharm);
     }
 
     private int GetAbilityItemBonusDamage(AbilityDefinition sourceAbility)
@@ -1831,6 +1869,7 @@ public class Character : MonoBehaviour
 
         if (HasItem(ItemRewardKey.PumpkinHead) && sourceAbility.Category != AbilityCategory.BasicAttack)
         {
+            TriggerItemActivationPulse(ItemRewardKey.PumpkinHead);
             return 1;
         }
 
@@ -1845,7 +1884,13 @@ public class Character : MonoBehaviour
         }
 
         int distance = Mathf.Abs(enemy.GridPosition.x - gridPosition.x) + Mathf.Abs(enemy.GridPosition.y - gridPosition.y);
-        return distance >= 3 ? 1 : 0;
+        if (distance >= 3)
+        {
+            TriggerItemActivationPulse(ItemRewardKey.ScopeGlasses);
+            return 1;
+        }
+
+        return 0;
     }
 
     private void PlayAbilityDamageFx(AbilityDefinition sourceAbility, Transform targetAnchor)
@@ -1891,7 +1936,48 @@ public class Character : MonoBehaviour
         {
             DealDamageToEnemy(targetEnemy, damage, false);
             PlayProcFx(CharacterProcFxKey.Damage, targetEnemy.EffectAnchor);
+            TriggerItemActivationPulse(ItemRewardKey.CursedPuppet);
         }
+    }
+
+    private void TriggerItemActivationPulse(ItemRewardKey itemKey, float duration = -1f)
+    {
+        if (!HasItem(itemKey))
+        {
+            return;
+        }
+
+        float resolvedDuration = duration > 0f ? duration : itemActivationPulseDuration;
+        ItemActivationChanged?.Invoke(this, itemKey, true, resolvedDuration);
+    }
+
+    private void SetItemActivationState(ItemRewardKey itemKey, bool isActive)
+    {
+        if (!HasItem(itemKey))
+        {
+            return;
+        }
+
+        bool wasActive = activeItemStates.TryGetValue(itemKey, out bool cachedIsActive) && cachedIsActive;
+        if (wasActive == isActive)
+        {
+            return;
+        }
+
+        activeItemStates[itemKey] = isActive;
+        ItemActivationChanged?.Invoke(this, itemKey, isActive, 0f);
+    }
+
+    private void RefreshItemActivationStates(bool isAtBaseFullHealth, int adjacentEnemyCount, int remainingEnemies)
+    {
+        SetItemActivationState(ItemRewardKey.WarBanner, isFirstPlayerTurnOfArena);
+        SetItemActivationState(ItemRewardKey.WhiteFlag, enemyTurnInProgress && isFirstEnemyTurnOfArena);
+        SetItemActivationState(ItemRewardKey.SamuraiMask, samuraiMaskBonusDamage > 0);
+        SetItemActivationState(ItemRewardKey.IronGreaves, isAtBaseFullHealth);
+        SetItemActivationState(ItemRewardKey.RunicBelt, isAtBaseFullHealth);
+        SetItemActivationState(ItemRewardKey.MoonLantern, adjacentEnemyCount >= 2);
+        SetItemActivationState(ItemRewardKey.ScholarsCape, !attackedLastTurn);
+        SetItemActivationState(ItemRewardKey.DuelistsSpur, remainingEnemies == 1);
     }
 
     private void PlayProcFx(CharacterProcFxKey key, Transform targetAnchor = null)
@@ -1969,7 +2055,7 @@ public class Character : MonoBehaviour
         int staticResistance = baseResistance + (runRewardState != null ? runRewardState.GetBonusResistance() : 0);
         int staticMovementPoints = baseMovementPointsPerTurn + (runRewardState != null ? runRewardState.GetBonusMovementPoints() : 0);
 
-        bool isAtBaseFullHealth = currentHealth >= staticMaxHealth;
+        bool isAtBaseFullHealth = currentHealth >= staticMaxHealth && currentHealth >= maxHealth;
         int adjacentEnemyCount = CountAdjacentEnemies();
         int remainingEnemies = GetRemainingEnemyCount();
 
@@ -2007,6 +2093,8 @@ public class Character : MonoBehaviour
         {
             dynamicMovementPoints += 1;
         }
+
+        RefreshItemActivationStates(isAtBaseFullHealth, adjacentEnemyCount, remainingEnemies);
 
         maxHealth = staticMaxHealth + dynamicMaxHealth;
         bonusDamage = staticBonusDamage + dynamicBonusDamage;
@@ -2088,6 +2176,7 @@ public class Character : MonoBehaviour
         }
 
         isDying = true;
+        Died?.Invoke(this);
         SpawnDeathFx();
         moveTween?.Kill();
         bodyRotationTween?.Kill();
@@ -2097,6 +2186,8 @@ public class Character : MonoBehaviour
         {
             cell.ClearOccupant();
         }
+
+        Owner?.AssignCharacter(null);
 
         Destroy(gameObject, deathDestroyDelay);
     }

@@ -12,6 +12,7 @@ public class FooterUI : MonoBehaviour
     [SerializeField] private TMP_Text characterNameLabel;
     [SerializeField] private Image characterPortraitImage;
     [SerializeField] private Button portraitButton;
+    [SerializeField] private TMP_Text arenaCountLabel;
 
     public RectTransform AbilitiesBar => abilitiesBar;
     public AbilityButtonUI AbilityButton1 => abilityButton1;
@@ -21,6 +22,7 @@ public class FooterUI : MonoBehaviour
     public TMP_Text CharacterNameLabel => characterNameLabel;
     public Image CharacterPortraitImage => characterPortraitImage;
     public Button PortraitButton => portraitButton;
+    public TMP_Text ArenaCountLabel => arenaCountLabel;
 
     private void Awake()
     {
@@ -46,6 +48,15 @@ public class FooterUI : MonoBehaviour
             Sprite portrait = character != null ? character.CharacterPortrait : null;
             characterPortraitImage.sprite = portrait;
             characterPortraitImage.enabled = portrait != null;
+        }
+    }
+
+    public void RefreshArenaCount(int arenaCount)
+    {
+        CacheReferences();
+        if (arenaCountLabel != null)
+        {
+            arenaCountLabel.text = $"ARENA {Mathf.Max(1, arenaCount)}";
         }
     }
 
@@ -101,6 +112,15 @@ public class FooterUI : MonoBehaviour
         if (portraitButton == null)
         {
             portraitButton = transform.Find("BPortrait")?.GetComponent<Button>();
+        }
+
+        if (arenaCountLabel == null)
+        {
+            arenaCountLabel = transform.Find("iArenaCount/tArenaCount")?.GetComponent<TMP_Text>();
+            if (arenaCountLabel == null)
+            {
+                arenaCountLabel = transform.Find("tArenaCount")?.GetComponent<TMP_Text>();
+            }
         }
     }
 

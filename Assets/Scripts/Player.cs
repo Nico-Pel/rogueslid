@@ -8,6 +8,11 @@ public class Player : MonoBehaviour
 
     public void AssignCharacter(Character character)
     {
+        if (ControlledCharacter != null && ControlledCharacter != character)
+        {
+            ControlledCharacter.SetSelected(false);
+        }
+
         ControlledCharacter = character;
         if (ControlledCharacter != null)
         {

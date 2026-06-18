@@ -35,6 +35,10 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button yesNoButton;
     [SerializeField] private Button yesNoYesButton;
     [SerializeField] private Button yesNoNoButton;
+    [SerializeField] private GameObject loseMenu;
+    [SerializeField] private Image loseCharacterPortraitImage;
+    [SerializeField] private TMP_Text loseCharacterNameText;
+    [SerializeField] private Button retryButton;
     [SerializeField] private GameObject abilityCheckMenu;
     [SerializeField] private Button abilityCheckBackgroundButton;
     [SerializeField] private RewardButtonUI abilityCheckCard;
@@ -50,6 +54,7 @@ public class UIGame : MonoBehaviour
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
     private readonly List<GameObject> itemIcons = new List<GameObject>();
+    private readonly Dictionary<ItemRewardKey, ItemIconUI> itemIconsByKey = new Dictionary<ItemRewardKey, ItemIconUI>();
     private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
     private readonly List<RewardButtonUI> rewardCards = new List<RewardButtonUI>();
     private readonly List<GameObject> targetCellIndicators = new List<GameObject>();
@@ -71,6 +76,7 @@ public class UIGame : MonoBehaviour
     private readonly List<RewardOffer> currentAbilityCheckOffers = new List<RewardOffer>();
     private Action onYesNoAccepted;
     private Action onYesNoDeclined;
+    private Action onRetryRequested;
 
     private void Awake()
     {
@@ -178,6 +184,7 @@ public class UIGame : MonoBehaviour
         CacheStatsMenus();
         CacheRewardCheckMenu();
         CacheYesNoMenu();
+        CacheLoseMenu();
         CacheAbilityCheckMenu();
         CacheSwitchAbilityMenu();
         if (rewardsMenu != null)
@@ -187,6 +194,7 @@ public class UIGame : MonoBehaviour
 
         HideRewardCheck();
         HideYesNoPrompt();
+        HideLoseMenu();
         HideAbilityCheck();
         HideSwitchAbilityMenu();
     }
@@ -280,6 +288,47 @@ public class UIGame : MonoBehaviour
     {
         enemyStatsMenu?.Hide();
         characterStatsMenu?.Hide();
+    }
+
+    public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback)
+    {
+        CacheLoseMenu();
+        HideStatsMenus();
+        HideRewardCheck();
+        HideYesNoPrompt();
+        HideAbilityCheck();
+        HideSwitchAbilityMenu();
+
+        if (loseMenu == null)
+        {
+            return;
+        }
+
+        onRetryRequested = retryCallback;
+        if (loseCharacterPortraitImage != null)
+        {
+            loseCharacterPortraitImage.sprite = losePortrait;
+            loseCharacterPortraitImage.enabled = losePortrait != null;
+        }
+
+        if (loseCharacterNameText != null)
+        {
+            loseCharacterNameText.text = characterName ?? string.Empty;
+        }
+
+        loseMenu.SetActive(true);
+        UpdateEndTurnButtonVisibility();
+    }
+
+    public void HideLoseMenu()
+    {
+        onRetryRequested = null;
+        if (loseMenu != null)
+        {
+            loseMenu.SetActive(false);
+        }
+
+        UpdateEndTurnButtonVisibility();
     }
 
     public void ShowYesNoPrompt(ItemRewardDefinition itemRewardDefinition, Action acceptedCallback, Action declinedCallback)
@@ -385,6 +434,7 @@ public class UIGame : MonoBehaviour
         {
             observedCharacter.MovementPointsChanged += HandleMovementPointsChanged;
             observedCharacter.AbilitiesChanged += HandleAbilitiesChanged;
+            observedCharacter.ItemActivationChanged += HandleItemActivationChanged;
         }
 
         RebuildMobilityBar();
@@ -400,6 +450,7 @@ public class UIGame : MonoBehaviour
         {
             observedCharacter.MovementPointsChanged -= HandleMovementPointsChanged;
             observedCharacter.AbilitiesChanged -= HandleAbilitiesChanged;
+            observedCharacter.ItemActivationChanged -= HandleItemActivationChanged;
             observedCharacter = null;
         }
 
@@ -549,6 +600,14 @@ public class UIGame : MonoBehaviour
         declinedCallback?.Invoke();
     }
 
+    private void HandleRetryClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        Action retryCallback = onRetryRequested;
+        HideLoseMenu();
+        retryCallback?.Invoke();
+    }
+
     private bool HandleAbilityButtonPrimaryClick(AbilityButtonUI button)
     {
         if (button == null)
@@ -601,7 +660,8 @@ public class UIGame : MonoBehaviour
         bool shouldShow = gameTurnManager.CurrentTurn == TurnSide.Player
             && gameTurnManager.CanEndTurn
             && !gameTurnManager.IsRewardMenuOpen
-            && !gameTurnManager.IsArenaTransitionRunning;
+            && !gameTurnManager.IsArenaTransitionRunning
+            && !gameTurnManager.IsLoseMenuOpen;
         if (endTurnButton.gameObject.activeSelf != shouldShow)
         {
             endTurnButton.gameObject.SetActive(shouldShow);
@@ -979,6 +1039,48 @@ public class UIGame : MonoBehaviour
         }
     }
 
+    private void CacheLoseMenu()
+    {
+        if (loseMenu == null)
+        {
+            Transform loseTransform = transform.Find("MenuLose");
+            if (loseTransform != null)
+            {
+                loseMenu = loseTransform.gameObject;
+            }
+        }
+
+        if (loseMenu == null)
+        {
+            return;
+        }
+
+        if (loseCharacterPortraitImage == null)
+        {
+            loseCharacterPortraitImage = FindComponentByName<Image>(loseMenu.transform, "iChara");
+        }
+
+        if (loseCharacterNameText == null)
+        {
+            loseCharacterNameText = FindComponentByName<TMP_Text>(loseMenu.transform, "Chara-Name");
+            if (loseCharacterNameText == null)
+            {
+                loseCharacterNameText = FindComponentByName<TMP_Text>(loseMenu.transform, "tTitle");
+            }
+        }
+
+        if (retryButton == null)
+        {
+            retryButton = FindComponentByName<Button>(loseMenu.transform, "BRetry");
+        }
+
+        if (retryButton != null)
+        {
+            retryButton.onClick.RemoveListener(HandleRetryClicked);
+            retryButton.onClick.AddListener(HandleRetryClicked);
+        }
+    }
+
     private void CacheAbilityCheckMenu()
     {
         if (abilityCheckMenu == null)
@@ -1086,13 +1188,13 @@ public class UIGame : MonoBehaviour
 
         if (switchAbilityConfirmButton != null)
         {
-            switchAbilityConfirmButton.onClick.RemoveListener(HandleSwitchAbilityConfirmClicked);
+            switchAbilityConfirmButton.onClick.RemoveAllListeners();
             switchAbilityConfirmButton.onClick.AddListener(HandleSwitchAbilityConfirmClicked);
         }
 
         if (switchAbilityCancelButton != null)
         {
-            switchAbilityCancelButton.onClick.RemoveListener(HandleSwitchAbilityCancelClicked);
+            switchAbilityCancelButton.onClick.RemoveAllListeners();
             switchAbilityCancelButton.onClick.AddListener(HandleSwitchAbilityCancelClicked);
         }
     }
@@ -1216,6 +1318,7 @@ public class UIGame : MonoBehaviour
         }
 
         itemIcons.Clear();
+        itemIconsByKey.Clear();
 
         if (itemIconPrefab == null || observedCharacter == null || observedCharacter.RunRewardState == null)
         {
@@ -1247,8 +1350,31 @@ public class UIGame : MonoBehaviour
             }
 
             itemIcon.Bind(itemRewardDefinition, HandleItemIconClicked);
+            itemIcon.SetActivationVisible(observedCharacter.IsItemActivationActive(itemRewardDefinition.ItemKey));
             itemIcons.Add(itemIconObject);
+            itemIconsByKey[itemRewardDefinition.ItemKey] = itemIcon;
         }
+    }
+
+    private void HandleItemActivationChanged(Character character, ItemRewardKey itemKey, bool isActive, float duration)
+    {
+        if (observedCharacter == null || character != observedCharacter)
+        {
+            return;
+        }
+
+        if (!itemIconsByKey.TryGetValue(itemKey, out ItemIconUI itemIcon) || itemIcon == null)
+        {
+            return;
+        }
+
+        if (duration > 0f)
+        {
+            itemIcon.PulseActivation(duration);
+            return;
+        }
+
+        itemIcon.SetActivationVisible(isActive);
     }
 
     private void HandleItemIconClicked(ItemRewardDefinition itemRewardDefinition)
@@ -1292,6 +1418,7 @@ public class UIGame : MonoBehaviour
     private void RefreshFooterCharacterInfo()
     {
         footerUI?.RefreshCharacter(observedCharacter);
+        footerUI?.RefreshArenaCount(gameTurnManager != null && gameTurnManager.Board != null ? gameTurnManager.Board.ArenaCount : 1);
         CacheStatsMenus();
     }
 

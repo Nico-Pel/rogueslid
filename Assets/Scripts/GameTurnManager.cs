@@ -20,6 +20,7 @@ public class GameTurnManager : MonoBehaviour
     [SerializeField] private float endTurnLockDuration = 6f;
     [SerializeField] private float enemyTurnStartDelay = 0.5f;
     [SerializeField] private float rewardMenuDelay = 2f;
+    [SerializeField] private float loseMenuDelay = 1.5f;
 #if UNITY_EDITOR
     [SerializeField] private KeyCode debugRewardMenuKey = KeyCode.K;
 #endif
@@ -30,15 +31,19 @@ public class GameTurnManager : MonoBehaviour
     private bool hasPlayerActedThisTurn;
     private bool isArenaTransitionRunning;
     private bool isRewardMenuOpen;
+    private bool isLoseMenuOpen;
     private bool combatStartChoiceResolved;
     private bool combatStartChoiceAccepted;
     private bool canEndTurn = true;
     private Coroutine endTurnUnlockCoroutine;
     private Coroutine nextArenaCoroutine;
     private Coroutine combatStartSequenceCoroutine;
+    private Coroutine enemyTurnCoroutine;
+    private Coroutine loseMenuCoroutine;
     private Vector2 pointerStartPosition;
     private int pendingCellTargetAbilityIndex = -1;
     private ItemRewardDefinition activeCombatStartPrompt;
+    private Character trackedCharacter;
 
     public TurnSide CurrentTurn { get; private set; } = TurnSide.Player;
     public BoardManager Board => board;
@@ -46,6 +51,7 @@ public class GameTurnManager : MonoBehaviour
     public bool CanEndTurn => canEndTurn;
     public bool IsRewardMenuOpen => isRewardMenuOpen;
     public bool IsArenaTransitionRunning => isArenaTransitionRunning;
+    public bool IsLoseMenuOpen => isLoseMenuOpen;
     public event Action<TurnSide> TurnChanged;
     public event Action<int> PendingAbilityChanged;
     public event Action<bool> EndTurnAvailabilityChanged;
@@ -78,6 +84,7 @@ public class GameTurnManager : MonoBehaviour
 
         hasStarted = true;
         soundManager?.PlayArenaMusic();
+        BindToCurrentCharacter();
         StartCombatEntryFlow();
     }
 
@@ -87,11 +94,13 @@ public class GameTurnManager : MonoBehaviour
         {
             board.AllEnemiesDefeated -= HandleAllEnemiesDefeated;
         }
+
+        UnbindTrackedCharacter();
     }
 
     private void Update()
     {
-        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)
+        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen || isLoseMenuOpen)
         {
             return;
         }
@@ -114,7 +123,7 @@ public class GameTurnManager : MonoBehaviour
 
         ClearPendingAbility();
         board.Player?.ControlledCharacter?.HandlePlayerTurnEnded();
-        StartCoroutine(RunEnemyTurn());
+        enemyTurnCoroutine = StartCoroutine(RunEnemyTurn());
     }
 
     public void RestartForNewBoard()
@@ -129,15 +138,20 @@ public class GameTurnManager : MonoBehaviour
         isPointerTracking = false;
         isArenaTransitionRunning = false;
         isRewardMenuOpen = false;
+        isLoseMenuOpen = false;
         nextArenaCoroutine = null;
         combatStartSequenceCoroutine = null;
+        enemyTurnCoroutine = null;
+        loseMenuCoroutine = null;
         activeCombatStartPrompt = null;
         combatStartChoiceResolved = false;
         combatStartChoiceAccepted = false;
         ClearPendingAbility();
         uiGame?.HideRewards();
         uiGame?.HideYesNoPrompt();
+        uiGame?.HideLoseMenu();
         soundManager?.PlayArenaMusic();
+        BindToCurrentCharacter();
         StartCombatEntryFlow();
     }
 
@@ -554,6 +568,7 @@ public class GameTurnManager : MonoBehaviour
         if (board != null && board.Player != null)
         {
             board.Player.ResetTurn();
+            board.HandlePlayerTurnStarted(board.Player.ControlledCharacter);
         }
 
         hasPlayerActedThisTurn = false;
@@ -564,6 +579,7 @@ public class GameTurnManager : MonoBehaviour
 
     private void StartCombatEntryFlow()
     {
+        BindToCurrentCharacter();
         if (board == null)
         {
             BeginPlayerTurn();
@@ -690,6 +706,7 @@ public class GameTurnManager : MonoBehaviour
         if (board == null)
         {
             isEnemyTurnRunning = false;
+            enemyTurnCoroutine = null;
             yield break;
         }
 
@@ -706,15 +723,106 @@ public class GameTurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.08f);
         }
 
-        board?.Player?.ControlledCharacter?.HandleEnemyTurnEnded();
+        Character controlledCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (controlledCharacter != null)
+        {
+            controlledCharacter.HandleEnemyTurnEnded();
+        }
         isEnemyTurnRunning = false;
+        enemyTurnCoroutine = null;
 
-        if (isArenaTransitionRunning)
+        if (isArenaTransitionRunning || isLoseMenuOpen)
         {
             yield break;
         }
 
         BeginPlayerTurn();
+    }
+
+    private void BindToCurrentCharacter()
+    {
+        Character currentCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (trackedCharacter == currentCharacter)
+        {
+            return;
+        }
+
+        UnbindTrackedCharacter();
+        trackedCharacter = currentCharacter;
+        if (trackedCharacter != null)
+        {
+            trackedCharacter.Died += HandleTrackedCharacterDied;
+        }
+    }
+
+    private void UnbindTrackedCharacter()
+    {
+        if (trackedCharacter != null)
+        {
+            trackedCharacter.Died -= HandleTrackedCharacterDied;
+            trackedCharacter = null;
+        }
+    }
+
+    private void HandleTrackedCharacterDied(Character character)
+    {
+        if (character == null || loseMenuCoroutine != null || isLoseMenuOpen)
+        {
+            return;
+        }
+
+        if (enemyTurnCoroutine != null)
+        {
+            StopCoroutine(enemyTurnCoroutine);
+            enemyTurnCoroutine = null;
+        }
+
+        if (combatStartSequenceCoroutine != null)
+        {
+            StopCoroutine(combatStartSequenceCoroutine);
+            combatStartSequenceCoroutine = null;
+        }
+
+        if (nextArenaCoroutine != null)
+        {
+            StopCoroutine(nextArenaCoroutine);
+            nextArenaCoroutine = null;
+        }
+
+        StopEndTurnUnlockTimer();
+        isEnemyTurnRunning = false;
+        isArenaTransitionRunning = false;
+        isRewardMenuOpen = false;
+        SetCanEndTurn(false);
+        ClearPendingAbility();
+        uiGame?.HideRewards();
+        uiGame?.HideYesNoPrompt();
+
+        string characterName = character.CharacterName;
+        Sprite losePortrait = character.CharacterLosePortrait;
+        loseMenuCoroutine = StartCoroutine(ShowLoseMenuAfterDelay(characterName, losePortrait));
+    }
+
+    private IEnumerator ShowLoseMenuAfterDelay(string characterName, Sprite losePortrait)
+    {
+        if (loseMenuDelay > 0f)
+        {
+            yield return new WaitForSeconds(loseMenuDelay);
+        }
+
+        isLoseMenuOpen = true;
+        loseMenuCoroutine = null;
+        soundManager?.PlayLoseJingle();
+        uiGame?.ShowLoseMenu(characterName, losePortrait, HandleRetryRequested);
+    }
+
+    private void HandleRetryRequested()
+    {
+        isLoseMenuOpen = false;
+        uiGame?.HideLoseMenu();
+        UnbindTrackedCharacter();
+        board?.ResetArenaProgression();
+        board?.GenerateBoard();
     }
 
     private void ClearPendingAbility()

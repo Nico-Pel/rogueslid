@@ -14,6 +14,8 @@ public class CharacterAbilityRuntime
     public bool IsActive { get; private set; }
     public int BonusUsesThisTurn { get; private set; }
     private bool hasPreparedActivationPendingConsumption;
+    private int pendingBaseDamageModifierForNextUse;
+    private bool suppressNextPrimaryEffectOnce;
     public AbilityTargetingMode TargetingMode => Definition != null ? Definition.TargetingMode : AbilityTargetingMode.Immediate;
     public int RemainingUsesThisTurn => Definition == null || Definition.UsesPerTurn <= 0
         ? int.MaxValue
@@ -30,6 +32,8 @@ public class CharacterAbilityRuntime
         IsActive = false;
         BonusUsesThisTurn = 0;
         hasPreparedActivationPendingConsumption = false;
+        pendingBaseDamageModifierForNextUse = 0;
+        suppressNextPrimaryEffectOnce = false;
     }
 
     public void BeginTurn(Character character)
@@ -45,6 +49,9 @@ public class CharacterAbilityRuntime
         {
             RemainingCooldown--;
         }
+
+        pendingBaseDamageModifierForNextUse = 0;
+        suppressNextPrimaryEffectOnce = false;
     }
 
     public bool IsUsable(Character character)
@@ -201,5 +208,34 @@ public class CharacterAbilityRuntime
     public void ConsumePreparedActivation()
     {
         hasPreparedActivationPendingConsumption = false;
+    }
+
+    public void AddPendingBaseDamageModifierForNextUse(int amount)
+    {
+        pendingBaseDamageModifierForNextUse += amount;
+    }
+
+    public int ConsumePendingBaseDamageModifierForNextUse()
+    {
+        int modifier = pendingBaseDamageModifierForNextUse;
+        pendingBaseDamageModifierForNextUse = 0;
+        return modifier;
+    }
+
+    public int PeekPendingBaseDamageModifierForNextUse()
+    {
+        return pendingBaseDamageModifierForNextUse;
+    }
+
+    public void SuppressNextPrimaryEffectOnce()
+    {
+        suppressNextPrimaryEffectOnce = true;
+    }
+
+    public bool ConsumeSuppressNextPrimaryEffectOnce()
+    {
+        bool shouldSuppress = suppressNextPrimaryEffectOnce;
+        suppressNextPrimaryEffectOnce = false;
+        return shouldSuppress;
     }
 }

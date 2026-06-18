@@ -27,7 +27,19 @@ MonoBehaviour:
   cooldownTurns: 1
   consumesMovementPoint: 0
   isToggle: 0
-  fxSpawns: []
+  fxSpawns:
+  - fxPrefab: {fileID: 1899072520979101167, guid: 0dcc4773b9bde475fb8c4f4b0811054f, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 0
+    spawnAnchor: 0
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 1
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
   trailColorMode: 0
   trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
   temporaryTrailColorDuration: 0.5

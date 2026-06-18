@@ -18,9 +18,10 @@ public class UnitStatRowUI
             return;
         }
 
-        if (root == null)
+        if (root == null || !root.transform.IsChildOf(parent))
         {
-            root = parent.Find(rowName)?.gameObject;
+            Transform rowTransform = FindDescendantByName(parent, rowName);
+            root = rowTransform != null ? rowTransform.gameObject : null;
         }
 
         if (root == null)
@@ -28,14 +29,16 @@ public class UnitStatRowUI
             return;
         }
 
-        if (icon == null)
+        if (icon == null || !icon.transform.IsChildOf(root.transform))
         {
-            icon = root.transform.Find("iIcon")?.GetComponent<Image>();
+            Transform iconTransform = FindDescendantByName(root.transform, "iIcon");
+            icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
         }
 
-        if (valueLabel == null)
+        if (valueLabel == null || !valueLabel.transform.IsChildOf(root.transform))
         {
-            valueLabel = root.transform.Find("tStats")?.GetComponent<TMP_Text>();
+            Transform valueLabelTransform = FindDescendantByName(root.transform, "tStats");
+            valueLabel = valueLabelTransform != null ? valueLabelTransform.GetComponent<TMP_Text>() : null;
         }
 
         if (valueLabel != null && !hasCachedDefaultValueColor)
@@ -69,6 +72,31 @@ public class UnitStatRowUI
             icon.sprite = spriteOverride;
             icon.enabled = true;
         }
+    }
+
+    private static Transform FindDescendantByName(Transform parent, string targetName)
+    {
+        if (parent == null || string.IsNullOrWhiteSpace(targetName))
+        {
+            return null;
+        }
+
+        for (int index = 0; index < parent.childCount; index++)
+        {
+            Transform child = parent.GetChild(index);
+            if (child.name == targetName)
+            {
+                return child;
+            }
+
+            Transform nestedMatch = FindDescendantByName(child, targetName);
+            if (nestedMatch != null)
+            {
+                return nestedMatch;
+            }
+        }
+
+        return null;
     }
 }
 
@@ -154,7 +182,7 @@ public class UnitStatsMenuUI : MonoBehaviour
 
         attackStat.Bind(true, currentAttack.ToString(), null, GetStatColor(currentAttack, naturalAttack));
         forceStat.Bind(true, currentForce.ToString(), null, GetStatColor(currentForce, naturalForce));
-        hpStat.Bind(true, currentHp.ToString(), null, GetStatColor(currentHp, naturalHp));
+        hpStat.Bind(true, $"{character.CurrentHealth}/{currentHp}", null, GetStatColor(currentHp, naturalHp));
         resistanceStat.Bind(true, currentResistance.ToString(), null, GetStatColor(currentResistance, naturalResistance));
         mobilityStat.Bind(true, currentMobility.ToString(), null, GetStatColor(currentMobility, naturalMobility));
         regenStat.Bind(false, string.Empty);
@@ -185,22 +213,6 @@ public class UnitStatsMenuUI : MonoBehaviour
         {
             specialInfoLabel.text = string.IsNullOrWhiteSpace(specialInfo) ? string.Empty : specialInfo;
         }
-
-        UpdateTitleSize();
-    }
-
-    private void UpdateTitleSize()
-    {
-        if (titleBackground == null || nameLabel == null)
-        {
-            return;
-        }
-
-        nameLabel.ForceMeshUpdate();
-        float targetWidth = Mathf.Max(titleMinWidth, nameLabel.preferredWidth + titleHorizontalPadding);
-        Vector2 sizeDelta = titleBackground.sizeDelta;
-        sizeDelta.x = targetWidth;
-        titleBackground.sizeDelta = sizeDelta;
     }
 
     private void CacheReferences()

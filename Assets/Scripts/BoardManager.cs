@@ -30,8 +30,10 @@ public class BoardCell
     public BoardOccupantKind OccupantKind = BoardOccupantKind.None;
     public GameObject Occupant;
     public GameObject StaticObstacle;
+    public BoardHazard Hazard;
 
     public bool HasBlockingTerrain => !Walkable || Type == BoardCellType.Rock || StaticObstacle != null;
+    public bool HasVisibleHazardForEnemies => Hazard != null && Hazard.IsVisibleToEnemies;
 
     public void SetOccupant(GameObject occupant, BoardOccupantKind occupantKind)
     {
@@ -52,6 +54,21 @@ public class BoardCell
         StaticObstacle = obstacle;
         Type = cellType;
         Walkable = false;
+    }
+
+    public void SetHazard(BoardHazard hazard)
+    {
+        Hazard = hazard;
+    }
+
+    public void ClearHazard(BoardHazard hazard = null)
+    {
+        if (hazard != null && Hazard != hazard)
+        {
+            return;
+        }
+
+        Hazard = null;
     }
 }
 
@@ -127,6 +144,8 @@ public class BoardManager : MonoBehaviour
     private readonly List<Vector2Int> currentEnemySpawnCells = new List<Vector2Int>();
     private readonly List<GameObject> currentArenaEnemyPrefabs = new List<GameObject>();
     private bool bonusRewardForCurrentArena;
+    private readonly List<BoardHazard> spawnedHazards = new List<BoardHazard>();
+    private EnemyPoolDefinition currentSelectedEnemyPool;
 
     public int Width => BoardWidth;
     public int Height => BoardHeight;
@@ -159,7 +178,8 @@ public class BoardManager : MonoBehaviour
     [ContextMenu("Generate Board")]
     public void GenerateBoard()
     {
-        Texture2D selectedArenaLayout = SelectArenaLayout();
+        currentSelectedEnemyPool = ResolveSelectedEnemyPoolForCurrentArena();
+        Texture2D selectedArenaLayout = SelectArenaLayout(currentSelectedEnemyPool);
         if (selectedArenaLayout == null)
         {
             Debug.LogError("BoardManager requires at least one arena layout texture.", this);
@@ -174,14 +194,20 @@ public class BoardManager : MonoBehaviour
 
         currentArenaLayout = selectedArenaLayout;
         currentArenaMirroredOnYAxis = allowMirrorOnYAxis && UnityEngine.Random.value < mirrorOnYAxisChance;
+        if (currentSelectedEnemyPool != null && currentSelectedEnemyPool.ArenaLayoutOverride != null)
+        {
+            currentArenaMirroredOnYAxis = false;
+        }
         arenaLayout = currentArenaLayout;
 
         EnsureGeneratedRoots();
         ClearGeneratedContent();
+        DestroyAllSpawnedHazards();
         InitializeCells();
         currentEnemySpawnCells.Clear();
         currentArenaEnemyPrefabs.Clear();
         bonusRewardForCurrentArena = false;
+        spawnedHazards.Clear();
 
         List<Vector2Int> playerSpawnCandidates = new List<Vector2Int>();
         List<Vector2Int> enemySpawnCandidates = new List<Vector2Int>();
@@ -477,6 +503,147 @@ public class BoardManager : MonoBehaviour
         return true;
     }
 
+    public void RegisterHazard(BoardHazard hazard, Vector2Int gridPosition)
+    {
+        if (hazard == null || !TryGetCell(gridPosition, out BoardCell cell))
+        {
+            return;
+        }
+
+        cell.SetHazard(hazard);
+        if (!spawnedHazards.Contains(hazard))
+        {
+            spawnedHazards.Add(hazard);
+        }
+    }
+
+    public void UnregisterHazard(BoardHazard hazard)
+    {
+        if (hazard == null)
+        {
+            return;
+        }
+
+        if (TryGetCell(hazard.GridPosition, out BoardCell cell))
+        {
+            cell.ClearHazard(hazard);
+        }
+
+        spawnedHazards.Remove(hazard);
+    }
+
+    public bool TryGetHazard(Vector2Int gridPosition, out BoardHazard hazard)
+    {
+        hazard = null;
+        if (!TryGetCell(gridPosition, out BoardCell cell))
+        {
+            return false;
+        }
+
+        hazard = cell.Hazard;
+        return hazard != null;
+    }
+
+    public void HandlePlayerTurnStarted(Character playerCharacter)
+    {
+        if (spawnedHazards.Count == 0)
+        {
+            return;
+        }
+
+        List<BoardHazard> hazardsSnapshot = new List<BoardHazard>(spawnedHazards);
+        for (int index = 0; index < hazardsSnapshot.Count; index++)
+        {
+            BoardHazard hazard = hazardsSnapshot[index];
+            if (hazard == null)
+            {
+                continue;
+            }
+
+            hazard.HandlePlayerTurnStarted();
+        }
+    }
+
+    public void NotifyEnemyEnteredCell(Enemy enemy)
+    {
+        if (enemy == null || !TryGetCell(enemy.GridPosition, out BoardCell cell))
+        {
+            return;
+        }
+
+        cell.Hazard?.HandleEnemyEntered(enemy);
+    }
+
+    public void NotifyCharacterTraversedPath(Character character, Vector2Int start, Vector2Int destination)
+    {
+        if (character == null || start == destination)
+        {
+            return;
+        }
+
+        Vector2Int delta = destination - start;
+        Vector2Int direction = new Vector2Int(Mathf.Clamp(delta.x, -1, 1), Mathf.Clamp(delta.y, -1, 1));
+        bool isStraightPath = delta.x == 0 || delta.y == 0;
+        if (!isStraightPath)
+        {
+            if (TryGetCell(destination, out BoardCell destinationCell))
+            {
+                destinationCell.Hazard?.HandleCharacterEntered(character);
+            }
+
+            return;
+        }
+
+        Vector2Int current = start + direction;
+        while (true)
+        {
+            if (TryGetCell(current, out BoardCell cell))
+            {
+                cell.Hazard?.HandleCharacterEntered(character);
+            }
+
+            if (current == destination)
+            {
+                break;
+            }
+
+            current += direction;
+        }
+    }
+
+    private void DestroyAllSpawnedHazards()
+    {
+        if (spawnedHazards.Count == 0)
+        {
+            return;
+        }
+
+        List<BoardHazard> hazardsSnapshot = new List<BoardHazard>(spawnedHazards);
+        spawnedHazards.Clear();
+        for (int index = 0; index < hazardsSnapshot.Count; index++)
+        {
+            BoardHazard hazard = hazardsSnapshot[index];
+            if (hazard == null)
+            {
+                continue;
+            }
+
+            if (TryGetCell(hazard.GridPosition, out BoardCell cell))
+            {
+                cell.ClearHazard(hazard);
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(hazard.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(hazard.gameObject);
+            }
+        }
+    }
+
     public int GetManhattanDistance(Vector2Int a, Vector2Int b)
     {
         return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
@@ -679,8 +846,13 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private Texture2D SelectArenaLayout()
+    private Texture2D SelectArenaLayout(EnemyPoolDefinition selectedPool)
     {
+        if (selectedPool != null && selectedPool.ArenaLayoutOverride != null)
+        {
+            return selectedPool.ArenaLayoutOverride;
+        }
+
         if (arenaLayouts != null && arenaLayouts.Count > 0)
         {
             List<Texture2D> validArenas = new List<Texture2D>();
@@ -870,10 +1042,18 @@ public class BoardManager : MonoBehaviour
 
     private List<GameObject> ResolveEnemyPrefabsForCurrentArena()
     {
+        EnemyPoolDefinition selectedPool = currentSelectedEnemyPool != null
+            ? currentSelectedEnemyPool
+            : ResolveSelectedEnemyPoolForCurrentArena();
+        return ExtractValidEnemyPrefabs(selectedPool);
+    }
+
+    private EnemyPoolDefinition ResolveSelectedEnemyPoolForCurrentArena()
+    {
 #if UNITY_EDITOR
         if (forcedEnemyPoolDefinition != null)
         {
-            return ExtractValidEnemyPrefabs(forcedEnemyPoolDefinition);
+            return forcedEnemyPoolDefinition;
         }
 #endif
 
@@ -903,7 +1083,7 @@ public class BoardManager : MonoBehaviour
 
         if (selectedAvailability == null)
         {
-            return new List<GameObject>();
+            return null;
         }
 
         List<EnemyPoolDefinition> eligiblePools = new List<EnemyPoolDefinition>();
@@ -919,11 +1099,10 @@ public class BoardManager : MonoBehaviour
 
         if (eligiblePools.Count == 0)
         {
-            return new List<GameObject>();
+            return null;
         }
 
-        EnemyPoolDefinition selectedPool = eligiblePools[UnityEngine.Random.Range(0, eligiblePools.Count)];
-        return ExtractValidEnemyPrefabs(selectedPool);
+        return eligiblePools[UnityEngine.Random.Range(0, eligiblePools.Count)];
     }
 
     private static List<GameObject> ExtractValidEnemyPrefabs(EnemyPoolDefinition poolDefinition)
@@ -1061,7 +1240,7 @@ public class BoardManager : MonoBehaviour
     public List<ItemRewardDefinition> GetCombatStartYesNoItemDefinitions()
     {
         List<ItemRewardDefinition> promptDefinitions = new List<ItemRewardDefinition>();
-        if (runRewardState == null)
+        if (runRewardState == null || IsCurrentArenaBossBattle())
         {
             return promptDefinitions;
         }
@@ -1080,6 +1259,34 @@ public class BoardManager : MonoBehaviour
         }
 
         return promptDefinitions;
+    }
+
+    public bool IsCurrentArenaBossBattle()
+    {
+        EnemyPoolDefinition selectedPool = currentSelectedEnemyPool != null
+            ? currentSelectedEnemyPool
+            : ResolveSelectedEnemyPoolForCurrentArena();
+        if (selectedPool == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<GameObject> enemyPrefabs = selectedPool.EnemyPrefabs;
+        for (int index = 0; index < enemyPrefabs.Count; index++)
+        {
+            GameObject enemyPrefab = enemyPrefabs[index];
+            if (enemyPrefab == null)
+            {
+                continue;
+            }
+
+            if (enemyPrefab.name.StartsWith("Boss-", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void MarkBonusRewardForCurrentArena()

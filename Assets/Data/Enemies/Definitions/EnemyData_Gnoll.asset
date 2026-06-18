@@ -35,7 +35,7 @@ MonoBehaviour:
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
-  attackDamageDelay: 0.2
+  attackDamageDelay: 0.4
   multiplyAttackDamageDelayByDistance: 0
   lookAtTargetWhenAttacking: 1
   optionalActionType: 0
@@ -44,6 +44,7 @@ MonoBehaviour:
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
   useFlyAnimationOnObstacle: 0
+  immuneToFire: 0
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1

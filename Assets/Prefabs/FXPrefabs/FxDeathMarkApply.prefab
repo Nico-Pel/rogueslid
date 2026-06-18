@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 7123762715738527714}
   - component: {fileID: 7133572097574994256}
   - component: {fileID: 54323508545503820}
+  - component: {fileID: 6772882560179161420}
   m_Layer: 0
   m_Name: FxDeathMarkApply
   m_TagString: Untagged
@@ -4847,6 +4848,30 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!114 &6772882560179161420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3657197518546693389}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1b8ed5f9d534a8598a7b457720cab4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnabled: 1
+  isUiSound: 0
+  possibleClips:
+  - {fileID: 8300000, guid: 7699deac5c3184bfa953c9f7cc3efa04, type: 3}
+  volume: 1
+  pitchMin: 0.9
+  pitchMax: 1.1
+  duration: -1
+  range: 15
+  loop: 0
+  playOnCamera: 1
+  sourceParent: {fileID: 0}
 --- !u!1 &7782168754610134894
 GameObject:
   m_ObjectHideFlags: 0

@@ -47,7 +47,19 @@ public enum AbilityUpgradeKey
     RoyalDaggerHolyBlade,
     RoyalDaggerRoyalPunishment,
     RoyalDaggerRoyalBlessing,
-    RoyalDaggerBlessedBlade
+    RoyalDaggerBlessedBlade,
+    LamellarStepExtendedStride,
+    LamellarStepVenomDaggers,
+    LamellarStepTacticalRetreat,
+    LamellarStepSpectralDaggers,
+    SacrificialLeapSacrificialWind,
+    SacrificialLeapBloodthirst,
+    SacrificialLeapSacrificialBlade,
+    SacrificialLeapSacrificialRite,
+    ArcaneTrapArcaneSustain,
+    ArcaneTrapArcaneEruption,
+    ArcaneTrapArcaneWave,
+    ArcaneTrapArcaneExhaustion
 }
 
 public enum ItemRewardKey

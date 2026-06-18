@@ -19,6 +19,16 @@ public enum EnemyOptionalActionType
 
 public class Enemy : MonoBehaviour
 {
+    private struct PathPlan
+    {
+        public List<Vector2Int> Path;
+        public int TotalCost;
+        public int StepCount;
+        public bool UsesLethalHazard;
+
+        public bool IsValid => Path != null && Path.Count > 0;
+    }
+
     [Header("Data")]
     [SerializeField] private EnemyData enemyData;
 
@@ -65,6 +75,7 @@ public class Enemy : MonoBehaviour
 
     [Header("Projectile")]
     [SerializeField] private GameObject projectilePrefab;
+    [SerializeField] private Transform projectileSpawnPos;
     [ReadOnly] [SerializeField] private float projectileTravelHeight = 0.5f;
     [ReadOnly] [SerializeField] private float projectileTravelSpeed = 10f;
 
@@ -74,6 +85,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private Animator enemyAnimator;
     [SerializeField] private string attackTriggerParameter = "Attack";
     [SerializeField] private string optionalActionTriggerParameter = "AltAttack";
+    [SerializeField] private string optionalActionSecondaryTriggerParameter = "AltAttack2";
+    [SerializeField] private AnimationClip attackStateSourceClip;
     [SerializeField] private float bodySpawnScaleDuration = 0.5f;
     [ReadOnly] [SerializeField] private bool useFlyAnimationOnObstacle;
     [SerializeField] private string flyingBoolParameter = "Flying";
@@ -88,6 +101,8 @@ public class Enemy : MonoBehaviour
 
     private Tween moveTween;
     private Tween bodySpawnScaleTween;
+    private Tween bodyRotationTween;
+    private Tween impactTween;
     private RendererBlinkFeedback blinkFeedback;
     private bool isDying;
     private GameObject activeDeathMarkFxInstance;
@@ -96,13 +111,22 @@ public class Enemy : MonoBehaviour
     private int consecutiveFleeTurns;
     private bool fleePermanentlyDisabled;
     private Vector3 cachedBodyOriginalScale = Vector3.one;
+    private Vector3 cachedBodyOriginalLocalEulerAngles = Vector3.zero;
+    private readonly Dictionary<CombatStatusType, int> statusDurations = new Dictionary<CombatStatusType, int>();
+    private readonly Dictionary<CombatStatusType, int> statusPotencies = new Dictionary<CombatStatusType, int>();
+    private int forceModifierFromStatuses;
+    private AnimatorOverrideController enemyAnimatorOverrideController;
+    private DragoonRiderEnemyData dragoonRiderData;
+    private Transform fireBallSpawnPos;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
     public int Force => force;
+    public int EffectiveForce => Mathf.Max(0, force + forceModifierFromStatuses);
     public int Mobility => mobility;
     public int CurrentHealth => currentHealth;
     public int Resistance => resistance;
+    public bool IsImmuneToFire => enemyData != null && enemyData.ImmuneToFire;
     public EnemyAttackPattern AttackPattern => attackPattern;
     public DamageSoundType DamageSoundType => damageSoundType;
     public bool IsMoving { get; private set; }
@@ -160,6 +184,11 @@ public class Enemy : MonoBehaviour
         projectileTravelHeight = enemyData.ProjectileTravelHeight;
         projectileTravelSpeed = enemyData.ProjectileTravelSpeed;
         useFlyAnimationOnObstacle = enemyData.UseFlyAnimationOnObstacle;
+        dragoonRiderData = enemyData as DragoonRiderEnemyData;
+        if (dragoonRiderData != null && dragoonRiderData.AttackSourceClip != null)
+        {
+            attackStateSourceClip = dragoonRiderData.AttackSourceClip;
+        }
     }
 
     private string GetFallbackDisplayName()
@@ -179,10 +208,14 @@ public class Enemy : MonoBehaviour
         gridPosition = spawnGridPosition;
         Board = board;
         currentHealth = maxHealth;
+        statusDurations.Clear();
+        statusPotencies.Clear();
+        forceModifierFromStatuses = 0;
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
         CacheBody();
         CacheCanvas();
         CacheAnimator();
+        CacheSpecialAnchors();
         CacheHpBar();
         RefreshHpBar();
         SnapToGrid();
@@ -244,6 +277,48 @@ public class Enemy : MonoBehaviour
         return healedAmount;
     }
 
+    public void PlayCharacterCollisionBump(Vector3 characterWorldPosition, float duration)
+    {
+        if (duration <= 0f || !isActiveAndEnabled)
+        {
+            return;
+        }
+
+        Vector3 basePosition = transform.position;
+        Vector3 awayDirection = basePosition - characterWorldPosition;
+        awayDirection.y = 0f;
+        if (awayDirection.sqrMagnitude <= 0.0001f)
+        {
+            awayDirection = -transform.forward;
+            awayDirection.y = 0f;
+        }
+
+        awayDirection = awayDirection.sqrMagnitude > 0.0001f
+            ? awayDirection.normalized
+            : Vector3.back;
+
+        Vector3 impactPeakPosition = basePosition + awayDirection * 0.18f + Vector3.up * 0.12f;
+        float halfDuration = Mathf.Max(0.01f, duration * 0.5f);
+
+        impactTween?.Kill();
+        impactTween = DOTween.Sequence()
+            .Append(transform.DOMove(impactPeakPosition, halfDuration).SetEase(Ease.OutQuad))
+            .Append(transform.DOMove(basePosition, halfDuration).SetEase(Ease.InQuad))
+            .OnComplete(() =>
+            {
+                impactTween = null;
+                transform.position = basePosition;
+            })
+            .OnKill(() =>
+            {
+                impactTween = null;
+                if (this != null && isActiveAndEnabled)
+                {
+                    transform.position = basePosition;
+                }
+            });
+    }
+
     public bool TryMoveOneStep(Character target, bool useFleeBehaviour, int remainingMovesAfterThisStep)
     {
         if (Board == null || target == null || IsMoving)
@@ -277,6 +352,7 @@ public class Enemy : MonoBehaviour
         gridPosition = bestStep;
         AnimateToGrid();
         RefreshFlyingAnimationState();
+        Board.NotifyEnemyEnteredCell(this);
         return true;
     }
 
@@ -293,8 +369,20 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
+        if (dragoonRiderData != null)
+        {
+            yield return ExecuteDragoonRiderTurn(target);
+            yield break;
+        }
+
         int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
+
+        ProcessStartOfTurnStatusEffects();
+        if (isDying || currentHealth <= 0)
+        {
+            yield break;
+        }
 
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
         if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
@@ -435,17 +523,29 @@ public class Enemy : MonoBehaviour
         }
 
         bool shouldAdvanceAggressively = advanceTowardsCharacterWhenAlreadyInRange;
-        if (!shouldAdvanceAggressively
-            && TryFindBestAttackObjective(target, out Vector2Int attackObjective)
-            && TryBuildPathForCurrentMovementRules(gridPosition, attackObjective, out List<Vector2Int> attackPath))
+        PathPlan attackPlan = default;
+        PathPlan approachPlan = default;
+        bool hasAttackObjective = !shouldAdvanceAggressively
+            && TryFindBestAttackObjective(target, out _, out attackPlan);
+        bool hasApproachPath = TryBuildWeightedPathForCurrentMovementRules(gridPosition, target.GridPosition, out approachPlan, true);
+
+        if (hasAttackObjective)
         {
-            AppendPathPrefix(plannedPath, attackPath, maxSteps);
-            return plannedPath;
+            bool preferApproachPath = attackPlan.UsesLethalHazard
+                && hasApproachPath
+                && !approachPlan.UsesLethalHazard
+                && approachPlan.StepCount <= attackPlan.StepCount + 5;
+
+            if (!preferApproachPath)
+            {
+                AppendPathPrefix(plannedPath, attackPlan.Path, maxSteps);
+                return plannedPath;
+            }
         }
 
-        if (TryBuildPathForCurrentMovementRules(gridPosition, target.GridPosition, out List<Vector2Int> targetPath, true))
+        if (hasApproachPath)
         {
-            AppendPathPrefix(plannedPath, targetPath, maxSteps);
+            AppendPathPrefix(plannedPath, approachPlan.Path, maxSteps);
         }
 
         return plannedPath;
@@ -531,6 +631,7 @@ public class Enemy : MonoBehaviour
         gridPosition = nextStep;
         AnimateToGrid();
         RefreshFlyingAnimationState();
+        Board.NotifyEnemyEnteredCell(this);
         return true;
     }
 
@@ -560,6 +661,7 @@ public class Enemy : MonoBehaviour
         gridPosition = targetCell;
         AnimateToGrid();
         RefreshFlyingAnimationState();
+        Board.NotifyEnemyEnteredCell(this);
         return true;
     }
 
@@ -596,6 +698,8 @@ public class Enemy : MonoBehaviour
     {
         moveTween?.Kill();
         bodySpawnScaleTween?.Kill();
+        bodyRotationTween?.Kill();
+        impactTween?.Kill();
         IsMoving = false;
         SetFlyingAnimation(false);
         RefreshCanvasHeight(false);
@@ -633,6 +737,59 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void CacheSpecialAnchors()
+    {
+        if (projectileSpawnPos == null)
+        {
+            projectileSpawnPos = FindDeepChild(transform, "ProjectileSpawnPos");
+        }
+
+        if (fireBallSpawnPos == null)
+        {
+            fireBallSpawnPos = FindDeepChild(transform, "FireBallSpawnPos");
+        }
+
+        if (fireBallSpawnPos == null)
+        {
+            fireBallSpawnPos = FindDeepChild(transform, "Mouth");
+        }
+
+        if (fireBallSpawnPos == null)
+        {
+            fireBallSpawnPos = FindDeepChild(transform, "HandR");
+        }
+
+        if (fireBallSpawnPos == null)
+        {
+            fireBallSpawnPos = enemyBody != null ? enemyBody : EffectAnchor;
+        }
+    }
+
+    private static Transform FindDeepChild(Transform parent, string childName)
+    {
+        if (parent == null || string.IsNullOrEmpty(childName))
+        {
+            return null;
+        }
+
+        for (int index = 0; index < parent.childCount; index++)
+        {
+            Transform child = parent.GetChild(index);
+            if (child.name == childName)
+            {
+                return child;
+            }
+
+            Transform nestedChild = FindDeepChild(child, childName);
+            if (nestedChild != null)
+            {
+                return nestedChild;
+            }
+        }
+
+        return null;
+    }
+
     private void CacheBody()
     {
         if (enemyBody == null && transform.childCount > 0)
@@ -643,6 +800,7 @@ public class Enemy : MonoBehaviour
         if (enemyBody != null)
         {
             cachedBodyOriginalScale = enemyBody.localScale;
+            cachedBodyOriginalLocalEulerAngles = enemyBody.localEulerAngles;
         }
     }
 
@@ -1107,12 +1265,20 @@ public class Enemy : MonoBehaviour
     private bool TryFindBestAttackObjective(Character target, out Vector2Int bestObjective)
     {
         bestObjective = gridPosition;
+        return TryFindBestAttackObjective(target, out bestObjective, out _);
+    }
+
+    private bool TryFindBestAttackObjective(Character target, out Vector2Int bestObjective, out PathPlan bestPlan)
+    {
+        bestObjective = gridPosition;
+        bestPlan = default;
         if (Board == null || target == null || Board.Cells == null)
         {
             return false;
         }
 
         bool foundObjective = false;
+        int bestPathCost = int.MaxValue;
         int bestPathDistance = int.MaxValue;
         for (int x = 0; x < Board.Width; x++)
         {
@@ -1129,25 +1295,155 @@ public class Enemy : MonoBehaviour
                     continue;
                 }
 
-                int pathDistance = GetPathDistanceForCurrentMovementRules(gridPosition, cellPosition);
-                if (pathDistance == int.MaxValue)
+                if (!TryBuildWeightedPathForCurrentMovementRules(gridPosition, cellPosition, out PathPlan candidatePlan))
                 {
                     continue;
                 }
 
                 if (!foundObjective
-                    || pathDistance < bestPathDistance
-                    || (pathDistance == bestPathDistance
+                    || candidatePlan.TotalCost < bestPathCost
+                    || (candidatePlan.TotalCost == bestPathCost && candidatePlan.StepCount < bestPathDistance)
+                    || (candidatePlan.TotalCost == bestPathCost
+                        && candidatePlan.StepCount == bestPathDistance
                         && Board.GetManhattanDistance(cellPosition, target.GridPosition) < Board.GetManhattanDistance(bestObjective, target.GridPosition)))
                 {
                     foundObjective = true;
                     bestObjective = cellPosition;
-                    bestPathDistance = pathDistance;
+                    bestPathCost = candidatePlan.TotalCost;
+                    bestPathDistance = candidatePlan.StepCount;
+                    bestPlan = candidatePlan;
                 }
             }
         }
 
         return foundObjective;
+    }
+
+    private bool TryBuildWeightedPathForCurrentMovementRules(Vector2Int start, Vector2Int goal, out PathPlan plan, bool allowOccupiedGoal = false)
+    {
+        plan = default;
+        if (Board == null || !Board.IsInsideBoard(start) || !Board.IsInsideBoard(goal) || start == goal)
+        {
+            return false;
+        }
+
+        if (!Board.TryGetCell(goal, out BoardCell goalCell) || (!allowOccupiedGoal && !CanEndMovementOnCell(goalCell)))
+        {
+            return false;
+        }
+
+        List<Vector2Int> openNodes = new List<Vector2Int> { start };
+        Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int> { [start] = start };
+        Dictionary<Vector2Int, int> totalCost = new Dictionary<Vector2Int, int> { [start] = 0 };
+        Dictionary<Vector2Int, int> stepCount = new Dictionary<Vector2Int, int> { [start] = 0 };
+        Dictionary<Vector2Int, bool> usesLethalHazard = new Dictionary<Vector2Int, bool> { [start] = false };
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        while (openNodes.Count > 0)
+        {
+            int bestIndex = 0;
+            Vector2Int current = openNodes[0];
+            for (int index = 1; index < openNodes.Count; index++)
+            {
+                Vector2Int candidate = openNodes[index];
+                if (totalCost[candidate] < totalCost[current]
+                    || (totalCost[candidate] == totalCost[current] && stepCount[candidate] < stepCount[current]))
+                {
+                    current = candidate;
+                    bestIndex = index;
+                }
+            }
+
+            openNodes.RemoveAt(bestIndex);
+            if (current == goal)
+            {
+                break;
+            }
+
+            for (int directionIndex = 0; directionIndex < directions.Length; directionIndex++)
+            {
+                Vector2Int next = current + directions[directionIndex];
+                if (!Board.TryGetCell(next, out BoardCell nextCell))
+                {
+                    continue;
+                }
+
+                bool canVisit = next == goal
+                    ? (allowOccupiedGoal || CanEndMovementOnCell(nextCell))
+                    : CanPathThroughCell(nextCell);
+                if (!canVisit)
+                {
+                    continue;
+                }
+
+                int extraCost = 1 + GetPathPenaltyForCell(nextCell, out bool isLethalHazard);
+                int candidateCost = totalCost[current] + extraCost;
+                int candidateSteps = stepCount[current] + 1;
+                bool candidateUsesLethal = usesLethalHazard[current] || isLethalHazard;
+
+                if (!totalCost.TryGetValue(next, out int knownCost)
+                    || candidateCost < knownCost
+                    || (candidateCost == knownCost && candidateSteps < stepCount[next]))
+                {
+                    totalCost[next] = candidateCost;
+                    stepCount[next] = candidateSteps;
+                    usesLethalHazard[next] = candidateUsesLethal;
+                    cameFrom[next] = current;
+                    if (!openNodes.Contains(next))
+                    {
+                        openNodes.Add(next);
+                    }
+                }
+            }
+        }
+
+        if (!cameFrom.ContainsKey(goal))
+        {
+            return false;
+        }
+
+        List<Vector2Int> path = new List<Vector2Int>();
+        Vector2Int currentStep = goal;
+        while (currentStep != start)
+        {
+            path.Add(currentStep);
+            currentStep = cameFrom[currentStep];
+        }
+
+        path.Reverse();
+        plan = new PathPlan
+        {
+            Path = path,
+            TotalCost = totalCost[goal],
+            StepCount = stepCount[goal],
+            UsesLethalHazard = usesLethalHazard[goal]
+        };
+        return path.Count > 0;
+    }
+
+    private int GetPathPenaltyForCell(BoardCell cell, out bool isLethalHazard)
+    {
+        isLethalHazard = false;
+        if (cell?.Hazard == null || !cell.Hazard.IsVisibleToEnemies)
+        {
+            return 0;
+        }
+
+        int penalty = Mathf.Max(0, cell.Hazard.GetEnemyPathPenalty(this));
+        isLethalHazard = cell.Hazard.WouldKillEnemy(this);
+        if (isLethalHazard)
+        {
+            penalty += 1000;
+        }
+
+        return penalty;
     }
 
     private bool TryBuildPathForCurrentMovementRules(Vector2Int start, Vector2Int goal, out List<Vector2Int> path, bool allowOccupiedGoal = false)
@@ -1346,11 +1642,12 @@ public class Enemy : MonoBehaviour
         return false;
     }
 
-    private void TriggerAttackAnimation()
+    private void TriggerAttackAnimation(AnimationClip attackClipOverride = null)
     {
         CacheAnimator();
         if (enemyAnimator != null && !string.IsNullOrEmpty(attackTriggerParameter))
         {
+            ApplyAttackAnimationOverride(attackClipOverride);
             enemyAnimator.SetTrigger(attackTriggerParameter);
         }
     }
@@ -1362,6 +1659,53 @@ public class Enemy : MonoBehaviour
         {
             enemyAnimator.SetTrigger(optionalActionTriggerParameter);
         }
+    }
+
+    private void TriggerOptionalSecondaryActionAnimation()
+    {
+        CacheAnimator();
+        if (enemyAnimator != null && !string.IsNullOrEmpty(optionalActionSecondaryTriggerParameter))
+        {
+            enemyAnimator.SetTrigger(optionalActionSecondaryTriggerParameter);
+        }
+    }
+
+    private void ApplyAttackAnimationOverride(AnimationClip attackClipOverride)
+    {
+        if (enemyAnimator == null || attackStateSourceClip == null || attackClipOverride == null)
+        {
+            return;
+        }
+
+        EnsureEnemyAnimatorOverrideController();
+        if (enemyAnimatorOverrideController == null)
+        {
+            return;
+        }
+
+        enemyAnimatorOverrideController[attackStateSourceClip] = attackClipOverride;
+    }
+
+    private void EnsureEnemyAnimatorOverrideController()
+    {
+        if (enemyAnimator == null || attackStateSourceClip == null)
+        {
+            return;
+        }
+
+        if (enemyAnimatorOverrideController != null)
+        {
+            return;
+        }
+
+        RuntimeAnimatorController runtimeController = enemyAnimator.runtimeAnimatorController;
+        if (runtimeController == null)
+        {
+            return;
+        }
+
+        enemyAnimatorOverrideController = new AnimatorOverrideController(runtimeController);
+        enemyAnimator.runtimeAnimatorController = enemyAnimatorOverrideController;
     }
 
     private void RefreshFlyingAnimationState()
@@ -1386,7 +1730,32 @@ public class Enemy : MonoBehaviour
             return;
         }
 
+        enemyAnimator.speed = 1f;
         enemyAnimator.SetBool(flyingBoolParameter, isFlying);
+    }
+
+    private void ClearAnimationTriggers()
+    {
+        CacheAnimator();
+        if (enemyAnimator == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(attackTriggerParameter))
+        {
+            enemyAnimator.ResetTrigger(attackTriggerParameter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(optionalActionTriggerParameter))
+        {
+            enemyAnimator.ResetTrigger(optionalActionTriggerParameter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(optionalActionSecondaryTriggerParameter))
+        {
+            enemyAnimator.ResetTrigger(optionalActionSecondaryTriggerParameter);
+        }
     }
 
     private void RefreshCanvasHeight(bool isOnObstacle)
@@ -1423,9 +1792,56 @@ public class Enemy : MonoBehaviour
         CacheBody();
         Transform targetBody = enemyBody != null ? enemyBody : transform;
         float targetYaw = Quaternion.LookRotation((-targetDirection).normalized, Vector3.up).eulerAngles.y;
-        Vector3 localEulerAngles = targetBody.localEulerAngles;
-        localEulerAngles.y = targetYaw;
-        targetBody.localEulerAngles = localEulerAngles;
+        ApplyBodyLocalYaw(targetBody, targetYaw);
+    }
+
+    private IEnumerator ResetBodyRotationToOrigin(float duration)
+    {
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : transform;
+        if (targetBody == null)
+        {
+            yield break;
+        }
+
+        bodyRotationTween?.Kill();
+        if (duration <= 0f)
+        {
+            ApplyBodyLocalYaw(targetBody, cachedBodyOriginalLocalEulerAngles.y);
+            yield break;
+        }
+
+        bodyRotationTween = TweenBodyLocalYaw(targetBody, cachedBodyOriginalLocalEulerAngles.y, duration);
+        yield return bodyRotationTween.WaitForCompletion();
+    }
+
+    private IEnumerator RotateBodyTowardsTarget(Character target, float duration)
+    {
+        if (!lookAtTargetWhenAttacking || target == null)
+        {
+            yield break;
+        }
+
+        Vector3 targetDirection = target.transform.position - transform.position;
+        targetDirection.y = 0f;
+        if (targetDirection.sqrMagnitude <= 0.0001f)
+        {
+            yield break;
+        }
+
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : transform;
+        float targetYaw = Quaternion.LookRotation((-targetDirection).normalized, Vector3.up).eulerAngles.y;
+
+        bodyRotationTween?.Kill();
+        if (duration <= 0f)
+        {
+            ApplyBodyLocalYaw(targetBody, targetYaw);
+            yield break;
+        }
+
+        bodyRotationTween = TweenBodyLocalYaw(targetBody, targetYaw, duration);
+        yield return bodyRotationTween.WaitForCompletion();
     }
 
     private void FaceMovementDirection(Vector2Int gridDirection)
@@ -1444,8 +1860,37 @@ public class Enemy : MonoBehaviour
         CacheBody();
         Transform targetBody = enemyBody != null ? enemyBody : transform;
         float targetYaw = Quaternion.LookRotation((-moveDirection).normalized, Vector3.up).eulerAngles.y;
+        ApplyBodyLocalYaw(targetBody, targetYaw);
+    }
+
+    private Tween TweenBodyLocalYaw(Transform targetBody, float targetYaw, float duration)
+    {
+        if (targetBody == null)
+        {
+            return null;
+        }
+
+        float startYaw = targetBody.localEulerAngles.y;
+        return DOVirtual.Float(startYaw, targetYaw, Mathf.Max(0.01f, duration), value =>
+            {
+                ApplyBodyLocalYaw(targetBody, value);
+            })
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() => bodyRotationTween = null)
+            .OnKill(() => bodyRotationTween = null);
+    }
+
+    private void ApplyBodyLocalYaw(Transform targetBody, float yaw)
+    {
+        if (targetBody == null)
+        {
+            return;
+        }
+
         Vector3 localEulerAngles = targetBody.localEulerAngles;
-        localEulerAngles.y = targetYaw;
+        localEulerAngles.x = cachedBodyOriginalLocalEulerAngles.x;
+        localEulerAngles.y = yaw;
+        localEulerAngles.z = cachedBodyOriginalLocalEulerAngles.z;
         targetBody.localEulerAngles = localEulerAngles;
     }
 
@@ -1473,6 +1918,479 @@ public class Enemy : MonoBehaviour
 
         yield return ApplyDamageToTarget(target, attackPattern == EnemyAttackPattern.Projectile);
         yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator ExecuteDragoonRiderTurn(Character target)
+    {
+        if (dragoonRiderData == null || Board == null || target == null)
+        {
+            yield break;
+        }
+
+        int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
+        pendingMobilityPenalty = 0;
+
+        ProcessStartOfTurnStatusEffects();
+        if (isDying || currentHealth <= 0)
+        {
+            yield break;
+        }
+
+        if (CanPerformDragoonMeleeFrom(gridPosition, target))
+        {
+            yield return PerformDragoonMeleeAttack(target);
+            yield break;
+        }
+
+        if (TryFindBestDragoonMeleeObjective(target, effectiveMobility, out PathPlan meleePlan))
+        {
+            yield return FollowPathPlan(meleePlan.Path);
+            if (CanPerformDragoonMeleeFrom(gridPosition, target))
+            {
+                yield return PerformDragoonMeleeAttack(target);
+            }
+
+            yield break;
+        }
+
+        if (CanPerformDragoonRangedFrom(gridPosition, target))
+        {
+            yield return PerformDragoonRangedAttack(target);
+            yield break;
+        }
+
+        if (TryFindBestDragoonRangedObjective(target, effectiveMobility, out PathPlan rangedPlan))
+        {
+            yield return FollowPathPlan(rangedPlan.Path);
+            if (CanPerformDragoonRangedFrom(gridPosition, target))
+            {
+                yield return PerformDragoonRangedAttack(target);
+                yield break;
+            }
+        }
+
+        yield return PerformDragoonFlightAndSummon(target);
+    }
+
+    private IEnumerator FollowPathPlan(List<Vector2Int> path)
+    {
+        if (path == null)
+        {
+            yield break;
+        }
+
+        for (int index = 0; index < path.Count; index++)
+        {
+            if (!TryMoveToPlannedStep(path[index]))
+            {
+                yield break;
+            }
+
+            yield return new WaitUntil(() => !IsMoving);
+            yield return new WaitForSeconds(0.05f);
+        }
+    }
+
+    private bool CanPerformDragoonMeleeFrom(Vector2Int origin, Character target)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        Vector2Int delta = target.GridPosition - origin;
+        return Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1;
+    }
+
+    private bool CanPerformDragoonRangedFrom(Vector2Int origin, Character target)
+    {
+        if (target == null || Board == null || dragoonRiderData == null)
+        {
+            return false;
+        }
+
+        if (CanPerformDragoonMeleeFrom(origin, target))
+        {
+            return false;
+        }
+
+        int distance = Mathf.Abs(target.GridPosition.x - origin.x) + Mathf.Abs(target.GridPosition.y - origin.y);
+        if (distance <= 0 || distance > dragoonRiderData.RangedAttackRange)
+        {
+            return false;
+        }
+
+        return Board.HasLineOfSight(origin, target.GridPosition);
+    }
+
+    private bool TryFindBestDragoonMeleeObjective(Character target, int maxSteps, out PathPlan bestPlan)
+    {
+        bestPlan = default;
+        if (Board == null || target == null || maxSteps <= 0)
+        {
+            return false;
+        }
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.right,
+            Vector2Int.down,
+            Vector2Int.left
+        };
+
+        bool foundPlan = false;
+        int bestCost = int.MaxValue;
+        int bestSteps = int.MaxValue;
+        for (int index = 0; index < directions.Length; index++)
+        {
+            Vector2Int candidateCell = target.GridPosition + directions[index];
+            if (!Board.TryGetCell(candidateCell, out BoardCell cell) || !CanEndMovementOnCell(cell))
+            {
+                continue;
+            }
+
+            if (!TryBuildWeightedPathForCurrentMovementRules(gridPosition, candidateCell, out PathPlan candidatePlan))
+            {
+                continue;
+            }
+
+            if (candidatePlan.StepCount > maxSteps)
+            {
+                continue;
+            }
+
+            if (!foundPlan
+                || candidatePlan.TotalCost < bestCost
+                || (candidatePlan.TotalCost == bestCost && candidatePlan.StepCount < bestSteps))
+            {
+                foundPlan = true;
+                bestPlan = candidatePlan;
+                bestCost = candidatePlan.TotalCost;
+                bestSteps = candidatePlan.StepCount;
+            }
+        }
+
+        return foundPlan;
+    }
+
+    private bool TryFindBestDragoonRangedObjective(Character target, int maxSteps, out PathPlan bestPlan)
+    {
+        bestPlan = default;
+        if (Board == null || target == null || maxSteps <= 0)
+        {
+            return false;
+        }
+
+        bool foundPlan = false;
+        int bestCost = int.MaxValue;
+        int bestSteps = int.MaxValue;
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (candidateCell == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(candidateCell, out BoardCell cell) || !CanEndMovementOnCell(cell) || !CanPerformDragoonRangedFrom(candidateCell, target))
+                {
+                    continue;
+                }
+
+                if (!TryBuildWeightedPathForCurrentMovementRules(gridPosition, candidateCell, out PathPlan candidatePlan))
+                {
+                    continue;
+                }
+
+                if (candidatePlan.StepCount > maxSteps)
+                {
+                    continue;
+                }
+
+                if (!foundPlan
+                    || candidatePlan.TotalCost < bestCost
+                    || (candidatePlan.TotalCost == bestCost && candidatePlan.StepCount < bestSteps))
+                {
+                    foundPlan = true;
+                    bestPlan = candidatePlan;
+                    bestCost = candidatePlan.TotalCost;
+                    bestSteps = candidatePlan.StepCount;
+                }
+            }
+        }
+
+        return foundPlan;
+    }
+
+    private IEnumerator PerformDragoonMeleeAttack(Character target)
+    {
+        if (target == null || dragoonRiderData == null)
+        {
+            yield break;
+        }
+
+        FaceTargetForAttack(target);
+        TriggerAttackAnimation();
+        float damageDelay = GetTargetDamageDelay(target);
+        if (damageDelay > 0f)
+        {
+            yield return new WaitForSeconds(damageDelay);
+        }
+
+        target.TakeDamage(dragoonRiderData.MeleeDamage, this, false, dragoonRiderData.MeleeDamageSoundType);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator PerformDragoonRangedAttack(Character target)
+    {
+        if (target == null || dragoonRiderData == null)
+        {
+            yield break;
+        }
+
+        FaceTargetForAttack(target);
+        TriggerOptionalSecondaryActionAnimation();
+
+        if (projectilePrefab != null)
+        {
+            yield return FireProjectileAt(target, fireBallSpawnPos != null ? fireBallSpawnPos : EffectAnchor, false);
+        }
+
+        float damageDelay = dragoonRiderData.RangedImpactDamageDelay;
+        if (damageDelay > 0f)
+        {
+            yield return new WaitForSeconds(damageDelay);
+        }
+
+        target.TakeDamage(dragoonRiderData.RangedDamage, this, projectilePrefab != null, dragoonRiderData.RangedDamageSoundType);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator PerformDragoonFlightAndSummon(Character target)
+    {
+        if (dragoonRiderData == null || Board == null)
+        {
+            yield break;
+        }
+
+        yield return ResetBodyRotationToOrigin(dragoonRiderData.FlightPreparationDuration);
+        ClearAnimationTriggers();
+
+        if (TryGetRandomSafeFlightDestination(target, out Vector2Int flightDestination))
+        {
+            SetFlyingAnimation(true);
+            yield return FlyToCell(flightDestination, dragoonRiderData.FlightJumpDuration);
+            SetFlyingAnimation(false);
+        }
+
+        yield return RotateBodyTowardsTarget(target, dragoonRiderData.AltAttackRotateDuration);
+        yield return SummonDragoonFireballs();
+    }
+
+    private bool TryGetRandomSafeFlightDestination(Character target, out Vector2Int destination)
+    {
+        destination = gridPosition;
+        if (Board == null || target == null)
+        {
+            return false;
+        }
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (cellPosition == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell) || !cell.Walkable || cell.IsOccupied)
+                {
+                    continue;
+                }
+
+                if (Board.TryGetHazard(cellPosition, out BoardHazard hazard) && hazard is FireTileHazard)
+                {
+                    continue;
+                }
+
+                int distanceToPlayer = Mathf.Abs(cellPosition.x - target.GridPosition.x) + Mathf.Abs(cellPosition.y - target.GridPosition.y);
+                if (distanceToPlayer <= 3)
+                {
+                    continue;
+                }
+
+                candidates.Add(cellPosition);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        destination = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        return true;
+    }
+
+    private IEnumerator SummonDragoonFireballs()
+    {
+        if (dragoonRiderData == null || Board == null)
+        {
+            yield break;
+        }
+
+        int fireballCount = dragoonRiderData.SummonedFireballCount;
+        float perFireballDuration = Mathf.Max(0.15f, dragoonRiderData.FireballVolleyDuration / Mathf.Max(1, fireballCount));
+        for (int index = 0; index < fireballCount; index++)
+        {
+            if (!TryGetRandomFreeNonFireCell(out Vector2Int targetCell))
+            {
+                yield break;
+            }
+
+            TriggerOptionalActionAnimation();
+            if (dragoonRiderData.FireballSpawnDelay > 0f)
+            {
+                yield return new WaitForSeconds(dragoonRiderData.FireballSpawnDelay);
+            }
+
+            yield return SpawnSingleDragoonFireball(targetCell, perFireballDuration);
+            if (index < fireballCount - 1 && dragoonRiderData.DelayBetweenFireballs > 0f)
+            {
+                yield return new WaitForSeconds(dragoonRiderData.DelayBetweenFireballs);
+            }
+        }
+    }
+
+    private bool TryGetRandomFreeNonFireCell(out Vector2Int targetCell)
+    {
+        targetCell = gridPosition;
+        if (Board == null)
+        {
+            return false;
+        }
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell) || !cell.Walkable || cell.IsOccupied)
+                {
+                    continue;
+                }
+
+                if (Board.TryGetHazard(cellPosition, out BoardHazard hazard) && hazard is FireTileHazard)
+                {
+                    continue;
+                }
+
+                candidates.Add(cellPosition);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        targetCell = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        return true;
+    }
+
+    private IEnumerator SpawnSingleDragoonFireball(Vector2Int targetCell, float jumpDuration)
+    {
+        if (dragoonRiderData == null || Board == null)
+        {
+            yield break;
+        }
+
+        Transform spawnAnchor = fireBallSpawnPos != null ? fireBallSpawnPos : EffectAnchor;
+        Vector3 spawnPosition = spawnAnchor != null ? spawnAnchor.position : transform.position;
+        Vector3 targetPosition = Board.GridToWorldPosition(targetCell) + Vector3.up * spawnHeight;
+        GameObject projectile = projectilePrefab != null
+            ? Instantiate(projectilePrefab, spawnPosition, projectilePrefab.transform.rotation)
+            : new GameObject("DragoonFireball");
+
+        if (projectilePrefab != null)
+        {
+            projectile.transform.localScale = projectilePrefab.transform.localScale;
+        }
+
+        Tween jumpTween = projectile.transform.DOJump(
+            targetPosition,
+            dragoonRiderData.FireballJumpPower,
+            1,
+            Mathf.Max(0.01f, jumpDuration));
+        yield return jumpTween.WaitForCompletion();
+
+        CreateFireTile(targetCell);
+        Destroy(projectile);
+    }
+
+    private IEnumerator FlyToCell(Vector2Int targetCell, float duration)
+    {
+        if (Board == null || targetCell == gridPosition)
+        {
+            yield break;
+        }
+
+        Vector2Int startGridPosition = gridPosition;
+        if (!Board.MoveOccupant(gridPosition, targetCell, BoardOccupantKind.Enemy))
+        {
+            yield break;
+        }
+
+        gridPosition = targetCell;
+        Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
+        FaceMovementDirection(targetCell - startGridPosition);
+        SetFlyingAnimation(true);
+
+        moveTween?.Kill();
+        IsMoving = true;
+        moveTween = transform.DOJump(targetPosition, 0.65f, 1, Mathf.Max(0.01f, duration))
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                IsMoving = false;
+                moveTween = null;
+                transform.position = targetPosition;
+                RefreshFlyingAnimationState();
+                Board.NotifyEnemyEnteredCell(this);
+            });
+        yield return moveTween.WaitForCompletion();
+        SetFlyingAnimation(false);
+    }
+
+    private void CreateFireTile(Vector2Int targetCell)
+    {
+        if (Board == null || dragoonRiderData == null)
+        {
+            return;
+        }
+
+        if (Board.TryGetHazard(targetCell, out BoardHazard existingHazard) && existingHazard is FireTileHazard)
+        {
+            return;
+        }
+
+        GameObject fireHazardObject = new GameObject("FireTileHazard");
+        FireTileHazard fireHazard = fireHazardObject.AddComponent<FireTileHazard>();
+        fireHazard.Configure(
+            Board,
+            Board.Player != null ? Board.Player.ControlledCharacter : null,
+            targetCell,
+            dragoonRiderData.FireTileDamage,
+            dragoonRiderData.FireObjectPrefab,
+            dragoonRiderData.FireImpactFxPrefab,
+            dragoonRiderData.FireDamageSoundParametersPrefab);
     }
 
     private IEnumerator TryPerformOptionalAction()
@@ -1630,7 +2548,7 @@ public class Enemy : MonoBehaviour
                 elapsedDelay += waitDuration;
             }
 
-            target.TakeDamage(force, this, false, damageSoundType);
+            target.TakeDamage(EffectiveForce, this, false, damageSoundType);
         }
 
         if (targetsInRange.Count > 0)
@@ -1652,7 +2570,7 @@ public class Enemy : MonoBehaviour
             yield return new WaitForSeconds(delay);
         }
 
-        target.TakeDamage(force, this, wasProjectile, damageSoundType);
+        target.TakeDamage(EffectiveForce, this, wasProjectile, damageSoundType);
     }
 
     private float GetTargetDamageDelay(Character target)
@@ -1675,20 +2593,26 @@ public class Enemy : MonoBehaviour
         return delay * Mathf.Max(1, distance);
     }
 
-    private IEnumerator FireProjectileAt(Character target)
+    private IEnumerator FireProjectileAt(Character target, Transform launchAnchor = null, bool playArrowShotSound = true)
     {
         if (target == null)
         {
             yield break;
         }
 
-        SoundManager.Instance?.PlayArrowShot(EffectAnchor.position);
+        Transform resolvedLaunchAnchor = launchAnchor != null ? launchAnchor : projectileSpawnPos;
+        Vector3 launchPosition = resolvedLaunchAnchor != null
+            ? resolvedLaunchAnchor.position
+            : transform.position + Vector3.up * 0.5f;
+        if (playArrowShotSound)
+        {
+            SoundManager.Instance?.PlayArrowShot(launchPosition);
+        }
 
-        Vector3 startPosition = transform.position + Vector3.up * projectileTravelHeight;
         Vector3 targetPosition = target.transform.position + Vector3.up * projectileTravelHeight;
-        GameObject projectile = Instantiate(projectilePrefab, startPosition, Quaternion.identity);
+        GameObject projectile = Instantiate(projectilePrefab, launchPosition, Quaternion.identity);
 
-        Vector3 direction = targetPosition - startPosition;
+        Vector3 direction = targetPosition - launchPosition;
         if (direction.sqrMagnitude > 0.0001f)
         {
             projectile.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
@@ -1699,6 +2623,89 @@ public class Enemy : MonoBehaviour
         yield return projectileTween.WaitForCompletion();
 
         Destroy(projectile);
+    }
+
+    public void ApplyStatusEffect(CombatStatusType statusType, int durationInTurns = -1, int potency = 1, bool stackPotency = false)
+    {
+        potency = Mathf.Max(1, potency);
+        if (!statusPotencies.ContainsKey(statusType))
+        {
+            statusPotencies[statusType] = potency;
+        }
+        else
+        {
+            statusPotencies[statusType] = stackPotency
+                ? statusPotencies[statusType] + potency
+                : Mathf.Max(statusPotencies[statusType], potency);
+        }
+
+        if (!statusDurations.ContainsKey(statusType))
+        {
+            statusDurations[statusType] = durationInTurns;
+            return;
+        }
+
+        int currentDuration = statusDurations[statusType];
+        if (currentDuration < 0 || durationInTurns < 0)
+        {
+            statusDurations[statusType] = -1;
+        }
+        else
+        {
+            statusDurations[statusType] = Mathf.Max(currentDuration, durationInTurns);
+        }
+    }
+
+    public void ApplyForceModifierUntilEndOfCombat(int amount)
+    {
+        forceModifierFromStatuses += amount;
+    }
+
+    private void ProcessStartOfTurnStatusEffects()
+    {
+        if (statusPotencies.TryGetValue(CombatStatusType.Poisoned, out int poisonDamage) && poisonDamage > 0)
+        {
+            TakeDamage(poisonDamage, DamageSoundType.MagicHit);
+        }
+
+        if (currentHealth <= 0)
+        {
+            return;
+        }
+
+        List<CombatStatusType> expiredStatuses = null;
+        List<CombatStatusType> activeStatuses = new List<CombatStatusType>(statusDurations.Keys);
+        for (int index = 0; index < activeStatuses.Count; index++)
+        {
+            CombatStatusType statusType = activeStatuses[index];
+            int remainingDuration = statusDurations[statusType];
+            if (remainingDuration < 0)
+            {
+                continue;
+            }
+
+            remainingDuration--;
+            if (remainingDuration <= 0)
+            {
+                expiredStatuses ??= new List<CombatStatusType>();
+                expiredStatuses.Add(statusType);
+                continue;
+            }
+
+            statusDurations[statusType] = remainingDuration;
+        }
+
+        if (expiredStatuses == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < expiredStatuses.Count; index++)
+        {
+            CombatStatusType statusType = expiredStatuses[index];
+            statusDurations.Remove(statusType);
+            statusPotencies.Remove(statusType);
+        }
     }
 
     private void Die()

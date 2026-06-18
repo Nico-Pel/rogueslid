@@ -65,11 +65,31 @@ public class AssassinsRushAbility : AbilityDefinition
         }
 
         Vector2Int originCell = character.GridPosition;
+        AbilityExecutionContext context = new AbilityExecutionContext(this, runtime, originCell, targetCell.Value);
+        character.StartCoroutine(ResolveAssassinsRushSequence(character, runtime, context));
+        return true;
+    }
 
-        if (!character.TryTeleportTo(targetCell.Value))
+    private System.Collections.IEnumerator ResolveAssassinsRushSequence(
+        Character character,
+        CharacterAbilityRuntime runtime,
+        AbilityExecutionContext context)
+    {
+        if (character == null)
         {
-            return false;
+            yield break;
         }
+
+        character.BeginActionLock();
+
+        bool success = character.TryTeleportTo(context.TargetCell);
+        if (!success)
+        {
+            character.EndActionLock();
+            yield break;
+        }
+
+        yield return new WaitUntil(() => !character.IsMoving);
 
         int tasteStacks = character.GetUpgradeStacks(AbilityUpgradeKey.AssassinsRushTasteOfBlood);
         if (tasteStacks > 0)
@@ -78,10 +98,8 @@ public class AssassinsRushAbility : AbilityDefinition
             character.PlayFeedbackFx(tasteOfBloodBoostFxPrefab, destroyAfterSeconds: tasteOfBloodBoostFxDuration);
         }
 
-        AbilityExecutionContext context = new AbilityExecutionContext(this, runtime, originCell, targetCell.Value);
         ExecuteUnlockedSecondaryEffects(character, runtime, context, secondaryEffects, SecondaryEffectTiming.AfterMovement);
-
         PlayConfiguredFx(character);
-        return true;
+        character.EndActionLock();
     }
 }

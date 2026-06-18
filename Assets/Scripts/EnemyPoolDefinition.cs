@@ -4,8 +4,10 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Rogue Sliders/Enemies/Enemy Pool", fileName = "EnemyPool")]
 public class EnemyPoolDefinition : ScriptableObject
 {
+    [SerializeField] private Texture2D arenaLayoutOverride;
     [SerializeField] private List<GameObject> enemyPrefabs = new List<GameObject>();
 
+    public Texture2D ArenaLayoutOverride => arenaLayoutOverride;
     public IReadOnlyList<GameObject> EnemyPrefabs => enemyPrefabs;
     public int EnemyCount => enemyPrefabs != null ? enemyPrefabs.Count : 0;
 

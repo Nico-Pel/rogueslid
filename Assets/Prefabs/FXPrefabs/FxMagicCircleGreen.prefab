@@ -14720,6 +14720,7 @@ GameObject:
   - component: {fileID: 2175437417473374521}
   - component: {fileID: 2175437417459169945}
   - component: {fileID: 2175437417457131365}
+  - component: {fileID: 7956236529054692994}
   m_Layer: 0
   m_Name: FxMagicCircleGreen
   m_TagString: Untagged
@@ -19621,3 +19622,27 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!114 &7956236529054692994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2175437417473095395}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1b8ed5f9d534a8598a7b457720cab4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnabled: 1
+  isUiSound: 0
+  possibleClips:
+  - {fileID: 8300000, guid: 5e84a6be0378e4213a6a226a07c27c3c, type: 3}
+  volume: 1
+  pitchMin: 0.9
+  pitchMax: 1.1
+  duration: -1
+  range: 15
+  loop: 0
+  playOnCamera: 1
+  sourceParent: {fileID: 0}

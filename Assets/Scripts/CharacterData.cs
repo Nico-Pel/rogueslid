@@ -9,6 +9,7 @@ public class CharacterData : ScriptableObject
     [TextArea(3, 6)]
     [SerializeField] private string description;
     [SerializeField] private Sprite portrait;
+    [SerializeField] private Sprite portraitLose;
 
     [Header("Base Stats")]
     [Min(1)]
@@ -27,6 +28,7 @@ public class CharacterData : ScriptableObject
     public string CharacterName => string.IsNullOrWhiteSpace(characterName) ? name : characterName;
     public string Description => description;
     public Sprite Portrait => portrait;
+    public Sprite PortraitLose => portraitLose != null ? portraitLose : portrait;
     public int MaxHealth => Mathf.Max(1, maxHealth);
     public int BonusDamage => Mathf.Max(0, bonusDamage);
     public int Resistance => Mathf.Max(0, resistance);

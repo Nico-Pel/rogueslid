@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 4781933851582212623}
   - component: {fileID: 6824367322938372256}
   - component: {fileID: 8089112986220804146}
+  - component: {fileID: 7498432146264150560}
   m_Layer: 0
   m_Name: FxSpawn
   m_TagString: Untagged
@@ -4811,6 +4812,30 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!114 &7498432146264150560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3291064258405842765}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1b8ed5f9d534a8598a7b457720cab4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playOnEnabled: 1
+  isUiSound: 0
+  possibleClips:
+  - {fileID: 8300000, guid: 96bbf34d7aee725449bb8a5f1a46bfbb, type: 3}
+  volume: 1
+  pitchMin: 0.9
+  pitchMax: 1.1
+  duration: -1
+  range: 15
+  loop: 0
+  playOnCamera: 1
+  sourceParent: {fileID: 0}
 --- !u!1 &6727325392597170870
 GameObject:
   m_ObjectHideFlags: 0

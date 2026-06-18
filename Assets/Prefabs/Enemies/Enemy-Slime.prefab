@@ -5140,10 +5140,6 @@ PrefabInstance:
       value: Enemy-Slime
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
-      propertyPath: enemyData
-      value: 
-      objectReference: {fileID: 11400000, guid: c90b7a23976547ec99d980640b6863fd, type: 2}
-    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: flee
       value: 0
       objectReference: {fileID: 0}
@@ -5159,6 +5155,10 @@ PrefabInstance:
       propertyPath: enemyBody
       value: 
       objectReference: {fileID: 5179643888201822126}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: enemyData
+      value: 
+      objectReference: {fileID: 11400000, guid: c90b7a23976547ec99d980640b6863fd, type: 2}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: hpFillBar
       value: 
@@ -5204,11 +5204,19 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: attackDamageDelay
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: fleeThresholdPercent
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: multiplyAttackDamageDelayByDistance
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: advanceTowardsCharacterWhenAlreadyInRange
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4912393361358040595, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
@@ -5444,6 +5452,14 @@ PrefabInstance:
       propertyPath: InitialModule.startColor.maxColor.r
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 19922060, guid: 644ecb149bc651142a6637ca6bb47dd6, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 149d7572ce031468987e1adf9c48209f, type: 2}
+    - target: {fileID: 19959014, guid: 644ecb149bc651142a6637ca6bb47dd6, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 505441f3f20304b8eaaff5de8f8d6646, type: 2}
     m_RemovedComponents:
     - {fileID: 8295442, guid: 644ecb149bc651142a6637ca6bb47dd6, type: 3}
     - {fileID: 10811842, guid: 644ecb149bc651142a6637ca6bb47dd6, type: 3}

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: NighttimeMenace
   m_EditorClassIdentifier: 
   abilityName: Nighttime Menace
-  icon: {fileID: -306928396, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  icon: {fileID: 1039267727, guid: 3fdef4f697daa48018ccf6ccb468414c, type: 3}
   category: 1
   attackAnimationClip: {fileID: 0}
   linkedUpgradeRewards:
@@ -27,6 +27,11 @@ MonoBehaviour:
   consumesMovementPoint: 0
   isToggle: 0
   fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
   trailColorMode: 0
   trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
   temporaryTrailColorDuration: 0.5
@@ -43,3 +48,5 @@ MonoBehaviour:
     requiredUpgradeKey: 7
     timing: 1
     effect: {fileID: 11400000, guid: 1938915dd9324bd9b2d1ad366e56d749, type: 2}
+  delayAfterBloodyEscapeBeforeTeleport: 0.5
+  delayAfterTeleportBeforeTheatricalAppearance: 0.1
