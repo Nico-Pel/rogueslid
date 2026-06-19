@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: EnemyData_DragoonRider
   m_EditorClassIdentifier: 
   enemyName: Dragoon Rider
-  specialInfo: The Dragoon Rider dives in for brutal melee strikes, then scorches
-    the arena with lingering fire.
+  specialInfo: The Dragoon Rider attacks head-on or from a distance when within sight,
+    or gradually sets the terrain ablaze.
   portrait: {fileID: 21300000, guid: 5c8c0f445e0d7443ea3029411791fd28, type: 3}
   maxHealth: 45
   force: 3

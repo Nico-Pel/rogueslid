@@ -44,6 +44,7 @@ MonoBehaviour:
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
   useFlyAnimationOnObstacle: 1
+  immuneToFire: 0
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1
@@ -52,5 +53,5 @@ MonoBehaviour:
   showRegen: 0
   regenPerTurn: 0
   showSpecial: 1
-  specialStatSprite: {fileID: 21300000, guid: 72b786abb410a4596835d99f437c2ee1, type: 3}
+  specialStatSprite: {fileID: -220777179, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   specialStatValue: Fly

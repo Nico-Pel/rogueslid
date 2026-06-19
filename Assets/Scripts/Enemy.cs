@@ -525,9 +525,12 @@ public class Enemy : MonoBehaviour
         bool shouldAdvanceAggressively = advanceTowardsCharacterWhenAlreadyInRange;
         PathPlan attackPlan = default;
         PathPlan approachPlan = default;
+        PathPlan fallbackApproachPlan = default;
         bool hasAttackObjective = !shouldAdvanceAggressively
             && TryFindBestAttackObjective(target, out _, out attackPlan);
         bool hasApproachPath = TryBuildWeightedPathForCurrentMovementRules(gridPosition, target.GridPosition, out approachPlan, true);
+        bool hasFallbackApproachObjective = !hasApproachPath
+            && TryFindBestApproachObjective(target, out _, out fallbackApproachPlan);
 
         if (hasAttackObjective)
         {
@@ -546,6 +549,10 @@ public class Enemy : MonoBehaviour
         if (hasApproachPath)
         {
             AppendPathPrefix(plannedPath, approachPlan.Path, maxSteps);
+        }
+        else if (hasFallbackApproachObjective)
+        {
+            AppendPathPrefix(plannedPath, fallbackApproachPlan.Path, maxSteps);
         }
 
         return plannedPath;
@@ -1322,6 +1329,68 @@ public class Enemy : MonoBehaviour
                     bestPathCost = candidatePlan.TotalCost;
                     bestPathDistance = candidatePlan.StepCount;
                     bestPlan = candidatePlan;
+                }
+            }
+        }
+
+        return foundObjective;
+    }
+
+    private bool TryFindBestApproachObjective(Character target, out Vector2Int bestObjective, out PathPlan bestPlan)
+    {
+        bestObjective = gridPosition;
+        bestPlan = default;
+        if (Board == null || target == null || Board.Cells == null)
+        {
+            return false;
+        }
+
+        bool foundObjective = false;
+        int bestFallbackScore = int.MaxValue;
+        int bestPathCost = int.MaxValue;
+        int bestPathDistance = int.MaxValue;
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (cellPosition == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell) || !CanEndMovementOnCell(cell))
+                {
+                    continue;
+                }
+
+                if (!TryBuildWeightedPathForCurrentMovementRules(gridPosition, cellPosition, out PathPlan candidatePlan))
+                {
+                    continue;
+                }
+
+                int fallbackScore = GetFutureAttackDistance(cellPosition, target);
+                if (fallbackScore == int.MaxValue)
+                {
+                    fallbackScore = GetBestReachableDistanceToTarget(cellPosition, target.GridPosition);
+                }
+
+                if (!foundObjective
+                    || fallbackScore < bestFallbackScore
+                    || (fallbackScore == bestFallbackScore && candidatePlan.TotalCost < bestPathCost)
+                    || (fallbackScore == bestFallbackScore && candidatePlan.TotalCost == bestPathCost && candidatePlan.StepCount < bestPathDistance)
+                    || (fallbackScore == bestFallbackScore
+                        && candidatePlan.TotalCost == bestPathCost
+                        && candidatePlan.StepCount == bestPathDistance
+                        && Board.GetManhattanDistance(cellPosition, target.GridPosition) < Board.GetManhattanDistance(bestObjective, target.GridPosition)))
+                {
+                    foundObjective = true;
+                    bestObjective = cellPosition;
+                    bestPlan = candidatePlan;
+                    bestFallbackScore = fallbackScore;
+                    bestPathCost = candidatePlan.TotalCost;
+                    bestPathDistance = candidatePlan.StepCount;
                 }
             }
         }

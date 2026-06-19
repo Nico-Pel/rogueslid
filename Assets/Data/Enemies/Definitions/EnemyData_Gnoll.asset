@@ -35,7 +35,7 @@ MonoBehaviour:
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
-  attackDamageDelay: 0.4
+  attackDamageDelay: 0.525
   multiplyAttackDamageDelayByDistance: 0
   lookAtTargetWhenAttacking: 1
   optionalActionType: 0

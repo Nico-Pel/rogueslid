@@ -497,21 +497,7 @@ public class UIGame : MonoBehaviour
 
     private void HandleCharacterPortraitClicked()
     {
-        SoundManager.Instance?.PlayClick();
-        if (characterStatsMenu != null && characterStatsMenu.gameObject.activeSelf)
-        {
-            characterStatsMenu.Hide();
-            return;
-        }
-
-        if (observedCharacter == null)
-        {
-            return;
-        }
-
-        HideAbilityCheck();
-        enemyStatsMenu?.Hide();
-        characterStatsMenu?.ShowCharacter(observedCharacter);
+        ToggleCharacterStatsMenu(true);
     }
 
     private void HandleCloseEnemyStatsClicked()
@@ -1494,6 +1480,12 @@ public class UIGame : MonoBehaviour
             return;
         }
 
+        if (observedCharacter != null && observedCharacter.GridPosition == gridPosition)
+        {
+            ToggleCharacterStatsMenu(false);
+            return;
+        }
+
         if (!gameTurnManager.Board.TryGetEnemy(gridPosition, out Enemy enemy) || enemy == null)
         {
             return;
@@ -1502,6 +1494,29 @@ public class UIGame : MonoBehaviour
         HideAbilityCheck();
         characterStatsMenu?.Hide();
         enemyStatsMenu?.ShowEnemy(enemy);
+    }
+
+    private void ToggleCharacterStatsMenu(bool playClickSound)
+    {
+        if (playClickSound)
+        {
+            SoundManager.Instance?.PlayClick();
+        }
+
+        if (characterStatsMenu != null && characterStatsMenu.gameObject.activeSelf)
+        {
+            characterStatsMenu.Hide();
+            return;
+        }
+
+        if (observedCharacter == null)
+        {
+            return;
+        }
+
+        HideAbilityCheck();
+        enemyStatsMenu?.Hide();
+        characterStatsMenu?.ShowCharacter(observedCharacter);
     }
 
     private bool TryGetGridCellFromScreenPosition(Vector2 screenPosition, out Vector2Int gridPosition)

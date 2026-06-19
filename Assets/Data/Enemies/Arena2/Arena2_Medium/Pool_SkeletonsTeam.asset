@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03f173347cc74008bfd6bc6e3e9cd19a, type: 3}
+  m_Name: Pool_SkeletonsTeam
+  m_EditorClassIdentifier: 
+  arenaLayoutOverride: {fileID: 0}
+  enemyPrefabs:
+  - {fileID: 2433636361208229482, guid: 5e02e45a02b3c4d2fa68fb36875a5910, type: 3}
+  - {fileID: 2433636361208229482, guid: 26146bd6bcbb44fd0ba6f6b5d1cda36b, type: 3}
+  - {fileID: 2433636361208229482, guid: c483535556a5843e1a392b1132b7623b, type: 3}

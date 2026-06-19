@@ -53,5 +53,5 @@ MonoBehaviour:
   showRegen: 0
   regenPerTurn: 0
   showSpecial: 1
-  specialStatSprite: {fileID: 21300000, guid: b888433dfb21a48d7a9942deb55740de, type: 3}
+  specialStatSprite: {fileID: 2059291574, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   specialStatValue: AoE

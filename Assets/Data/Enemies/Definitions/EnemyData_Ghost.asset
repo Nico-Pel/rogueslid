@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f961b7511061d47efb4c1a0faa5f8b6f, type: 3}
+  m_Name: EnemyData_Ghost
+  m_EditorClassIdentifier: 
+  enemyName: Ghost
+  specialInfo: Flies over obstacles and may flee when weakened.
+  portrait: {fileID: 21300000, guid: 999e6219614e14a6a9884df84b905efb, type: 3}
+  maxHealth: 12
+  force: 2
+  resistance: 0
+  mobility: 4
+  attackPattern: 0
+  attackRange: 1
+  damageSoundType: 0
+  directVision: 1
+  requireAlignedShot: 0
+  allowPerfectDiagonalShot: 0
+  hasMaxRange: 1
+  ignoreObstacles: 1
+  attackAlways: 0
+  flee: 0
+  maxFleeTurns: 2
+  attackFirst: 0
+  fleeThresholdPercent: 33
+  ignoreObstaclesForMovement: 1
+  canEndTurnOnObstacle: 1
+  advanceTowardsCharacterWhenAlreadyInRange: 0
+  attackDamageDelay: 0.5
+  multiplyAttackDamageDelayByDistance: 0
+  lookAtTargetWhenAttacking: 1
+  optionalActionType: 0
+  optionalHealAmount: 4
+  moveDuration: 0.16
+  projectileTravelHeight: 0.5
+  projectileTravelSpeed: 10
+  useFlyAnimationOnObstacle: 1
+  immuneToFire: 0
+  showAttack: 1
+  attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  showHealth: 1
+  showResistance: 0
+  showMobility: 1
+  showRegen: 0
+  regenPerTurn: 0
+  showSpecial: 1
+  specialStatSprite: {fileID: -220777179, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  specialStatValue: Fly
