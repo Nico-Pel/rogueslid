@@ -91,6 +91,12 @@ public class AssassinsRushAbility : AbilityDefinition
 
         yield return new WaitUntil(() => !character.IsMoving);
 
+        AbilityExecutionContext postMoveContext = new AbilityExecutionContext(
+            context.SourceAbility,
+            runtime,
+            context.OriginCell,
+            character.GridPosition);
+
         int tasteStacks = character.GetUpgradeStacks(AbilityUpgradeKey.AssassinsRushTasteOfBlood);
         if (tasteStacks > 0)
         {
@@ -98,7 +104,7 @@ public class AssassinsRushAbility : AbilityDefinition
             character.PlayFeedbackFx(tasteOfBloodBoostFxPrefab, destroyAfterSeconds: tasteOfBloodBoostFxDuration);
         }
 
-        ExecuteUnlockedSecondaryEffects(character, runtime, context, secondaryEffects, SecondaryEffectTiming.AfterMovement);
+        ExecuteUnlockedSecondaryEffects(character, runtime, postMoveContext, secondaryEffects, SecondaryEffectTiming.AfterMovement);
         PlayConfiguredFx(character);
         character.EndActionLock();
     }

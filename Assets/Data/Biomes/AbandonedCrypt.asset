@@ -56,6 +56,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 381dfde7e92c34304bfdbc769b153e6e, type: 2}
     - {fileID: 11400000, guid: 47224645d57694a33ba5427358a65f98, type: 2}
     - {fileID: 11400000, guid: 950dc48758b0248d2a822a0574d9fa0e, type: 2}
+    - {fileID: 11400000, guid: b62390ed6ef6a4f19be9aaa36d9e3b92, type: 2}
     minArenaCount: 5
     maxArenaCount: 1000
   spawnableEnemies:

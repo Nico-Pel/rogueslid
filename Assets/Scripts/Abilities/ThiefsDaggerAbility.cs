@@ -42,7 +42,44 @@ public class ThiefsDaggerAbility : AbilityDefinition
         }
 
         return (character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null)
-            || (character.Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null);
+            || (character.Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null)
+            || (character.Board.TryGetLichSkullObject(targetCell, out LichSkullObject lichSkull) && lichSkull != null);
+    }
+
+    public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
+    {
+        if (character == null || runtime == null || character.Board == null)
+        {
+            return false;
+        }
+
+        Vector2Int delta = targetCell - character.GridPosition;
+        bool isOrthogonal = delta.x == 0 || delta.y == 0;
+        if (!isOrthogonal)
+        {
+            return false;
+        }
+
+        int distance = Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+        int range = 1 + character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerLightStrike);
+        if (distance <= 0 || distance > range)
+        {
+            return false;
+        }
+
+        Vector2Int direction = new Vector2Int(Mathf.Clamp(delta.x, -1, 1), Mathf.Clamp(delta.y, -1, 1));
+        Vector2Int scan = character.GridPosition + direction;
+        while (scan != targetCell)
+        {
+            if (!character.Board.TryGetCell(scan, out BoardCell cell) || cell.HasBlockingTerrain || cell.IsOccupied)
+            {
+                return false;
+            }
+
+            scan += direction;
+        }
+
+        return character.Board.IsInsideBoard(targetCell);
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
@@ -98,6 +135,14 @@ public class ThiefsDaggerAbility : AbilityDefinition
         if (character.Board.TryGetBarrel(targetCell.Value, out BarrelObstacle barrel) && barrel != null)
         {
             character.DealDamageToBarrelWithAbilityTiming(this, barrel);
+            PlayConfiguredFx(character);
+            return true;
+        }
+
+        if (character.Board.TryGetLichSkullObject(targetCell.Value, out LichSkullObject lichSkull) && lichSkull != null)
+        {
+            int damage = baseDamage + 2 * character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade);
+            character.DealDamageToLichSkullWithAbilityTiming(this, lichSkull, damage, true, DamageSoundType.Sword, this);
             PlayConfiguredFx(character);
             return true;
         }

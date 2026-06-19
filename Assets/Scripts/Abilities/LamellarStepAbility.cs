@@ -13,6 +13,8 @@ public class LamellarStepAbility : AbilityDefinition
     [SerializeField] private float daggerProjectileSpeed = 14f;
     [SerializeField] private Vector3 daggerProjectileSpawnOffset = new Vector3(0f, 0.2f, 0f);
     [SerializeField] private Vector3 daggerProjectileImpactOffset = new Vector3(0f, 0.2f, 0f);
+    [SerializeField] private GameObject daggerMissImpactSoundPrefab;
+    [SerializeField] private GameObject daggerMissImpactFxPrefab;
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
@@ -65,10 +67,27 @@ public class LamellarStepAbility : AbilityDefinition
             return false;
         }
 
-        if (!character.TryTeleportTo(targetCell.Value))
+        character.StartCoroutine(ResolveLamellarStepSequence(character, runtime, targetCell.Value));
+        return true;
+    }
+
+    private IEnumerator ResolveLamellarStepSequence(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
+    {
+        if (character == null || runtime == null)
         {
-            return false;
+            yield break;
         }
+
+        character.BeginActionLock();
+
+        bool success = character.TryTeleportTo(targetCell);
+        if (!success)
+        {
+            character.EndActionLock();
+            yield break;
+        }
+
+        yield return new WaitUntil(() => !character.IsMoving);
 
         bool suppressDaggers = runtime.ConsumeSuppressNextPrimaryEffectOnce();
         bool hitAnyTarget = false;
@@ -89,7 +108,7 @@ public class LamellarStepAbility : AbilityDefinition
             {
                 Vector2Int direction = directions[index];
                 Vector2Int impactCell = GetLamellarDaggerImpactCell(character, direction, spectralDaggers);
-                TryPlayDaggerProjectile(character, direction, impactCell);
+                bool daggerHitEnemy = false;
 
                 Vector2Int scan = character.GridPosition + direction;
                 while (character.Board.IsInsideBoard(scan))
@@ -101,6 +120,7 @@ public class LamellarStepAbility : AbilityDefinition
                         {
                             hitAnyTarget = true;
                             hitEnemies.Add(enemy);
+                            daggerHitEnemy = true;
                             if (venomDaggers)
                             {
                                 enemy.ApplyStatusEffect(CombatStatusType.Poisoned, -1, 1);
@@ -120,6 +140,20 @@ public class LamellarStepAbility : AbilityDefinition
                             break;
                         }
                     }
+                    else if (character.Board.TryGetLichSkullObject(scan, out LichSkullObject lichSkull) && lichSkull != null)
+                    {
+                        int appliedDamage = character.DealDamageToLichSkull(lichSkull, daggerDamage, true, DamageSoundType.Sword, this);
+                        if (appliedDamage > 0)
+                        {
+                            hitAnyTarget = true;
+                            daggerHitEnemy = true;
+                        }
+
+                        if (!spectralDaggers)
+                        {
+                            break;
+                        }
+                    }
                     else if (character.Board.TryGetCell(scan, out BoardCell cell) && cell.HasBlockingTerrain)
                     {
                         if (!spectralDaggers)
@@ -130,6 +164,8 @@ public class LamellarStepAbility : AbilityDefinition
 
                     scan += directions[index];
                 }
+
+                TryPlayDaggerProjectile(character, direction, impactCell, !daggerHitEnemy);
             }
         }
 
@@ -140,7 +176,7 @@ public class LamellarStepAbility : AbilityDefinition
         }
 
         PlayConfiguredFx(character, hitEnemies);
-        return true;
+        character.EndActionLock();
     }
 
     private Vector2Int GetLamellarDaggerImpactCell(Character character, Vector2Int direction, bool spectralDaggers)
@@ -174,17 +210,17 @@ public class LamellarStepAbility : AbilityDefinition
         return lastInsideBoardCell;
     }
 
-    private void TryPlayDaggerProjectile(Character character, Vector2Int direction, Vector2Int impactCell)
+    private void TryPlayDaggerProjectile(Character character, Vector2Int direction, Vector2Int impactCell, bool playMissImpactSound)
     {
         if (daggerProjectilePrefab == null || character == null || character.Board == null || direction == Vector2Int.zero)
         {
             return;
         }
 
-        character.StartCoroutine(PlayDaggerProjectileRoutine(character, direction, impactCell));
+        character.StartCoroutine(PlayDaggerProjectileRoutine(character, direction, impactCell, playMissImpactSound));
     }
 
-    private IEnumerator PlayDaggerProjectileRoutine(Character character, Vector2Int direction, Vector2Int impactCell)
+    private IEnumerator PlayDaggerProjectileRoutine(Character character, Vector2Int direction, Vector2Int impactCell, bool playMissImpactSound)
     {
         if (character == null || character.Board == null || daggerProjectilePrefab == null)
         {
@@ -205,6 +241,27 @@ public class LamellarStepAbility : AbilityDefinition
         float duration = Mathf.Max(0.05f, travelDirection.magnitude / Mathf.Max(0.01f, daggerProjectileSpeed));
         Tween projectileTween = projectile.transform.DOMove(targetPosition, duration).SetEase(Ease.Linear);
         yield return projectileTween.WaitForCompletion();
+
+        if (playMissImpactSound)
+        {
+            if (daggerMissImpactFxPrefab != null)
+            {
+                GameObject impactFx = Instantiate(daggerMissImpactFxPrefab, targetPosition, daggerMissImpactFxPrefab.transform.rotation);
+                impactFx.transform.localScale = daggerMissImpactFxPrefab.transform.localScale;
+            }
+
+            if (daggerMissImpactSoundPrefab != null)
+            {
+                GameObject soundObject = Instantiate(daggerMissImpactSoundPrefab, targetPosition, daggerMissImpactSoundPrefab.transform.rotation);
+                soundObject.transform.localScale = daggerMissImpactSoundPrefab.transform.localScale;
+
+                SoundParameters soundParameters = soundObject.GetComponent<SoundParameters>();
+                if (soundParameters != null)
+                {
+                    soundParameters.PlaySound(targetPosition);
+                }
+            }
+        }
 
         if (projectile != null)
         {

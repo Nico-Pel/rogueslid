@@ -6091,6 +6091,7 @@ MonoBehaviour:
   rewardsMenu: {fileID: 1812770622}
   ignoreRewardsButton: {fileID: 33198323}
   targetCellIndicatorPrefab: {fileID: 8042334540551948529, guid: 9cddbc990c5cb49099f7f828099985d9, type: 3}
+  targetableOnlyCellIndicatorPrefab: {fileID: 8042334540551948529, guid: 6d9ad95e3b9c94a319b379b8b2766968, type: 3}
   enemyStatsMenu: {fileID: 785451636}
   characterStatsMenu: {fileID: 671293390}
   rewardCheckMenu: {fileID: 1521449815}
@@ -6133,6 +6134,7 @@ MonoBehaviour:
   switchAbilityConfirmButton: {fileID: 1915214061}
   switchAbilityCancelButton: {fileID: 306750972}
   statsMenuClickThreshold: 16
+  disableAbilityButtonsWithoutValidTargets: 0
 --- !u!1 &791968733
 GameObject:
   m_ObjectHideFlags: 0
@@ -15040,9 +15042,10 @@ MonoBehaviour:
   allowMirrorOnYAxis: 1
   mirrorOnYAxisChance: 0.5
   playerCharacterPrefab: {fileID: 7052028393415067872, guid: 307fa2897e7c9410dbef01b61d9d6007, type: 3}
-  useForcedDatas: 0
+  useForcedDatas: 1
   forcedBiome: {fileID: 11400000, guid: ba67df266692b434495b5d7877704ae4, type: 2}
-  forcedEnemyPoolDefinition: {fileID: 11400000, guid: 951a9b46a29034a53874eb25fc19f1c7, type: 2}
+  forcedEnemyPoolDefinition: {fileID: 11400000, guid: 3d1b193ee85b544c5ab9646c58b2034a, type: 2}
+  cheatRewardsCount: 19
   itemRewardDefinitions:
   - {fileID: 11400000, guid: c2030000000000000000000000000001, type: 2}
   - {fileID: 11400000, guid: c2030000000000000000000000000002, type: 2}

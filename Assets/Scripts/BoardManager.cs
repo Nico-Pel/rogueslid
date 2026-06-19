@@ -102,6 +102,8 @@ public class BoardManager : MonoBehaviour
     [SerializeField] private bool useForcedDatas;
     [SerializeField] private BiomeData forcedBiome;
     [SerializeField] private EnemyPoolDefinition forcedEnemyPoolDefinition;
+    [Min(1)]
+    [SerializeField] private int cheatRewardsCount = 1;
 #endif
 
     [Header("Rewards")]
@@ -128,6 +130,8 @@ public class BoardManager : MonoBehaviour
     private bool bonusRewardForCurrentArena;
     private readonly List<BoardHazard> spawnedHazards = new List<BoardHazard>();
     private readonly List<SkullObject> activeSkullObjects = new List<SkullObject>();
+    private readonly Dictionary<Enemy, HashSet<Enemy>> linkedSummonsByOwner = new Dictionary<Enemy, HashSet<Enemy>>();
+    private readonly Dictionary<Enemy, Enemy> summonOwnerByMinion = new Dictionary<Enemy, Enemy>();
     private EnemyPoolDefinition currentSelectedEnemyPool;
     private bool isResolvingSkullsForVictory;
     private static readonly int ColorShaderProperty = Shader.PropertyToID("_Color");
@@ -146,6 +150,25 @@ public class BoardManager : MonoBehaviour
     public GameObject DefaultSpawnFxPrefab => defaultEnemySpawnFxPrefab;
     public float DefaultSpawnFxLifetime => Mathf.Max(0f, defaultEnemySpawnFxLifetime);
     public event Action AllEnemiesDefeated;
+
+#if UNITY_EDITOR
+    public int CheatRewardsCount
+    {
+        get => Mathf.Max(1, cheatRewardsCount);
+        set => cheatRewardsCount = Mathf.Max(1, value);
+    }
+
+    public void RequestCheatRewardsFromInspector()
+    {
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
+        GameTurnManager turnManager = GetComponent<GameTurnManager>();
+        turnManager?.RequestDebugRewardChoices(CheatRewardsCount);
+    }
+#endif
 
     private enum ArenaMarker
     {
@@ -198,6 +221,8 @@ public class BoardManager : MonoBehaviour
         bonusRewardForCurrentArena = false;
         spawnedHazards.Clear();
         activeSkullObjects.Clear();
+        linkedSummonsByOwner.Clear();
+        summonOwnerByMinion.Clear();
         isResolvingSkullsForVictory = false;
 
         List<Vector2Int> playerSpawnCandidates = new List<Vector2Int>();
@@ -252,6 +277,8 @@ public class BoardManager : MonoBehaviour
         hasGeneratedBoardThisSession = false;
         currentSelectedEnemyPool = null;
         activeSkullObjects.Clear();
+        linkedSummonsByOwner.Clear();
+        summonOwnerByMinion.Clear();
         isResolvingSkullsForVictory = false;
         runRewardState = new PlayerRunRewardState();
         ApplyCurrentBiomeVisuals();
@@ -345,6 +372,12 @@ public class BoardManager : MonoBehaviour
         {
             if (cell.HasBlockingTerrain)
             {
+                if (allowUnitTraversal && IsTraversableGhostStepObstacle(cell))
+                {
+                    next += direction;
+                    continue;
+                }
+
                 break;
             }
 
@@ -373,6 +406,17 @@ public class BoardManager : MonoBehaviour
         }
 
         return lastFreeCell;
+    }
+
+    private static bool IsTraversableGhostStepObstacle(BoardCell cell)
+    {
+        if (cell == null || cell.StaticObstacle == null)
+        {
+            return false;
+        }
+
+        SkullObject skullObject = cell.StaticObstacle.GetComponent<SkullObject>();
+        return skullObject != null && !skullObject.IsResolving;
     }
 
     public bool MoveOccupant(Vector2Int from, Vector2Int to, BoardOccupantKind occupantKind, bool allowBlockedDestination = false)
@@ -787,6 +831,18 @@ public class BoardManager : MonoBehaviour
         return skullObject != null && !skullObject.IsResolving;
     }
 
+    public bool TryGetLichSkullObject(Vector2Int gridPosition, out LichSkullObject lichSkullObject)
+    {
+        lichSkullObject = null;
+        if (!TryGetCell(gridPosition, out BoardCell cell) || cell.StaticObstacle == null)
+        {
+            return false;
+        }
+
+        lichSkullObject = cell.StaticObstacle.GetComponent<LichSkullObject>();
+        return lichSkullObject != null && !lichSkullObject.IsResolving;
+    }
+
     public void ClearStaticObstacle(Vector2Int gridPosition, GameObject expectedObstacle = null)
     {
         if (!TryGetCell(gridPosition, out BoardCell cell))
@@ -821,6 +877,8 @@ public class BoardManager : MonoBehaviour
         }
 
         spawnedEnemies.Remove(enemy);
+        UnregisterLinkedSummon(enemy);
+        linkedSummonsByOwner.Remove(enemy);
 
         Vector2Int enemyPosition = enemy.GridPosition;
         if (TryGetCell(enemyPosition, out BoardCell cell) && cell.Occupant == enemy.gameObject)
@@ -897,6 +955,40 @@ public class BoardManager : MonoBehaviour
         return true;
     }
 
+    public bool SpawnLichSkull(Vector2Int gridPosition, LichEnemyData lichData, GameObject enemyPrefab, Enemy summoner)
+    {
+        if (lichData == null || lichData.LichSkullObjectPrefab == null || enemyPrefab == null)
+        {
+            return false;
+        }
+
+        if (!TryGetCell(gridPosition, out BoardCell cell) || cell.IsOccupied || cell.HasBlockingTerrain)
+        {
+            return false;
+        }
+
+        Vector3 spawnWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
+        if (defaultEnemySpawnFxPrefab != null)
+        {
+            GameObject spawnFx = Instantiate(defaultEnemySpawnFxPrefab, spawnWorldPosition, defaultEnemySpawnFxPrefab.transform.rotation, generatedRoot);
+            if (spawnFx != null && defaultEnemySpawnFxLifetime > 0f)
+            {
+                Destroy(spawnFx, defaultEnemySpawnFxLifetime);
+            }
+        }
+
+        GameObject skullObjectInstance = InstantiateOrCreate(
+            lichData.LichSkullObjectPrefab.gameObject,
+            $"LichSkull_{gridPosition.x}_{gridPosition.y}",
+            obstaclesRoot,
+            spawnWorldPosition);
+        LichSkullObject lichSkullObject = GetOrAddComponent<LichSkullObject>(skullObjectInstance);
+        lichSkullObject.Assign(this, gridPosition, enemyPrefab, summoner);
+        cell.SetStaticObstacle(skullObjectInstance, BoardCellType.Rock);
+        RegisterSkullObject(lichSkullObject);
+        return true;
+    }
+
     public bool ReviveSkeletonFromSkull(SkullObject skullObject, SkeletonEnemyData skeletonData)
     {
         if (skullObject == null || skeletonData == null)
@@ -932,6 +1024,82 @@ public class BoardManager : MonoBehaviour
         cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
         player?.ControlledCharacter?.HandleEnemyCountChanged(spawnedEnemies.Count);
         return true;
+    }
+
+    public bool ReviveEnemyFromLichSkull(LichSkullObject skullObject, GameObject enemyPrefab, Enemy summoner)
+    {
+        if (skullObject == null || enemyPrefab == null)
+        {
+            return false;
+        }
+
+        if (!TryGetCell(skullObject.GridPosition, out BoardCell cell) || cell.IsOccupied)
+        {
+            return false;
+        }
+
+        Vector3 spawnWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
+        if (defaultEnemySpawnFxPrefab != null)
+        {
+            GameObject spawnFx = Instantiate(defaultEnemySpawnFxPrefab, spawnWorldPosition, defaultEnemySpawnFxPrefab.transform.rotation, generatedRoot);
+            if (spawnFx != null && defaultEnemySpawnFxLifetime > 0f)
+            {
+                Destroy(spawnFx, defaultEnemySpawnFxLifetime);
+            }
+        }
+
+        GameObject enemyObject = InstantiateOrCreate(
+            enemyPrefab,
+            $"Enemy_{skullObject.GridPosition.x}_{skullObject.GridPosition.y}_LichSummon",
+            enemiesRoot,
+            spawnWorldPosition);
+        Enemy enemy = GetOrAddComponent<Enemy>(enemyObject);
+        enemy.Assign(skullObject.GridPosition, this);
+        enemy.SetLinkedSummoner(summoner);
+        enemy.PlayReviveAnimation();
+        spawnedEnemies.Add(enemy);
+        cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
+        RegisterLinkedSummon(summoner, enemy);
+        player?.ControlledCharacter?.HandleEnemyCountChanged(spawnedEnemies.Count);
+        return true;
+    }
+
+    public void RegisterLinkedSummon(Enemy owner, Enemy summon)
+    {
+        if (owner == null || summon == null)
+        {
+            return;
+        }
+
+        if (!linkedSummonsByOwner.TryGetValue(owner, out HashSet<Enemy> summons))
+        {
+            summons = new HashSet<Enemy>();
+            linkedSummonsByOwner[owner] = summons;
+        }
+
+        summons.Add(summon);
+        summonOwnerByMinion[summon] = owner;
+    }
+
+    public void HandleLinkedSummonsForDeadOwner(Enemy owner)
+    {
+        if (owner == null || !linkedSummonsByOwner.TryGetValue(owner, out HashSet<Enemy> summons) || summons == null)
+        {
+            return;
+        }
+
+        linkedSummonsByOwner.Remove(owner);
+        List<Enemy> summonSnapshot = new List<Enemy>(summons);
+        for (int index = 0; index < summonSnapshot.Count; index++)
+        {
+            Enemy summon = summonSnapshot[index];
+            if (summon == null)
+            {
+                continue;
+            }
+
+            summon.ForceEliminateLinkedSummon();
+        }
     }
 
     private bool IsSightBlockedCell(Vector2Int gridPosition, Vector2Int targetCell)
@@ -1640,6 +1808,26 @@ public class BoardManager : MonoBehaviour
             }
 
             skullObject.ShatterForVictory();
+        }
+    }
+
+    private void UnregisterLinkedSummon(Enemy summon)
+    {
+        if (summon == null || !summonOwnerByMinion.TryGetValue(summon, out Enemy owner))
+        {
+            return;
+        }
+
+        summonOwnerByMinion.Remove(summon);
+        if (owner == null || !linkedSummonsByOwner.TryGetValue(owner, out HashSet<Enemy> summons))
+        {
+            return;
+        }
+
+        summons.Remove(summon);
+        if (summons.Count == 0)
+        {
+            linkedSummonsByOwner.Remove(owner);
         }
     }
 

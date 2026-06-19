@@ -34,6 +34,7 @@ public class EnemyData : ScriptableObject
     [Min(0)]
     [SerializeField] private int maxFleeTurns = 2;
     [SerializeField] private bool attackFirst;
+    [SerializeField] private bool fleeAfterAttacking;
     [Range(0f, 100f)]
     [SerializeField] private float fleeThresholdPercent;
     [SerializeField] private bool ignoreObstaclesForMovement;
@@ -87,6 +88,7 @@ public class EnemyData : ScriptableObject
     public bool Flee => flee;
     public int MaxFleeTurns => Mathf.Max(0, maxFleeTurns);
     public bool AttackFirst => attackFirst;
+    public bool FleeAfterAttacking => fleeAfterAttacking;
     public float FleeThresholdPercent => Mathf.Clamp(fleeThresholdPercent, 0f, 100f);
     public bool IgnoreObstaclesForMovement => ignoreObstaclesForMovement;
     public bool CanEndTurnOnObstacle => canEndTurnOnObstacle;

@@ -21,6 +21,7 @@ public class UIGame : MonoBehaviour
     [SerializeField] private GameObject rewardsMenu;
     [SerializeField] private Button ignoreRewardsButton;
     [SerializeField] private GameObject targetCellIndicatorPrefab;
+    [SerializeField] private GameObject targetableOnlyCellIndicatorPrefab;
     [SerializeField] private UnitStatsMenuUI enemyStatsMenu;
     [SerializeField] private UnitStatsMenuUI characterStatsMenu;
     [SerializeField] private GameObject rewardCheckMenu;
@@ -51,6 +52,7 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button switchAbilityConfirmButton;
     [SerializeField] private Button switchAbilityCancelButton;
     [SerializeField] private float statsMenuClickThreshold = 16f;
+    [SerializeField] private bool disableAbilityButtonsWithoutValidTargets = false;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
     private readonly List<GameObject> itemIcons = new List<GameObject>();
@@ -58,6 +60,7 @@ public class UIGame : MonoBehaviour
     private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
     private readonly List<RewardButtonUI> rewardCards = new List<RewardButtonUI>();
     private readonly List<GameObject> targetCellIndicators = new List<GameObject>();
+    private readonly List<GameObject> targetableOnlyCellIndicators = new List<GameObject>();
     private Character observedCharacter;
     private Action<RewardOffer> onRewardSelected;
     private Action onRewardsIgnored;
@@ -77,6 +80,8 @@ public class UIGame : MonoBehaviour
     private Action onYesNoAccepted;
     private Action onYesNoDeclined;
     private Action onRetryRequested;
+    private float targetableOnlyCellIndicatorDuration = 1f;
+    private Coroutine clearTargetableOnlyIndicatorsCoroutine;
 
     private void Awake()
     {
@@ -206,6 +211,7 @@ public class UIGame : MonoBehaviour
             gameTurnManager.TurnChanged += HandleTurnChanged;
             gameTurnManager.PendingAbilityChanged += HandlePendingAbilityChanged;
             gameTurnManager.EndTurnAvailabilityChanged += HandleEndTurnAvailabilityChanged;
+            gameTurnManager.NoValidTargetFeedbackRequested += HandleNoValidTargetFeedbackRequested;
             HandleTurnChanged(gameTurnManager.CurrentTurn);
         }
 
@@ -219,9 +225,11 @@ public class UIGame : MonoBehaviour
             gameTurnManager.TurnChanged -= HandleTurnChanged;
             gameTurnManager.PendingAbilityChanged -= HandlePendingAbilityChanged;
             gameTurnManager.EndTurnAvailabilityChanged -= HandleEndTurnAvailabilityChanged;
+            gameTurnManager.NoValidTargetFeedbackRequested -= HandleNoValidTargetFeedbackRequested;
         }
 
         ClearTargetCellIndicators();
+        ClearTargetableOnlyCellIndicators();
         UnbindCharacter();
     }
 
@@ -476,6 +484,10 @@ public class UIGame : MonoBehaviour
     {
         RefreshAbilityButtons();
         RefreshTargetCellIndicators();
+        if (abilityIndex >= 0)
+        {
+            ClearTargetableOnlyCellIndicators();
+        }
     }
 
     private void HandleEndTurnAvailabilityChanged(bool isAvailable)
@@ -600,6 +612,8 @@ public class UIGame : MonoBehaviour
         {
             return false;
         }
+
+        ClearTargetableOnlyCellIndicators();
 
         if (abilityCheckMenu != null && abilityCheckMenu.activeSelf)
         {
@@ -790,6 +804,25 @@ public class UIGame : MonoBehaviour
         }
 
         targetCellIndicators.Clear();
+    }
+
+    private void ClearTargetableOnlyCellIndicators()
+    {
+        if (clearTargetableOnlyIndicatorsCoroutine != null)
+        {
+            StopCoroutine(clearTargetableOnlyIndicatorsCoroutine);
+            clearTargetableOnlyIndicatorsCoroutine = null;
+        }
+
+        for (int index = 0; index < targetableOnlyCellIndicators.Count; index++)
+        {
+            if (targetableOnlyCellIndicators[index] != null)
+            {
+                Destroy(targetableOnlyCellIndicators[index]);
+            }
+        }
+
+        targetableOnlyCellIndicators.Clear();
     }
 
     private void CacheAbilityButtons()
@@ -1285,7 +1318,55 @@ public class UIGame : MonoBehaviour
             }
 
             button.Setup(gameTurnManager, observedCharacter, index, HandleAbilityButtonPrimaryClick, HandleAbilityButtonLongPress);
+
+            CharacterAbilityRuntime runtime = observedCharacter != null ? observedCharacter.GetAbilityForSlot(index) : null;
+            bool hasValidTarget = !disableAbilityButtonsWithoutValidTargets
+                || runtime == null
+                || gameTurnManager == null
+                || gameTurnManager.HasAnyUsableTarget(observedCharacter, runtime);
+            button.SetHasAnyValidTarget(hasValidTarget);
         }
+    }
+
+    private void HandleNoValidTargetFeedbackRequested(CharacterAbilityRuntime runtime)
+    {
+        if (runtime?.Definition == null || observedCharacter == null || gameTurnManager?.Board == null || targetableOnlyCellIndicatorPrefab == null)
+        {
+            return;
+        }
+
+        ClearTargetableOnlyCellIndicators();
+
+        BoardManager board = gameTurnManager.Board;
+        for (int x = 0; x < board.Width; x++)
+        {
+            for (int y = 0; y < board.Height; y++)
+            {
+                Vector2Int cell = new Vector2Int(x, y);
+                if (!runtime.Definition.CanShowPotentialTargetCell(observedCharacter, runtime, cell))
+                {
+                    continue;
+                }
+
+                Vector3 spawnPosition = board.GridToWorldPosition(cell);
+                GameObject indicator = Instantiate(targetableOnlyCellIndicatorPrefab, spawnPosition, targetableOnlyCellIndicatorPrefab.transform.rotation, board.transform);
+                indicator.name = $"{targetableOnlyCellIndicatorPrefab.name}_{cell.x}_{cell.y}";
+                indicator.transform.localScale = targetableOnlyCellIndicatorPrefab.transform.localScale;
+                targetableOnlyCellIndicators.Add(indicator);
+            }
+        }
+
+        if (targetableOnlyCellIndicators.Count > 0)
+        {
+            clearTargetableOnlyIndicatorsCoroutine = StartCoroutine(ClearTargetableOnlyCellIndicatorsAfterDelay());
+        }
+    }
+
+    private System.Collections.IEnumerator ClearTargetableOnlyCellIndicatorsAfterDelay()
+    {
+        yield return new WaitForSeconds(targetableOnlyCellIndicatorDuration);
+        clearTargetableOnlyIndicatorsCoroutine = null;
+        ClearTargetableOnlyCellIndicators();
     }
 
     private void RefreshItemsList()

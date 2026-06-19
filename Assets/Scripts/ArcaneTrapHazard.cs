@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class ArcaneTrapHazard : BoardHazard
 {
@@ -12,9 +13,12 @@ public class ArcaneTrapHazard : BoardHazard
     }
 
     [SerializeField] private GameObject warningFxPrefab;
-    [SerializeField] private GameObject activeFxPrefab;
+    [FormerlySerializedAs("activeFxPrefab")]
+    [SerializeField] private GameObject trapObjPrefab;
     [SerializeField] private float warningFxLifetime;
-    [SerializeField] private float activeFxLifetime;
+    [SerializeField] private float trapObjLifetime;
+    [SerializeField] private string trapActionTriggerParameter = "Action";
+    [SerializeField] private float enemyTriggerDelay = 0.15f;
     [SerializeField] private int baseDamage = 4;
     [SerializeField] private int activePlayerTurnDuration = 1;
     [SerializeField] private int eruptionBonusDamage;
@@ -26,7 +30,7 @@ public class ArcaneTrapHazard : BoardHazard
     private int playerTurnStartsUntilActivation = 1;
     private int remainingActivePlayerTurnStarts = 1;
     private GameObject warningFxInstance;
-    private GameObject activeFxInstance;
+    private GameObject trapObjInstance;
     private bool isResolving;
 
     public override bool IsVisibleToEnemies => phase == TrapPhase.Active;
@@ -37,7 +41,7 @@ public class ArcaneTrapHazard : BoardHazard
         Vector2Int targetGridPosition,
         AbilityDefinition abilityDefinition,
         GameObject warningPrefab,
-        GameObject activePrefab,
+        GameObject trapPrefab,
         int damage,
         int sustainStacks,
         int eruptionBonus,
@@ -47,7 +51,7 @@ public class ArcaneTrapHazard : BoardHazard
         Assign(targetBoard, targetOwner, targetGridPosition);
         sourceAbility = abilityDefinition;
         warningFxPrefab = warningPrefab;
-        activeFxPrefab = activePrefab;
+        trapObjPrefab = trapPrefab;
         baseDamage = Mathf.Max(1, damage);
         activePlayerTurnDuration = Mathf.Max(1, 1 + sustainStacks);
         eruptionBonusDamage = Mathf.Max(0, eruptionBonus);
@@ -79,6 +83,7 @@ public class ArcaneTrapHazard : BoardHazard
             }
 
             phase = TrapPhase.Active;
+            remainingActivePlayerTurnStarts = Mathf.Max(1, activePlayerTurnDuration);
             RefreshVisuals();
 
             if (board != null && board.TryGetEnemy(gridPosition, out Enemy enemy) && enemy != null)
@@ -119,7 +124,19 @@ public class ArcaneTrapHazard : BoardHazard
             return;
         }
 
-        Trigger(enemy, 0);
+        enemy.BeginMovementInterrupt();
+        StartCoroutine(TriggerEnemyAfterDelay(enemy));
+    }
+
+    private System.Collections.IEnumerator TriggerEnemyAfterDelay(Enemy enemy)
+    {
+        yield return new WaitForSeconds(Mathf.Max(0f, enemyTriggerDelay));
+
+        if (enemy != null)
+        {
+            Trigger(enemy, 0);
+            enemy.EndMovementInterrupt();
+        }
     }
 
     private void Trigger(Enemy primaryEnemy, int bonusDamage)
@@ -131,6 +148,7 @@ public class ArcaneTrapHazard : BoardHazard
 
         isResolving = true;
         phase = TrapPhase.Expired;
+        PlayTrapActivationAnimation();
 
         int totalDamage = baseDamage + Mathf.Max(0, bonusDamage);
         HashSet<Enemy> affectedEnemies = new HashSet<Enemy>();
@@ -178,7 +196,7 @@ public class ArcaneTrapHazard : BoardHazard
     private void RefreshVisuals()
     {
         ClearVisual(ref warningFxInstance);
-        ClearVisual(ref activeFxInstance);
+        ClearVisual(ref trapObjInstance);
 
         switch (phase)
         {
@@ -186,9 +204,26 @@ public class ArcaneTrapHazard : BoardHazard
                 warningFxInstance = SpawnVisual(warningFxPrefab, warningFxLifetime);
                 break;
             case TrapPhase.Active:
-                activeFxInstance = SpawnVisual(activeFxPrefab, activeFxLifetime);
+                trapObjInstance = SpawnVisual(trapObjPrefab, trapObjLifetime);
                 break;
         }
+    }
+
+    private void PlayTrapActivationAnimation()
+    {
+        if (trapObjInstance == null || string.IsNullOrWhiteSpace(trapActionTriggerParameter))
+        {
+            return;
+        }
+
+        Animator trapAnimator = trapObjInstance.GetComponentInChildren<Animator>();
+        if (trapAnimator == null)
+        {
+            return;
+        }
+
+        trapAnimator.ResetTrigger(trapActionTriggerParameter);
+        trapAnimator.SetTrigger(trapActionTriggerParameter);
     }
 
     private GameObject SpawnVisual(GameObject prefab, float lifetime)
@@ -223,7 +258,7 @@ public class ArcaneTrapHazard : BoardHazard
     {
         phase = TrapPhase.Expired;
         ClearVisual(ref warningFxInstance);
-        ClearVisual(ref activeFxInstance);
+        ClearVisual(ref trapObjInstance);
         board?.UnregisterHazard(this);
         Destroy(gameObject);
     }

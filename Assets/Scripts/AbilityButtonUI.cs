@@ -27,6 +27,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private ActiveIndicator activeIndicatorEffect;
     private Func<AbilityButtonUI, bool> clickInterceptor;
     private Action<AbilityButtonUI> longPressCallback;
+    private bool hasAnyValidTarget = true;
     private bool isPointerDown;
     private bool longPressTriggered;
     private bool suppressNextClick;
@@ -77,6 +78,12 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         Refresh();
     }
 
+    public void SetHasAnyValidTarget(bool value)
+    {
+        hasAnyValidTarget = value;
+        Refresh();
+    }
+
     public void Clear()
     {
         character = null;
@@ -99,7 +106,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         SetEmptyState(!hasAbility);
 
         bool isPlayerTurn = gameTurnManager != null && gameTurnManager.CurrentTurn == TurnSide.Player;
-        bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character);
+        bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character) && hasAnyValidTarget;
         bool isTargetingThis = hasAbility && gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex;
         bool isOnCooldown = hasAbility && runtime.RemainingCooldown > 0;
         bool showUsageCount = hasAbility

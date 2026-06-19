@@ -41,4 +41,4 @@ MonoBehaviour:
   baseRange: 4
   baseDamage: 4
   warningFxPrefab: {fileID: 5277658378885244339, guid: 102687219073549e88934d118ced6617, type: 3}
-  activeFxPrefab: {fileID: 6160909684301080723, guid: 1fbae4ab4a7ff4e2aac46df2ad4ff117, type: 3}
+  trapObjPrefab: {fileID: 7427215277468621290, guid: 2cbc42612a12c421abce8d5ec4ca51fd, type: 3}

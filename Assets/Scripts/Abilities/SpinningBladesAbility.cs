@@ -40,6 +40,11 @@ public class SpinningBladesAbility : AbilityDefinition
                         barrel.TakeHit();
                         hitAtLeastOneEnemy = true;
                     }
+                    else if (character.Board.TryGetLichSkullObject(cell, out LichSkullObject lichSkull) && lichSkull != null)
+                    {
+                        character.DealDamageToLichSkull(lichSkull, damage, true, DamageSoundType.Sword, this);
+                        hitAtLeastOneEnemy = true;
+                    }
 
                     continue;
                 }

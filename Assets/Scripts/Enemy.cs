@@ -52,6 +52,7 @@ public class Enemy : MonoBehaviour
     [Min(0)]
     [ReadOnly] [SerializeField] private int maxFleeTurns = 2;
     [ReadOnly] [SerializeField] private bool attackFirst;
+    [ReadOnly] [SerializeField] private bool fleeAfterAttacking;
     [ReadOnly] [SerializeField] [Range(0f, 100f)] private float fleeThresholdPercent;
     [ReadOnly] [SerializeField] private bool ignoreObstaclesForMovement;
     [ReadOnly] [SerializeField] private bool canEndTurnOnObstacle;
@@ -117,7 +118,11 @@ public class Enemy : MonoBehaviour
     private int forceModifierFromStatuses;
     private AnimatorOverrideController enemyAnimatorOverrideController;
     private DragoonRiderEnemyData dragoonRiderData;
+    private LichEnemyData lichData;
     private Transform fireBallSpawnPos;
+    private int movementInterruptCount;
+    private int combatTurnCount;
+    private Enemy linkedSummoner;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -130,6 +135,7 @@ public class Enemy : MonoBehaviour
     public EnemyAttackPattern AttackPattern => attackPattern;
     public DamageSoundType DamageSoundType => damageSoundType;
     public bool IsMoving { get; private set; }
+    public bool IsMovementInterrupted => movementInterruptCount > 0;
     public BoardManager Board { get; private set; }
     public Transform EffectAnchor => deathMarkAnchor != null ? deathMarkAnchor : transform;
     public EnemyData Data => enemyData;
@@ -170,6 +176,7 @@ public class Enemy : MonoBehaviour
         flee = enemyData.Flee;
         maxFleeTurns = enemyData.MaxFleeTurns;
         attackFirst = enemyData.AttackFirst;
+        fleeAfterAttacking = enemyData.FleeAfterAttacking;
         fleeThresholdPercent = enemyData.FleeThresholdPercent;
         ignoreObstaclesForMovement = enemyData.IgnoreObstaclesForMovement;
         canEndTurnOnObstacle = enemyData.CanEndTurnOnObstacle;
@@ -185,6 +192,7 @@ public class Enemy : MonoBehaviour
         projectileTravelSpeed = enemyData.ProjectileTravelSpeed;
         useFlyAnimationOnObstacle = enemyData.UseFlyAnimationOnObstacle;
         dragoonRiderData = enemyData as DragoonRiderEnemyData;
+        lichData = enemyData as LichEnemyData;
         if (dragoonRiderData != null && dragoonRiderData.AttackSourceClip != null)
         {
             attackStateSourceClip = dragoonRiderData.AttackSourceClip;
@@ -221,8 +229,15 @@ public class Enemy : MonoBehaviour
         SnapToGrid();
         consecutiveFleeTurns = 0;
         fleePermanentlyDisabled = false;
+        combatTurnCount = 0;
+        linkedSummoner = null;
         RefreshFlyingAnimationState();
         PlayBodySpawnTween();
+    }
+
+    public void SetLinkedSummoner(Enemy summoner)
+    {
+        linkedSummoner = summoner;
     }
 
     public void SetDeathMarkActive(bool isActive)
@@ -375,6 +390,12 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
+        if (lichData != null)
+        {
+            yield return ExecuteLichTurn(target);
+            yield break;
+        }
+
         int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
@@ -408,6 +429,11 @@ public class Enemy : MonoBehaviour
             if (CanAttackTargetFrom(gridPosition, target, attackAlways))
             {
                 yield return AttackIfPossible(target, attackAlways);
+                if (fleeAfterAttacking)
+                {
+                    yield return ExecutePostAttackFlee(target, effectiveMobility);
+                    yield break;
+                }
             }
             else
             {
@@ -432,8 +458,7 @@ public class Enemy : MonoBehaviour
                 break;
             }
 
-            yield return new WaitUntil(() => !IsMoving);
-            yield return new WaitForSeconds(0.05f);
+            yield return WaitForMovementStepResolution();
         }
 
         if (!attackFirst)
@@ -441,6 +466,11 @@ public class Enemy : MonoBehaviour
             if (CanAttackTargetFrom(gridPosition, target, attackAlways))
             {
                 yield return AttackIfPossible(target, attackAlways);
+                if (fleeAfterAttacking)
+                {
+                    yield return ExecutePostAttackFlee(target, effectiveMobility);
+                    yield break;
+                }
             }
             else
             {
@@ -456,6 +486,149 @@ public class Enemy : MonoBehaviour
         {
             consecutiveFleeTurns = 0;
         }
+    }
+
+    private IEnumerator ExecuteLichTurn(Character target)
+    {
+        if (Board == null || target == null || lichData == null)
+        {
+            yield break;
+        }
+
+        int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
+        pendingMobilityPenalty = 0;
+
+        ProcessStartOfTurnStatusEffects();
+        if (isDying || currentHealth <= 0)
+        {
+            yield break;
+        }
+
+        combatTurnCount++;
+        if (ShouldUseLichSummonTurn())
+        {
+            consecutiveFleeTurns = 0;
+            yield return PerformLichSummonTurn();
+            yield break;
+        }
+
+        bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
+        {
+            persistentFleeBehaviour = false;
+            flee = false;
+            fleePermanentlyDisabled = true;
+            consecutiveFleeTurns = 0;
+        }
+
+        if (persistentFleeBehaviour && ShouldStopFleePermanently(target))
+        {
+            persistentFleeBehaviour = false;
+            flee = false;
+            fleePermanentlyDisabled = true;
+            consecutiveFleeTurns = 0;
+        }
+
+        bool temporaryFleeMove = attackFirst && attackAlways && !persistentFleeBehaviour;
+
+        if (attackFirst)
+        {
+            if (CanAttackTargetFrom(gridPosition, target, attackAlways))
+            {
+                yield return AttackIfPossible(target, attackAlways);
+                if (fleeAfterAttacking)
+                {
+                    yield return ExecutePostAttackFlee(target, effectiveMobility);
+                    yield break;
+                }
+            }
+            else
+            {
+                yield return TryPerformOptionalAction();
+            }
+        }
+
+        bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
+        List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
+        for (int step = 0; step < plannedPath.Count; step++)
+        {
+            if (!useFleeBehaviour
+                && CanAttackTargetFrom(gridPosition, target, false)
+                && !advanceTowardsCharacterWhenAlreadyInRange)
+            {
+                break;
+            }
+
+            bool moved = TryMoveToPlannedStep(plannedPath[step]);
+            if (!moved)
+            {
+                break;
+            }
+
+            yield return WaitForMovementStepResolution();
+        }
+
+        if (!attackFirst)
+        {
+            if (CanAttackTargetFrom(gridPosition, target, attackAlways))
+            {
+                yield return AttackIfPossible(target, attackAlways);
+                if (fleeAfterAttacking)
+                {
+                    yield return ExecutePostAttackFlee(target, effectiveMobility);
+                    yield break;
+                }
+            }
+            else
+            {
+                yield return TryPerformOptionalAction();
+            }
+        }
+
+        if (persistentFleeBehaviour)
+        {
+            consecutiveFleeTurns++;
+        }
+        else
+        {
+            consecutiveFleeTurns = 0;
+        }
+    }
+
+    private IEnumerator ExecutePostAttackFlee(Character target, int movementPointsToSpend)
+    {
+        if (Board == null || target == null || movementPointsToSpend <= 0)
+        {
+            yield break;
+        }
+
+        List<Vector2Int> fleePath = BuildMovementPlan(target, true, movementPointsToSpend);
+        for (int step = 0; step < fleePath.Count; step++)
+        {
+            bool moved = TryMoveToPlannedStep(fleePath[step]);
+            if (!moved)
+            {
+                yield break;
+            }
+
+            yield return WaitForMovementStepResolution();
+        }
+    }
+
+    public void BeginMovementInterrupt()
+    {
+        movementInterruptCount++;
+    }
+
+    public void EndMovementInterrupt()
+    {
+        movementInterruptCount = Mathf.Max(0, movementInterruptCount - 1);
+    }
+
+    private IEnumerator WaitForMovementStepResolution()
+    {
+        yield return new WaitUntil(() => !IsMoving && !IsMovementInterrupted);
+        yield return new WaitForSeconds(0.05f);
     }
 
     private List<Vector2Int> BuildMovementPlan(Character target, bool useFleeBehaviour, int maxSteps)
@@ -2065,8 +2238,7 @@ public class Enemy : MonoBehaviour
                 yield break;
             }
 
-            yield return new WaitUntil(() => !IsMoving);
-            yield return new WaitForSeconds(0.05f);
+            yield return WaitForMovementStepResolution();
         }
     }
 
@@ -2345,6 +2517,99 @@ public class Enemy : MonoBehaviour
                 yield return new WaitForSeconds(dragoonRiderData.DelayBetweenFireballs);
             }
         }
+    }
+
+    private bool ShouldUseLichSummonTurn()
+    {
+        if (lichData == null)
+        {
+            return false;
+        }
+
+        if (combatTurnCount <= 1)
+        {
+            return true;
+        }
+
+        int interval = lichData.SummonIntervalTurns;
+        return interval > 0 && ((combatTurnCount - 1) % interval) == 0;
+    }
+
+    private IEnumerator PerformLichSummonTurn()
+    {
+        if (lichData == null || Board == null)
+        {
+            yield break;
+        }
+
+        TriggerOptionalActionAnimation();
+        if (lichData.SummonDelayBeforeSkulls > 0f)
+        {
+            yield return new WaitForSeconds(lichData.SummonDelayBeforeSkulls);
+        }
+
+        List<Vector2Int> freeCells = GetRandomFreeCellsForLichSkulls(lichData.SummonedSkullCount);
+        IReadOnlyList<GameObject> summonablePrefabs = lichData.SummonableEnemyPrefabs;
+        for (int index = 0; index < freeCells.Count; index++)
+        {
+            if (summonablePrefabs == null || summonablePrefabs.Count == 0)
+            {
+                yield break;
+            }
+
+            GameObject summonedEnemyPrefab = summonablePrefabs[UnityEngine.Random.Range(0, summonablePrefabs.Count)];
+            if (summonedEnemyPrefab == null)
+            {
+                continue;
+            }
+
+            Board.SpawnLichSkull(freeCells[index], lichData, summonedEnemyPrefab, this);
+            if (index < freeCells.Count - 1 && lichData.DelayBetweenSummonedSkulls > 0f)
+            {
+                yield return new WaitForSeconds(lichData.DelayBetweenSummonedSkulls);
+            }
+        }
+    }
+
+    private List<Vector2Int> GetRandomFreeCellsForLichSkulls(int desiredCount)
+    {
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        if (Board == null || desiredCount <= 0)
+        {
+            return candidates;
+        }
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (!Board.TryGetCell(cellPosition, out BoardCell cell))
+                {
+                    continue;
+                }
+
+                if (cell.IsOccupied || cell.HasBlockingTerrain || cell.Hazard != null)
+                {
+                    continue;
+                }
+
+                candidates.Add(cellPosition);
+            }
+        }
+
+        for (int index = candidates.Count - 1; index > 0; index--)
+        {
+            int swapIndex = UnityEngine.Random.Range(0, index + 1);
+            (candidates[index], candidates[swapIndex]) = (candidates[swapIndex], candidates[index]);
+        }
+
+        if (candidates.Count > desiredCount)
+        {
+            candidates.RemoveRange(desiredCount, candidates.Count - desiredCount);
+        }
+
+        return candidates;
     }
 
     private bool TryGetRandomFreeNonFireCell(out Vector2Int targetCell)
@@ -2789,6 +3054,16 @@ public class Enemy : MonoBehaviour
 
     private void Die()
     {
+        DieInternal(true, true);
+    }
+
+    public void ForceEliminateLinkedSummon()
+    {
+        DieInternal(false, false);
+    }
+
+    private void DieInternal(bool allowSpecialDeathSpawn, bool resolveOwnedLinkedSummons)
+    {
         if (isDying)
         {
             return;
@@ -2797,7 +3072,16 @@ public class Enemy : MonoBehaviour
         isDying = true;
         ClearDeathMarkFx();
         SpawnDeathFx();
-        Board?.SpawnSkeletonSkull(this);
+        if (resolveOwnedLinkedSummons)
+        {
+            Board?.HandleLinkedSummonsForDeadOwner(this);
+        }
+
+        if (allowSpecialDeathSpawn)
+        {
+            Board?.SpawnSkeletonSkull(this);
+        }
+
         if (Board != null)
         {
             Board.RemoveEnemy(this);

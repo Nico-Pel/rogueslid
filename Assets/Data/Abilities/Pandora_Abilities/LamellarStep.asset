@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityName: Lamellar Step
   icon: {fileID: 13578382, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
   category: 1
-  attackAnimationClip: {fileID: 7400000, guid: 33a959b33d4c045a0a539b82b228aae7, type: 2}
+  attackAnimationClip: {fileID: 0}
   linkedUpgradeRewards:
   - {fileID: 11400000, guid: c2020000000000000000000000000031, type: 2}
   - {fileID: 11400000, guid: c2020000000000000000000000000032, type: 2}
@@ -26,7 +26,14 @@ MonoBehaviour:
   cooldownTurns: 1
   consumesMovementPoint: 0
   isToggle: 0
-  fxSpawns: []
+  fxSpawns:
+  - fxPrefab: {fileID: 1899072520979101167, guid: 2c1e4056a710344af98cc9dc9c04d6ba, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 0
+    spawnAnchor: 0
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 0
   damageApplyDelay: 0
   damageDelayDistanceMultiplier: 1
   damageFxOverridePrefab: {fileID: 0}
@@ -43,3 +50,5 @@ MonoBehaviour:
   daggerProjectileSpeed: 14
   daggerProjectileSpawnOffset: {x: 0, y: 0.2, z: 0}
   daggerProjectileImpactOffset: {x: 0, y: 0.2, z: 0}
+  daggerMissImpactSoundPrefab: {fileID: 438535622983110001, guid: 6b6c4eaf82654b4ca6a8bd7de3aa0f61, type: 3}
+  daggerMissImpactFxPrefab: {fileID: 2437521943299138319, guid: 3390ef3d330754d96b72ea024e1a04b9, type: 3}

@@ -145,6 +145,11 @@ public abstract class AbilityDefinition : ScriptableObject
         return CanActivate(character, runtime);
     }
 
+    public virtual bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
+    {
+        return false;
+    }
+
     public virtual bool AllowsUnitTraversal(Character character, CharacterAbilityRuntime runtime)
     {
         return false;

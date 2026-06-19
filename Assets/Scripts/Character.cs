@@ -109,6 +109,7 @@ public class Character : MonoBehaviour
     private GameObject nextAttackBonusAuraPrefab;
     private GameObject activeNextAttackBonusAuraInstance;
     private Enemy markedEnemy;
+    private LichSkullObject markedLichSkull;
     private DeathMarkAbility deathMarkAbility;
     private int actionLockCount;
     private readonly Dictionary<AbilityDefinition, HashSet<Enemy>> abilityTargetsHitThisTurn = new Dictionary<AbilityDefinition, HashSet<Enemy>>();
@@ -189,6 +190,7 @@ public class Character : MonoBehaviour
         abilityTargetsHitThisTurn.Clear();
         activeItemStates.Clear();
         markedEnemy = null;
+        markedLichSkull = null;
         deathMarkAbility = null;
         SnapToGrid();
         ResetTurn();
@@ -231,6 +233,7 @@ public class Character : MonoBehaviour
         enemyTurnInProgress = false;
         abilityTargetsHitThisTurn.Clear();
         markedEnemy = null;
+        markedLichSkull = null;
         deathMarkAbility = null;
 
         InitializeAbilities(runRewardState != null ? runRewardState.GetEquippedAbilities() : GetStartingAbilityDefinitions());
@@ -771,6 +774,19 @@ public class Character : MonoBehaviour
             }
         }
 
+        if (markedLichSkull != null
+            && !markedLichSkull.IsResolving
+            && GetUpgradeStacks(AbilityUpgradeKey.DeathMarkBleeding) > 0
+            && markedLichSkull.CurrentHealth <= 2)
+        {
+            PlayProcFx(CharacterProcFxKey.Execute, markedLichSkull.EffectAnchor);
+            markedLichSkull.TakeDamage(markedLichSkull.CurrentHealth, DamageSoundType.Default);
+            if (markedLichSkull.IsResolving)
+            {
+                HandleMarkedLichSkullDestroyed(markedLichSkull);
+            }
+        }
+
         if (HasItem(ItemRewardKey.CursedPuppet))
         {
             DamageHighestHealthEnemy(1);
@@ -838,6 +854,7 @@ public class Character : MonoBehaviour
 
     public void ApplyDeathMark(Enemy enemy, DeathMarkAbility sourceAbility)
     {
+        markedLichSkull = null;
         if (markedEnemy != null && markedEnemy != enemy)
         {
             markedEnemy.SetDeathMarkActive(false);
@@ -846,6 +863,18 @@ public class Character : MonoBehaviour
         markedEnemy = enemy;
         deathMarkAbility = sourceAbility;
         markedEnemy?.SetDeathMarkActive(true);
+    }
+
+    public void ApplyDeathMark(LichSkullObject skullObject, DeathMarkAbility sourceAbility)
+    {
+        if (markedEnemy != null)
+        {
+            markedEnemy.SetDeathMarkActive(false);
+            markedEnemy = null;
+        }
+
+        markedLichSkull = skullObject;
+        deathMarkAbility = sourceAbility;
     }
 
     public int DamageEnemiesAround(
@@ -913,6 +942,69 @@ public class Character : MonoBehaviour
         }
 
         StartCoroutine(DamageBarrelAfterDelay(barrel, delay));
+    }
+
+    public int DealDamageToLichSkull(
+        LichSkullObject skullObject,
+        int baseDamage,
+        bool addBonusDamage,
+        DamageSoundType hitSoundType = DamageSoundType.Default,
+        AbilityDefinition sourceAbility = null)
+    {
+        if (skullObject == null)
+        {
+            return 0;
+        }
+
+        RecalculateItemDrivenStats();
+        int totalDamage = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
+        totalDamage += GetAbilityItemBonusDamage(sourceAbility);
+
+        int appliedDamage = skullObject.TakeDamage(totalDamage, hitSoundType);
+        if (appliedDamage > 0 && sourceAbility != null)
+        {
+            PlayAbilityDamageFx(sourceAbility, skullObject.EffectAnchor);
+        }
+
+        if (skullObject == markedLichSkull && !skullObject.IsResolving)
+        {
+            int bonusMarkDamage = skullObject.TakeDamage(1, DamageSoundType.Default);
+            appliedDamage += bonusMarkDamage;
+        }
+
+        if (skullObject.IsResolving)
+        {
+            HandleMarkedLichSkullDestroyed(skullObject);
+        }
+
+        return appliedDamage;
+    }
+
+    public void DealDamageToLichSkullWithAbilityTiming(
+        AbilityDefinition abilityDefinition,
+        LichSkullObject skullObject,
+        int baseDamage,
+        bool addBonusDamage,
+        DamageSoundType hitSoundType = DamageSoundType.Default,
+        AbilityDefinition sourceAbility = null)
+    {
+        if (skullObject == null)
+        {
+            return;
+        }
+
+        Vector2Int targetGridPosition = skullObject.GridPosition;
+        float delay = abilityDefinition != null
+            ? abilityDefinition.GetDamageApplyDelay(gridPosition, targetGridPosition)
+            : 0f;
+
+        if (delay <= 0f)
+        {
+            DealDamageToLichSkull(skullObject, baseDamage, addBonusDamage, hitSoundType, sourceAbility);
+            return;
+        }
+
+        StartCoroutine(DamageLichSkullAfterDelay(skullObject, baseDamage, addBonusDamage, delay, hitSoundType, sourceAbility));
     }
 
     public void PlayAttackAnimation(AnimationClip attackAnimationClip)
@@ -1464,6 +1556,25 @@ public class Character : MonoBehaviour
         }
     }
 
+    private IEnumerator DamageLichSkullAfterDelay(
+        LichSkullObject skullObject,
+        int baseDamage,
+        bool addBonusDamage,
+        float delay,
+        DamageSoundType hitSoundType,
+        AbilityDefinition sourceAbility)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        if (skullObject != null && !skullObject.IsResolving)
+        {
+            DealDamageToLichSkull(skullObject, baseDamage, addBonusDamage, hitSoundType, sourceAbility);
+        }
+    }
+
     private IEnumerator SpawnSecondaryEffectFxRoutine(SecondaryEffectFxSpawnConfig fxConfig, AbilityExecutionContext context)
     {
         if (fxConfig == null || fxConfig.FxPrefab == null || Board == null)
@@ -1829,6 +1940,26 @@ public class Character : MonoBehaviour
         }
     }
 
+    private void HandleMarkedLichSkullDestroyed(LichSkullObject skullObject)
+    {
+        if (skullObject == null || skullObject != markedLichSkull)
+        {
+            return;
+        }
+
+        if (GetUpgradeStacks(AbilityUpgradeKey.DeathMarkHuntingBonus) > 0)
+        {
+            Heal(2);
+        }
+
+        if (GetUpgradeStacks(AbilityUpgradeKey.DeathMarkCycleOfDeath) > 0 && deathMarkAbility != null)
+        {
+            ResetAbilityAvailability(deathMarkAbility);
+        }
+
+        ClearDeathMark();
+    }
+
     private bool IsEnemyClose(Enemy enemy)
     {
         if (enemy == null)
@@ -2050,6 +2181,7 @@ public class Character : MonoBehaviour
 
     private void RecalculateItemDrivenStats()
     {
+        int previousMaxHealth = maxHealth;
         int staticMaxHealth = baseMaxHealth + (runRewardState != null ? runRewardState.GetBonusMaxHealth() : 0);
         int staticBonusDamage = baseBonusDamage + (runRewardState != null ? runRewardState.GetBonusDamage() : 0);
         int staticResistance = baseResistance + (runRewardState != null ? runRewardState.GetBonusResistance() : 0);
@@ -2100,6 +2232,11 @@ public class Character : MonoBehaviour
         bonusDamage = staticBonusDamage + dynamicBonusDamage;
         resistance = staticResistance + dynamicResistance;
         movementPointsPerTurn = staticMovementPoints + dynamicMovementPoints;
+        if (maxHealth > previousMaxHealth)
+        {
+            currentHealth += maxHealth - previousMaxHealth;
+        }
+
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         RefreshHpBar();
         SyncRunStateHealth();
@@ -2165,6 +2302,7 @@ public class Character : MonoBehaviour
         }
 
         markedEnemy = null;
+        markedLichSkull = null;
         deathMarkAbility = null;
     }
 

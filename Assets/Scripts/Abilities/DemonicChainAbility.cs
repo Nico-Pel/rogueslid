@@ -5,6 +5,17 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Demonic Chain", fileName = "DemonicChain")]
 public class DemonicChainAbility : AbilityDefinition
 {
+    private struct ChainTarget
+    {
+        public Enemy Enemy;
+        public LichSkullObject Skull;
+
+        public bool IsEnemy => Enemy != null;
+        public bool IsSkull => Skull != null;
+        public Vector2Int GridPosition => IsEnemy ? Enemy.GridPosition : Skull.GridPosition;
+        public Transform TargetTransform => IsEnemy ? Enemy.transform : Skull.transform;
+    }
+
     [Min(1)]
     [SerializeField] private int baseDamage = 4;
     [SerializeField] private SecondaryAbilityEffectDefinition chainedStrikeEffect;
@@ -23,7 +34,7 @@ public class DemonicChainAbility : AbilityDefinition
             return false;
         }
 
-        List<Enemy> targets = GatherTargets(character);
+        List<ChainTarget> targets = GatherTargets(character);
         if (targets.Count == 0)
         {
             return false;
@@ -36,7 +47,15 @@ public class DemonicChainAbility : AbilityDefinition
             damage += extraTargets * character.GetUpgradeStacks(AbilityUpgradeKey.DemonicChainGoodCatch);
         }
 
-        List<Enemy> hitEnemies = new List<Enemy>(targets);
+        List<Enemy> hitEnemies = new List<Enemy>();
+        for (int index = 0; index < targets.Count; index++)
+        {
+            if (targets[index].Enemy != null)
+            {
+                hitEnemies.Add(targets[index].Enemy);
+            }
+        }
+
         character.StartCoroutine(ResolveDemonicChainSequence(character, runtime, targets, hitEnemies, damage));
         return true;
     }
@@ -44,7 +63,7 @@ public class DemonicChainAbility : AbilityDefinition
     private IEnumerator ResolveDemonicChainSequence(
         Character character,
         CharacterAbilityRuntime runtime,
-        List<Enemy> targets,
+        List<ChainTarget> targets,
         List<Enemy> hitEnemies,
         int damage)
     {
@@ -52,13 +71,31 @@ public class DemonicChainAbility : AbilityDefinition
 
         for (int index = 0; index < targets.Count; index++)
         {
-            Enemy enemy = targets[index];
-            if (enemy == null)
+            ChainTarget target = targets[index];
+            if (!target.IsEnemy && !target.IsSkull)
             {
                 continue;
             }
 
-            SpawnChainLine(character, enemy);
+            SpawnChainLine(character, target.TargetTransform);
+
+            if (target.IsSkull)
+            {
+                float damageDelay = GetDamageApplyDelay(character.GridPosition, target.GridPosition);
+                if (damageDelay > 0f)
+                {
+                    yield return new WaitForSeconds(damageDelay);
+                }
+
+                if (target.Skull != null && !target.Skull.IsResolving)
+                {
+                    character.DealDamageToLichSkull(target.Skull, damage, true, DamageSoundType.Default, this);
+                }
+
+                continue;
+            }
+
+            Enemy enemy = target.Enemy;
             character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Default, this);
             PullEnemyTowardsCharacter(character, enemy, false);
             yield return WaitForEnemyMovement(enemy);
@@ -116,10 +153,11 @@ public class DemonicChainAbility : AbilityDefinition
         yield return new WaitUntil(() => enemy == null || !enemy.IsMoving);
     }
 
-    private List<Enemy> GatherTargets(Character character)
+    private List<ChainTarget> GatherTargets(Character character)
     {
-        List<Enemy> targets = new List<Enemy>();
-        HashSet<Enemy> added = new HashSet<Enemy>();
+        List<ChainTarget> targets = new List<ChainTarget>();
+        HashSet<Enemy> addedEnemies = new HashSet<Enemy>();
+        HashSet<LichSkullObject> addedSkulls = new HashSet<LichSkullObject>();
         Vector2Int[] directions =
         {
             Vector2Int.up,
@@ -147,15 +185,30 @@ public class DemonicChainAbility : AbilityDefinition
             {
                 if (character.Board.TryGetEnemy(current, out Enemy enemy) && enemy != null)
                 {
-                    if (added.Add(enemy))
+                    if (addedEnemies.Add(enemy))
                     {
-                        targets.Add(enemy);
+                        targets.Add(new ChainTarget
+                        {
+                            Enemy = enemy
+                        });
                     }
 
                     if (!pierceEnemies)
                     {
                         break;
                     }
+                }
+                else if (character.Board.TryGetLichSkullObject(current, out LichSkullObject lichSkull) && lichSkull != null)
+                {
+                    if (addedSkulls.Add(lichSkull))
+                    {
+                        targets.Add(new ChainTarget
+                        {
+                            Skull = lichSkull
+                        });
+                    }
+
+                    break;
                 }
 
                 if (cell.HasBlockingTerrain)
@@ -217,15 +270,15 @@ public class DemonicChainAbility : AbilityDefinition
             : moved;
     }
 
-    private void SpawnChainLine(Character character, Enemy enemy)
+    private void SpawnChainLine(Character character, Transform targetTransform)
     {
-        if (chainLineRendererPrefab == null || character == null || enemy == null)
+        if (chainLineRendererPrefab == null || character == null || targetTransform == null)
         {
             return;
         }
 
         GameObject chainObject = Instantiate(chainLineRendererPrefab);
-        chainObject.name = $"{chainLineRendererPrefab.name}_{enemy.name}";
+        chainObject.name = $"{chainLineRendererPrefab.name}_{targetTransform.name}";
 
         ChainLineRendererFollower chainFollower = chainObject.GetComponent<ChainLineRendererFollower>();
         if (chainFollower == null)
@@ -233,7 +286,7 @@ public class DemonicChainAbility : AbilityDefinition
             chainFollower = chainObject.AddComponent<ChainLineRendererFollower>();
         }
 
-        chainFollower.Setup(character.transform, enemy.transform, chainStartOffset, chainEndOffset);
+        chainFollower.Setup(character.transform, targetTransform, chainStartOffset, chainEndOffset);
 
         if (chainLifetime > 0f)
         {

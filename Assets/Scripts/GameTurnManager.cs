@@ -41,10 +41,14 @@ public class GameTurnManager : MonoBehaviour
     private Coroutine combatStartSequenceCoroutine;
     private Coroutine enemyTurnCoroutine;
     private Coroutine loseMenuCoroutine;
+    private Coroutine debugRewardSequenceCoroutine;
     private Vector2 pointerStartPosition;
     private int pendingCellTargetAbilityIndex = -1;
     private ItemRewardDefinition activeCombatStartPrompt;
     private Character trackedCharacter;
+#if UNITY_EDITOR
+    private int remainingDebugRewardChoices;
+#endif
 
     public TurnSide CurrentTurn { get; private set; } = TurnSide.Player;
     public BoardManager Board => board;
@@ -56,6 +60,7 @@ public class GameTurnManager : MonoBehaviour
     public event Action<TurnSide> TurnChanged;
     public event Action<int> PendingAbilityChanged;
     public event Action<bool> EndTurnAvailabilityChanged;
+    public event Action<CharacterAbilityRuntime> NoValidTargetFeedbackRequested;
 
     private void Start()
     {
@@ -172,7 +177,8 @@ public class GameTurnManager : MonoBehaviour
 
         if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
         {
-            if (TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell))
+            bool canAutoUseSingleTarget = ability.Definition != null && ability.Definition.Category == AbilityCategory.BasicAttack;
+            if (canAutoUseSingleTarget && TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell))
             {
                 bool singleTargetUsed = character.TryUseAbility(abilityIndex, singleTargetCell);
                 if (singleTargetUsed)
@@ -186,6 +192,7 @@ public class GameTurnManager : MonoBehaviour
 
             if (!HasAnyValidTargetCell(character, ability))
             {
+                NoValidTargetFeedbackRequested?.Invoke(ability);
                 return false;
             }
 
@@ -264,6 +271,42 @@ public class GameTurnManager : MonoBehaviour
         }
 
         return false;
+    }
+
+    public bool HasAnyUsableTarget(Character character, CharacterAbilityRuntime ability)
+    {
+        if (character == null || ability?.Definition == null)
+        {
+            return false;
+        }
+
+        if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
+        {
+            return HasAnyValidTargetCell(character, ability);
+        }
+
+        if (ability.Definition.SupportsCellSelectionWhileActive(character, ability))
+        {
+            if (board == null)
+            {
+                return false;
+            }
+
+            for (int x = 0; x < board.Width; x++)
+            {
+                for (int y = 0; y < board.Height; y++)
+                {
+                    if (ability.Definition.CanActivateFromSelectedCell(character, ability, new Vector2Int(x, y)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     private void HandleDebugKeyboardInput()
@@ -925,6 +968,24 @@ public class GameTurnManager : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    public void RequestDebugRewardChoices(int rewardChoiceCount)
+    {
+        if (board == null || uiGame == null || isEnemyTurnRunning || isArenaTransitionRunning || isLoseMenuOpen)
+        {
+            return;
+        }
+
+        int clampedCount = Mathf.Max(1, rewardChoiceCount);
+        if (debugRewardSequenceCoroutine != null)
+        {
+            StopCoroutine(debugRewardSequenceCoroutine);
+            debugRewardSequenceCoroutine = null;
+        }
+
+        remainingDebugRewardChoices = clampedCount;
+        debugRewardSequenceCoroutine = StartCoroutine(RunDebugRewardChoiceSequence());
+    }
+
     private void RequestDebugWinArena()
     {
         if (board == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)
@@ -937,23 +998,7 @@ public class GameTurnManager : MonoBehaviour
 
     private void RequestDebugRewardChoice()
     {
-        if (board == null || uiGame == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen)
-        {
-            return;
-        }
-
-        List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
-        if (rewardChoices == null || rewardChoices.Count == 0)
-        {
-            return;
-        }
-
-        isPointerTracking = false;
-        ClearPendingAbility();
-        isRewardMenuOpen = true;
-        SetCanEndTurn(false);
-        uiGame.ShowRewards(rewardChoices, HandleDebugRewardSelected, HandleDebugRewardIgnored);
-        soundManager?.PlayVictoryChoiceMusic();
+        RequestDebugRewardChoices(1);
     }
 
     private void HandleDebugRewardSelected(RewardOffer rewardOffer)
@@ -963,21 +1008,51 @@ public class GameTurnManager : MonoBehaviour
             board.ApplyReward(rewardOffer);
         }
 
-        CloseDebugRewardChoice();
+        FinishSingleDebugRewardChoice();
     }
 
     private void HandleDebugRewardIgnored()
     {
-        CloseDebugRewardChoice();
+        FinishSingleDebugRewardChoice();
     }
 
-    private void CloseDebugRewardChoice()
+    private IEnumerator RunDebugRewardChoiceSequence()
     {
-        isRewardMenuOpen = false;
-        uiGame?.HideRewards();
+        isPointerTracking = false;
+        ClearPendingAbility();
+        SetCanEndTurn(false);
+
+        while (remainingDebugRewardChoices > 0)
+        {
+            if (board == null || uiGame == null)
+            {
+                break;
+            }
+
+            List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
+            if (rewardChoices == null || rewardChoices.Count == 0)
+            {
+                break;
+            }
+
+            isRewardMenuOpen = true;
+            uiGame.ShowRewards(rewardChoices, HandleDebugRewardSelected, HandleDebugRewardIgnored);
+            soundManager?.PlayVictoryChoiceMusic();
+            yield return new WaitUntil(() => !isRewardMenuOpen);
+        }
+
         bool shouldAllowEndTurn = CurrentTurn == TurnSide.Player
             && (hasPlayerActedThisTurn || endTurnLockDuration <= 0f || endTurnUnlockCoroutine == null);
         SetCanEndTurn(shouldAllowEndTurn);
+        soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
+        debugRewardSequenceCoroutine = null;
+    }
+
+    private void FinishSingleDebugRewardChoice()
+    {
+        remainingDebugRewardChoices = Mathf.Max(0, remainingDebugRewardChoices - 1);
+        isRewardMenuOpen = false;
+        uiGame?.HideRewards();
     }
 #endif
 

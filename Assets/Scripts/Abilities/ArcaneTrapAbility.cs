@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Arcane Trap", fileName = "ArcaneTrap")]
 public class ArcaneTrapAbility : AbilityDefinition
@@ -8,7 +9,8 @@ public class ArcaneTrapAbility : AbilityDefinition
     [Min(1)]
     [SerializeField] private int baseDamage = 4;
     [SerializeField] private GameObject warningFxPrefab;
-    [SerializeField] private GameObject activeFxPrefab;
+    [FormerlySerializedAs("activeFxPrefab")]
+    [SerializeField] private GameObject trapObjPrefab;
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
@@ -48,7 +50,7 @@ public class ArcaneTrapAbility : AbilityDefinition
             targetCell.Value,
             this,
             warningFxPrefab,
-            activeFxPrefab,
+            trapObjPrefab,
             baseDamage,
             character.GetUpgradeStacks(AbilityUpgradeKey.ArcaneTrapArcaneSustain),
             character.GetUpgradeStacks(AbilityUpgradeKey.ArcaneTrapArcaneEruption) > 0 ? 2 : 0,

@@ -5,34 +5,51 @@ using UnityEngine;
 
 public class SkullObject : MonoBehaviour
 {
-    [SerializeField] private Transform modelRoot;
-    [SerializeField] private Transform fractures;
-    [SerializeField] private Transform canvasRoot;
-    [SerializeField] private TMP_Text reviveCountText;
-    [SerializeField] private float fractureForce = 3.5f;
-    [SerializeField] private float upwardForce = 1.25f;
-    [SerializeField] private float freezeDelay = 0.2f;
-    [SerializeField] private Vector2 shrinkDelayRange = new Vector2(1f, 1.5f);
-    [SerializeField] private float shrinkDuration = 0.25f;
-    [SerializeField] private float finalScale = 0.1f;
-    [SerializeField] private float victoryResolveDelay = 0.5f;
+    [SerializeField] protected Transform modelRoot;
+    [SerializeField] protected Transform fractures;
+    [SerializeField] protected Transform canvasRoot;
+    [SerializeField] protected TMP_Text reviveCountText;
+    [SerializeField] protected float fractureForce = 3.5f;
+    [SerializeField] protected float upwardForce = 1.25f;
+    [SerializeField] protected float freezeDelay = 0.2f;
+    [SerializeField] protected Vector2 shrinkDelayRange = new Vector2(1f, 1.5f);
+    [SerializeField] protected float shrinkDuration = 0.25f;
+    [SerializeField] protected float finalScale = 0.1f;
+    [SerializeField] protected float victoryResolveDelay = 0.5f;
 
-    private BoardManager board;
-    private Vector2Int gridPosition;
-    private SkeletonEnemyData skeletonData;
-    private bool isResolving;
-    private int remainingTurns;
+    protected BoardManager board;
+    protected Vector2Int gridPosition;
+    protected SkeletonEnemyData skeletonData;
+    protected bool isResolving;
+    protected int remainingTurns;
 
     public Vector2Int GridPosition => gridPosition;
     public bool IsResolving => isResolving;
+    protected BoardManager Board => board;
 
     public void Assign(BoardManager ownerBoard, Vector2Int cellPosition, SkeletonEnemyData sourceData)
     {
+        skeletonData = sourceData;
+        AssignBase(ownerBoard, cellPosition, sourceData != null ? sourceData.ReviveTurns : 3);
+    }
+
+    protected void AssignBase(BoardManager ownerBoard, Vector2Int cellPosition, int turnsUntilRevive)
+    {
         board = ownerBoard;
         gridPosition = cellPosition;
-        skeletonData = sourceData;
-        remainingTurns = sourceData != null ? sourceData.ReviveTurns : 3;
+        remainingTurns = Mathf.Max(1, turnsUntilRevive);
+        InitializeSharedReferences();
+        SetVisualStateActive();
+        OnAssigned();
+        RefreshCounter();
+    }
 
+    protected virtual void OnAssigned()
+    {
+    }
+
+    protected void InitializeSharedReferences()
+    {
         if (modelRoot == null)
         {
             modelRoot = transform.Find("Model");
@@ -52,7 +69,10 @@ public class SkullObject : MonoBehaviour
         {
             reviveCountText = canvasRoot.GetComponentInChildren<TMP_Text>(true);
         }
+    }
 
+    protected void SetVisualStateActive()
+    {
         if (fractures != null)
         {
             fractures.gameObject.SetActive(false);
@@ -67,11 +87,9 @@ public class SkullObject : MonoBehaviour
         {
             canvasRoot.gameObject.SetActive(true);
         }
-
-        RefreshCounter();
     }
 
-    public void HandlePlayerTurnStarted()
+    public virtual void HandlePlayerTurnStarted()
     {
         if (isResolving)
         {
@@ -82,18 +100,23 @@ public class SkullObject : MonoBehaviour
         RefreshCounter();
         if (remainingTurns <= 0)
         {
-            ReviveSkeleton();
+            HandleCountdownReachedZero();
         }
     }
 
-    public void ShatterForVictory()
+    protected virtual void HandleCountdownReachedZero()
+    {
+        ReviveSkeleton();
+    }
+
+    public virtual void ShatterForVictory()
     {
         if (isResolving)
         {
             return;
         }
 
-        isResolving = true;
+        BeginResolution();
         if (modelRoot != null)
         {
             modelRoot.gameObject.SetActive(false);
@@ -145,6 +168,11 @@ public class SkullObject : MonoBehaviour
         StartCoroutine(FinalizeVictoryResolution());
     }
 
+    protected void BeginResolution()
+    {
+        isResolving = true;
+    }
+
     private IEnumerator FinalizeVictoryResolution()
     {
         if (victoryResolveDelay > 0f)
@@ -164,14 +192,14 @@ public class SkullObject : MonoBehaviour
             return;
         }
 
-        isResolving = true;
+        BeginResolution();
         board?.ClearStaticObstacle(gridPosition, gameObject);
         board?.ReviveSkeletonFromSkull(this, skeletonData);
         board?.UnregisterSkullObject(this);
         Destroy(gameObject);
     }
 
-    private void RefreshCounter()
+    protected virtual void RefreshCounter()
     {
         if (reviveCountText != null)
         {

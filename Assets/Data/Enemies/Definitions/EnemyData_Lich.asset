@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d2c28e6c2ae4f69b7d713fd2e53fb4a, type: 3}
+  m_Name: EnemyData_Lich
+  m_EditorClassIdentifier: 
+  enemyName: Lich
+  specialInfo: The lich periodically summons cursed skulls that revive her servants
+    if you do not destroy them in time. The minions die along with the lich.
+  portrait: {fileID: 21300000, guid: f875093a84c7a497180c7dad4dea32ae, type: 3}
+  maxHealth: 60
+  force: 2
+  resistance: 0
+  mobility: 3
+  attackPattern: 2
+  attackRange: 10
+  damageSoundType: 3
+  directVision: 1
+  requireAlignedShot: 0
+  allowPerfectDiagonalShot: 0
+  hasMaxRange: 1
+  ignoreObstacles: 0
+  attackAlways: 0
+  flee: 1
+  maxFleeTurns: 3
+  attackFirst: 0
+  fleeAfterAttacking: 0
+  fleeThresholdPercent: 20
+  ignoreObstaclesForMovement: 0
+  canEndTurnOnObstacle: 0
+  advanceTowardsCharacterWhenAlreadyInRange: 0
+  attackDamageDelay: 0.1
+  multiplyAttackDamageDelayByDistance: 0
+  lookAtTargetWhenAttacking: 1
+  optionalActionType: 0
+  optionalHealAmount: 4
+  moveDuration: 0.16
+  projectileTravelHeight: 0.5
+  projectileTravelSpeed: 15
+  useFlyAnimationOnObstacle: 0
+  immuneToFire: 0
+  showAttack: 1
+  attackSprite: {fileID: -466392962, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  showHealth: 1
+  showResistance: 0
+  showMobility: 1
+  showRegen: 0
+  regenPerTurn: 0
+  showSpecial: 0
+  specialStatSprite: {fileID: 85107637, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  specialStatValue: 4
+  lichSkullObjectPrefab: {fileID: 2998127686145115325, guid: f133cb41380264e019be64ae60ddf056, type: 3}
+  summonableEnemyPrefabs:
+  - {fileID: 2433636361208229482, guid: 8efdc854e57f1449593bca5eb332824a, type: 3}
+  - {fileID: 2433636361208229482, guid: a47ae7cfeb0b143a890070b9340c4a35, type: 3}
+  summonedSkullCount: 4
+  summonIntervalTurns: 3
+  summonDelayBeforeSkulls: 0.25
+  delayBetweenSummonedSkulls: 0.25
