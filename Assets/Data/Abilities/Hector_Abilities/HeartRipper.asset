@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4fd94f6a7bc14e33a1029244d92dc111, type: 3}
+  m_Name: HeartRipper
+  m_EditorClassIdentifier: 
+  abilityName: Arrache-Coeur
+  icon: {fileID: -767586726, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  category: 2
+  attackAnimationClip: {fileID: 7400000, guid: bc7bd89b1afec43898786e8805565fbc, type: 2}
+  linkedUpgradeRewards: []
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0.04
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 3

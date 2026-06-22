@@ -54,6 +54,15 @@ public class Enemy : MonoBehaviour
     [ReadOnly] [SerializeField] private bool attackFirst;
     [ReadOnly] [SerializeField] private bool fleeAfterAttacking;
     [ReadOnly] [SerializeField] [Range(0f, 100f)] private float fleeThresholdPercent;
+    [ReadOnly] [SerializeField] private GameObject fearFxPrefab;
+    [ReadOnly] [SerializeField] private float fearBodyWiggleStrength;
+    [SerializeField] private float fearFeedbackDelay = 0.25f;
+    [SerializeField] private GameObject bleedingFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float bleedingDamageRandomDelayMax = 0.33f;
+    [SerializeField] private GameObject mistyConfusionFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float mistyConfusionFxMaxDuration = 2f;
     [ReadOnly] [SerializeField] private bool ignoreObstaclesForMovement;
     [ReadOnly] [SerializeField] private bool canEndTurnOnObstacle;
     [ReadOnly] [SerializeField] private bool advanceTowardsCharacterWhenAlreadyInRange;
@@ -103,6 +112,7 @@ public class Enemy : MonoBehaviour
     private Tween moveTween;
     private Tween bodySpawnScaleTween;
     private Tween bodyRotationTween;
+    private Tween fearBodyWiggleTween;
     private Tween impactTween;
     private RendererBlinkFeedback blinkFeedback;
     private bool isDying;
@@ -113,9 +123,15 @@ public class Enemy : MonoBehaviour
     private bool fleePermanentlyDisabled;
     private Vector3 cachedBodyOriginalScale = Vector3.one;
     private Vector3 cachedBodyOriginalLocalEulerAngles = Vector3.zero;
+    private Vector3 cachedBodyOriginalLocalPosition = Vector3.zero;
     private readonly Dictionary<CombatStatusType, int> statusDurations = new Dictionary<CombatStatusType, int>();
     private readonly Dictionary<CombatStatusType, int> statusPotencies = new Dictionary<CombatStatusType, int>();
     private int forceModifierFromStatuses;
+    private bool mistyConfusionPending;
+    private bool mistyConfusionParanoia;
+    private bool mistyConfusionBrokenHeart;
+    private GameObject activeMistyConfusionFxInstance;
+    private Coroutine mistyConfusionFxTimeoutCoroutine;
     private AnimatorOverrideController enemyAnimatorOverrideController;
     private DragoonRiderEnemyData dragoonRiderData;
     private LichEnemyData lichData;
@@ -123,6 +139,8 @@ public class Enemy : MonoBehaviour
     private int movementInterruptCount;
     private int combatTurnCount;
     private Enemy linkedSummoner;
+    private bool isInFearState;
+    private Coroutine pendingFearFeedbackCoroutine;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -138,6 +156,8 @@ public class Enemy : MonoBehaviour
     public bool IsMovementInterrupted => movementInterruptCount > 0;
     public BoardManager Board { get; private set; }
     public Transform EffectAnchor => deathMarkAnchor != null ? deathMarkAnchor : transform;
+    public bool HasStatusEffect(CombatStatusType statusType) => statusPotencies.TryGetValue(statusType, out int potency) && potency > 0;
+    public int GetStatusPotency(CombatStatusType statusType) => statusPotencies.TryGetValue(statusType, out int potency) ? potency : 0;
     public EnemyData Data => enemyData;
     public string EnemyName => enemyData != null && !string.IsNullOrWhiteSpace(enemyData.EnemyName)
         ? enemyData.EnemyName
@@ -178,6 +198,8 @@ public class Enemy : MonoBehaviour
         attackFirst = enemyData.AttackFirst;
         fleeAfterAttacking = enemyData.FleeAfterAttacking;
         fleeThresholdPercent = enemyData.FleeThresholdPercent;
+        fearFxPrefab = enemyData.FearFxPrefab;
+        fearBodyWiggleStrength = enemyData.FearBodyWiggleStrength;
         ignoreObstaclesForMovement = enemyData.IgnoreObstaclesForMovement;
         canEndTurnOnObstacle = enemyData.CanEndTurnOnObstacle;
         advanceTowardsCharacterWhenAlreadyInRange = enemyData.AdvanceTowardsCharacterWhenAlreadyInRange;
@@ -231,6 +253,7 @@ public class Enemy : MonoBehaviour
         fleePermanentlyDisabled = false;
         combatTurnCount = 0;
         linkedSummoner = null;
+        isInFearState = false;
         RefreshFlyingAnimationState();
         PlayBodySpawnTween();
     }
@@ -258,6 +281,7 @@ public class Enemy : MonoBehaviour
             return 0;
         }
 
+        bool wasEligibleForFear = ShouldUseFleeBehaviour();
         int finalDamage = Mathf.Max(1, incomingDamage - resistance);
         currentHealth = Mathf.Max(0, currentHealth - finalDamage);
 
@@ -265,6 +289,12 @@ public class Enemy : MonoBehaviour
         cam.Instance?.CamShake(finalDamage);
         SoundManager.Instance?.PlayDamageSound(hitSoundType, EffectAnchor.position);
         RefreshHpBar();
+
+        bool isNowEligibleForFear = ShouldUseFleeBehaviour();
+        if (!wasEligibleForFear && isNowEligibleForFear)
+        {
+            ScheduleFearFeedback();
+        }
 
         if (currentHealth <= 0)
         {
@@ -399,27 +429,35 @@ public class Enemy : MonoBehaviour
         int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
-        ProcessStartOfTurnStatusEffects();
+        yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
         {
             yield break;
         }
 
+        if (mistyConfusionPending)
+        {
+            if (CanAttackAnyEnemyAlly())
+            {
+                yield return ResolveMistyConfusionTurn();
+                yield break;
+            }
+
+            ClearMistyConfusion();
+        }
+
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        UpdateFearState(persistentFleeBehaviour);
         if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
         {
             persistentFleeBehaviour = false;
-            flee = false;
-            fleePermanentlyDisabled = true;
-            consecutiveFleeTurns = 0;
+            DisablePersistentFlee();
         }
 
         if (persistentFleeBehaviour && ShouldStopFleePermanently(target))
         {
             persistentFleeBehaviour = false;
-            flee = false;
-            fleePermanentlyDisabled = true;
-            consecutiveFleeTurns = 0;
+            DisablePersistentFlee();
         }
 
         bool temporaryFleeMove = attackFirst && attackAlways && !persistentFleeBehaviour;
@@ -443,6 +481,12 @@ public class Enemy : MonoBehaviour
 
         bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
         List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
+        if (persistentFleeBehaviour && effectiveMobility > 0 && plannedPath.Count == 0)
+        {
+            persistentFleeBehaviour = false;
+            DisablePersistentFlee();
+        }
+
         for (int step = 0; step < plannedPath.Count; step++)
         {
             if (!useFleeBehaviour
@@ -498,10 +542,21 @@ public class Enemy : MonoBehaviour
         int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
-        ProcessStartOfTurnStatusEffects();
+        yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
         {
             yield break;
+        }
+
+        if (mistyConfusionPending)
+        {
+            if (CanAttackAnyEnemyAlly())
+            {
+                yield return ResolveMistyConfusionTurn();
+                yield break;
+            }
+
+            ClearMistyConfusion();
         }
 
         combatTurnCount++;
@@ -513,20 +568,17 @@ public class Enemy : MonoBehaviour
         }
 
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        UpdateFearState(persistentFleeBehaviour);
         if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
         {
             persistentFleeBehaviour = false;
-            flee = false;
-            fleePermanentlyDisabled = true;
-            consecutiveFleeTurns = 0;
+            DisablePersistentFlee();
         }
 
         if (persistentFleeBehaviour && ShouldStopFleePermanently(target))
         {
             persistentFleeBehaviour = false;
-            flee = false;
-            fleePermanentlyDisabled = true;
-            consecutiveFleeTurns = 0;
+            DisablePersistentFlee();
         }
 
         bool temporaryFleeMove = attackFirst && attackAlways && !persistentFleeBehaviour;
@@ -550,6 +602,12 @@ public class Enemy : MonoBehaviour
 
         bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
         List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
+        if (persistentFleeBehaviour && effectiveMobility > 0 && plannedPath.Count == 0)
+        {
+            persistentFleeBehaviour = false;
+            DisablePersistentFlee();
+        }
+
         for (int step = 0; step < plannedPath.Count; step++)
         {
             if (!useFleeBehaviour
@@ -649,10 +707,15 @@ public class Enemy : MonoBehaviour
         if (useFleeBehaviour)
         {
             BuildReachabilityMap(maxSteps, out Dictionary<Vector2Int, int> distances, out Dictionary<Vector2Int, Vector2Int> cameFrom);
+            int currentDistanceFromTarget = Board.GetManhattanDistance(gridPosition, target.GridPosition);
             int bestFleeScore = int.MinValue;
             int bestFleePathDistance = -1;
+            int bestRangedAttackFleeScore = int.MinValue;
+            int bestRangedAttackPathDistance = -1;
             Vector2Int bestDestination = gridPosition;
+            Vector2Int bestRangedAttackDestination = gridPosition;
             bool foundDestination = false;
+            bool foundRangedAttackDestination = false;
             foreach (KeyValuePair<Vector2Int, int> entry in distances)
             {
                 Vector2Int cellPosition = entry.Key;
@@ -668,6 +731,21 @@ public class Enemy : MonoBehaviour
                 }
 
                 int fleeScore = Board.GetManhattanDistance(cellPosition, target.GridPosition);
+                bool supportsRangedRetreatAttack = attackPattern == EnemyAttackPattern.Projectile
+                    && fleeScore >= currentDistanceFromTarget
+                    && CanAttackTargetFrom(cellPosition, target, false);
+
+                if (supportsRangedRetreatAttack
+                    && (!foundRangedAttackDestination
+                        || fleeScore > bestRangedAttackFleeScore
+                        || (fleeScore == bestRangedAttackFleeScore && pathDistance > bestRangedAttackPathDistance)))
+                {
+                    foundRangedAttackDestination = true;
+                    bestRangedAttackDestination = cellPosition;
+                    bestRangedAttackFleeScore = fleeScore;
+                    bestRangedAttackPathDistance = pathDistance;
+                }
+
                 if (!foundDestination
                     || fleeScore > bestFleeScore
                     || (fleeScore == bestFleeScore && pathDistance > bestFleePathDistance))
@@ -677,6 +755,16 @@ public class Enemy : MonoBehaviour
                     bestFleeScore = fleeScore;
                     bestFleePathDistance = pathDistance;
                 }
+            }
+
+            if (foundRangedAttackDestination)
+            {
+                bestDestination = bestRangedAttackDestination;
+            }
+
+            if (!foundRangedAttackDestination && bestFleeScore <= currentDistanceFromTarget)
+            {
+                return plannedPath;
             }
 
             if (!foundDestination || bestDestination == gridPosition || !cameFrom.ContainsKey(bestDestination))
@@ -692,6 +780,11 @@ public class Enemy : MonoBehaviour
             }
 
             plannedPath.Reverse();
+            if (!foundRangedAttackDestination && plannedPath.Count <= 1)
+            {
+                plannedPath.Clear();
+            }
+
             return plannedPath;
         }
 
@@ -825,6 +918,19 @@ public class Enemy : MonoBehaviour
         pendingMobilityPenalty += amount;
     }
 
+    public void ApplyMistyConfusion(bool paranoia, bool brokenHeart, bool reduceMobilityNextTurn)
+    {
+        mistyConfusionPending = true;
+        mistyConfusionParanoia = paranoia;
+        mistyConfusionBrokenHeart = brokenHeart;
+        ShowMistyConfusionFx();
+
+        if (reduceMobilityNextTurn)
+        {
+            ApplyMobilityPenaltyNextTurn(1);
+        }
+    }
+
     public bool TryForcedMoveTo(Vector2Int targetCell)
     {
         if (Board == null || targetCell == gridPosition)
@@ -879,7 +985,13 @@ public class Enemy : MonoBehaviour
         moveTween?.Kill();
         bodySpawnScaleTween?.Kill();
         bodyRotationTween?.Kill();
+        fearBodyWiggleTween?.Kill();
         impactTween?.Kill();
+        if (pendingFearFeedbackCoroutine != null)
+        {
+            StopCoroutine(pendingFearFeedbackCoroutine);
+            pendingFearFeedbackCoroutine = null;
+        }
         IsMoving = false;
         SetFlyingAnimation(false);
         RefreshCanvasHeight(false);
@@ -981,6 +1093,7 @@ public class Enemy : MonoBehaviour
         {
             cachedBodyOriginalScale = enemyBody.localScale;
             cachedBodyOriginalLocalEulerAngles = enemyBody.localEulerAngles;
+            cachedBodyOriginalLocalPosition = enemyBody.localPosition;
         }
     }
 
@@ -1027,6 +1140,122 @@ public class Enemy : MonoBehaviour
 
         float healthPercent = (float)currentHealth / maxHealth * 100f;
         return healthPercent <= fleeThresholdPercent;
+    }
+
+    private void DisablePersistentFlee()
+    {
+        flee = false;
+        fleePermanentlyDisabled = true;
+        consecutiveFleeTurns = 0;
+        UpdateFearState(false);
+    }
+
+    private void UpdateFearState(bool shouldBeInFearState)
+    {
+        if (shouldBeInFearState == isInFearState)
+        {
+            return;
+        }
+
+        isInFearState = shouldBeInFearState;
+        if (isInFearState)
+        {
+            PlayFearFeedback();
+        }
+        else
+        {
+            StopFearWiggle();
+        }
+    }
+
+    private void ScheduleFearFeedback()
+    {
+        if (pendingFearFeedbackCoroutine != null)
+        {
+            StopCoroutine(pendingFearFeedbackCoroutine);
+        }
+
+        pendingFearFeedbackCoroutine = StartCoroutine(PlayFearFeedbackAfterDelay());
+    }
+
+    private IEnumerator PlayFearFeedbackAfterDelay()
+    {
+        if (fearFeedbackDelay > 0f)
+        {
+            yield return new WaitForSeconds(fearFeedbackDelay);
+        }
+
+        pendingFearFeedbackCoroutine = null;
+        if (!ShouldUseFleeBehaviour())
+        {
+            yield break;
+        }
+
+        UpdateFearState(true);
+    }
+
+    private void PlayFearFeedback()
+    {
+        PlayFearFx();
+        PlayFearWiggle();
+    }
+
+    private void PlayFearFx()
+    {
+        if (fearFxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        GameObject spawnedFx = Instantiate(fearFxPrefab, anchor.position, fearFxPrefab.transform.rotation);
+        spawnedFx.transform.localScale = fearFxPrefab.transform.localScale;
+    }
+
+    private void PlayFearWiggle()
+    {
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : null;
+        if (targetBody == null || fearBodyWiggleStrength <= 0f)
+        {
+            return;
+        }
+
+        fearBodyWiggleTween?.Kill();
+        targetBody.localPosition = cachedBodyOriginalLocalPosition;
+        fearBodyWiggleTween = targetBody.DOShakePosition(
+                0.45f,
+                new Vector3(fearBodyWiggleStrength * 0.03f, fearBodyWiggleStrength * 0.015f, fearBodyWiggleStrength * 0.03f),
+                18,
+                90f,
+                false,
+                true)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                fearBodyWiggleTween = null;
+                if (targetBody != null)
+                {
+                    targetBody.localPosition = cachedBodyOriginalLocalPosition;
+                }
+            })
+            .OnKill(() =>
+            {
+                fearBodyWiggleTween = null;
+                if (targetBody != null)
+                {
+                    targetBody.localPosition = cachedBodyOriginalLocalPosition;
+                }
+            });
+    }
+
+    private void StopFearWiggle()
+    {
+        fearBodyWiggleTween?.Kill();
+        if (enemyBody != null)
+        {
+            enemyBody.localPosition = cachedBodyOriginalLocalPosition;
+        }
     }
 
     private bool ShouldStopFleePermanently(Character target)
@@ -1241,7 +1470,11 @@ public class Enemy : MonoBehaviour
             return false;
         }
 
+        int currentDistanceFromTarget = Board.GetManhattanDistance(gridPosition, target.GridPosition);
         int bestScore = int.MinValue;
+        int bestRangedAttackScore = int.MinValue;
+        Vector2Int bestRangedAttackStep = gridPosition;
+        bool foundRangedAttackStep = false;
         Vector2Int[] directions =
         {
             Vector2Int.up,
@@ -1259,11 +1492,34 @@ public class Enemy : MonoBehaviour
             }
 
             int fleeScore = Board.GetManhattanDistance(candidate, target.GridPosition);
+            bool supportsRangedRetreatAttack = attackPattern == EnemyAttackPattern.Projectile
+                && fleeScore >= currentDistanceFromTarget
+                && CanAttackTargetFrom(candidate, target, false);
+
+            if (supportsRangedRetreatAttack && fleeScore > bestRangedAttackScore)
+            {
+                bestRangedAttackScore = fleeScore;
+                bestRangedAttackStep = candidate;
+                foundRangedAttackStep = true;
+            }
+
             if (fleeScore > bestScore)
             {
                 bestScore = fleeScore;
                 bestStep = candidate;
             }
+        }
+
+        if (foundRangedAttackStep)
+        {
+            bestStep = bestRangedAttackStep;
+            return true;
+        }
+
+        if (bestScore <= currentDistanceFromTarget)
+        {
+            bestStep = gridPosition;
+            return false;
         }
 
         return bestStep != gridPosition;
@@ -2182,7 +2438,7 @@ public class Enemy : MonoBehaviour
         int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
-        ProcessStartOfTurnStatusEffects();
+        yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
         {
             yield break;
@@ -2972,6 +3228,7 @@ public class Enemy : MonoBehaviour
     public void ApplyStatusEffect(CombatStatusType statusType, int durationInTurns = -1, int potency = 1, bool stackPotency = false)
     {
         potency = Mathf.Max(1, potency);
+        bool alreadyHadStatus = statusPotencies.TryGetValue(statusType, out int currentPotency) && currentPotency > 0;
         if (!statusPotencies.ContainsKey(statusType))
         {
             statusPotencies[statusType] = potency;
@@ -2981,6 +3238,11 @@ public class Enemy : MonoBehaviour
             statusPotencies[statusType] = stackPotency
                 ? statusPotencies[statusType] + potency
                 : Mathf.Max(statusPotencies[statusType], potency);
+        }
+
+        if (statusType == CombatStatusType.Bleeding && !alreadyHadStatus)
+        {
+            PlayBleedingFx();
         }
 
         if (!statusDurations.ContainsKey(statusType))
@@ -3005,16 +3267,33 @@ public class Enemy : MonoBehaviour
         forceModifierFromStatuses += amount;
     }
 
-    private void ProcessStartOfTurnStatusEffects()
+    private IEnumerator ProcessStartOfTurnStatusEffects()
     {
         if (statusPotencies.TryGetValue(CombatStatusType.Poisoned, out int poisonDamage) && poisonDamage > 0)
         {
             TakeDamage(poisonDamage, DamageSoundType.MagicHit);
         }
 
+        if (statusPotencies.TryGetValue(CombatStatusType.Bleeding, out int bleedingDamage) && bleedingDamage > 0 && currentHealth > 0)
+        {
+            float delay = bleedingDamageRandomDelayMax > 0f ? UnityEngine.Random.Range(0f, bleedingDamageRandomDelayMax) : 0f;
+            if (delay > 0f)
+            {
+                yield return new WaitForSeconds(delay);
+            }
+
+            if (currentHealth <= 0 || isDying)
+            {
+                yield break;
+            }
+
+            PlayBleedingFx();
+            TakeDamage(bleedingDamage, DamageSoundType.MagicHit);
+        }
+
         if (currentHealth <= 0)
         {
-            return;
+            yield break;
         }
 
         List<CombatStatusType> expiredStatuses = null;
@@ -3041,7 +3320,7 @@ public class Enemy : MonoBehaviour
 
         if (expiredStatuses == null)
         {
-            return;
+            yield break;
         }
 
         for (int index = 0; index < expiredStatuses.Count; index++)
@@ -3050,6 +3329,234 @@ public class Enemy : MonoBehaviour
             statusDurations.Remove(statusType);
             statusPotencies.Remove(statusType);
         }
+    }
+
+    private void PlayBleedingFx()
+    {
+        if (bleedingFxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        GameObject spawnedFx = Instantiate(bleedingFxPrefab, anchor.position, bleedingFxPrefab.transform.rotation);
+        spawnedFx.transform.localScale = bleedingFxPrefab.transform.localScale;
+    }
+
+    private IEnumerator ResolveMistyConfusionTurn()
+    {
+        List<Enemy> targets = GatherConfusionTargets();
+        if (targets.Count == 0)
+        {
+            ClearMistyConfusion();
+            yield break;
+        }
+
+        List<Enemy> targetsToAttack = mistyConfusionParanoia
+            ? targets
+            : new List<Enemy> { SelectWeakestEnemy(targets) };
+
+        for (int index = 0; index < targetsToAttack.Count; index++)
+        {
+            Enemy target = targetsToAttack[index];
+            if (target == null || target == this || target.CurrentHealth <= 0 || !CanAttackEnemyTargetFrom(gridPosition, target))
+            {
+                continue;
+            }
+
+            TriggerAttackAnimation();
+            float damageDelay = GetEnemyTargetDamageDelay(target);
+            if (damageDelay > 0f)
+            {
+                yield return new WaitForSeconds(damageDelay);
+            }
+
+            target.TakeDamage(EffectiveForce, damageSoundType);
+            yield return new WaitForSeconds(0.08f);
+        }
+
+        if (mistyConfusionBrokenHeart && currentHealth > 0)
+        {
+            TakeDamage(1, DamageSoundType.Default);
+        }
+
+        ClearMistyConfusion();
+    }
+
+    private void ClearMistyConfusion()
+    {
+        mistyConfusionPending = false;
+        mistyConfusionParanoia = false;
+        mistyConfusionBrokenHeart = false;
+        ClearMistyConfusionFx();
+    }
+
+    private List<Enemy> GatherConfusionTargets()
+    {
+        List<Enemy> targets = new List<Enemy>();
+        if (Board == null)
+        {
+            return targets;
+        }
+
+        IReadOnlyList<Enemy> enemies = Board.SpawnedEnemies;
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy candidate = enemies[index];
+            if (candidate == null || candidate == this || candidate.CurrentHealth <= 0)
+            {
+                continue;
+            }
+
+            if (CanAttackEnemyTargetFrom(gridPosition, candidate))
+            {
+                targets.Add(candidate);
+            }
+        }
+
+        return targets;
+    }
+
+    private Enemy SelectWeakestEnemy(List<Enemy> enemies)
+    {
+        Enemy weakestEnemy = null;
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy candidate = enemies[index];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (weakestEnemy == null
+                || candidate.CurrentHealth < weakestEnemy.CurrentHealth
+                || (candidate.CurrentHealth == weakestEnemy.CurrentHealth && candidate.MaxHealth < weakestEnemy.MaxHealth))
+            {
+                weakestEnemy = candidate;
+            }
+        }
+
+        return weakestEnemy;
+    }
+
+    public bool CanAttackAnyEnemyAlly()
+    {
+        return GatherConfusionTargets().Count > 0;
+    }
+
+    private void ShowMistyConfusionFx()
+    {
+        if (mistyConfusionFxPrefab == null)
+        {
+            return;
+        }
+
+        ClearMistyConfusionFx();
+
+        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        activeMistyConfusionFxInstance = Instantiate(mistyConfusionFxPrefab, anchor.position, mistyConfusionFxPrefab.transform.rotation);
+        activeMistyConfusionFxInstance.transform.SetParent(anchor, true);
+        activeMistyConfusionFxInstance.transform.rotation = mistyConfusionFxPrefab.transform.rotation;
+        activeMistyConfusionFxInstance.transform.localScale = mistyConfusionFxPrefab.transform.localScale;
+
+        if (mistyConfusionFxMaxDuration > 0f)
+        {
+            mistyConfusionFxTimeoutCoroutine = StartCoroutine(ClearMistyConfusionFxAfterDelay(mistyConfusionFxMaxDuration));
+        }
+    }
+
+    private IEnumerator ClearMistyConfusionFxAfterDelay(float delay)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        mistyConfusionFxTimeoutCoroutine = null;
+        ClearMistyConfusionFx();
+    }
+
+    private void ClearMistyConfusionFx()
+    {
+        if (mistyConfusionFxTimeoutCoroutine != null)
+        {
+            StopCoroutine(mistyConfusionFxTimeoutCoroutine);
+            mistyConfusionFxTimeoutCoroutine = null;
+        }
+
+        if (activeMistyConfusionFxInstance == null)
+        {
+            return;
+        }
+
+        Destroy(activeMistyConfusionFxInstance);
+        activeMistyConfusionFxInstance = null;
+    }
+
+    private bool CanAttackEnemyTargetFrom(Vector2Int origin, Enemy target)
+    {
+        if (target == null || Board == null)
+        {
+            return false;
+        }
+
+        Vector2Int delta = target.GridPosition - origin;
+        int manhattanDistance = Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+
+        switch (attackPattern)
+        {
+            case EnemyAttackPattern.AdjacentOrthogonal:
+                return manhattanDistance == 1;
+            case EnemyAttackPattern.Radial:
+                int radialDistance = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
+                return radialDistance > 0 && radialDistance <= Mathf.Max(1, attackRange);
+            case EnemyAttackPattern.Projectile:
+                int deltaX = Mathf.Abs(delta.x);
+                int deltaY = Mathf.Abs(delta.y);
+                bool sameRowOrColumn = origin.x == target.GridPosition.x || origin.y == target.GridPosition.y;
+                bool perfectDiagonal = deltaX == deltaY && deltaX > 0;
+
+                if (requireAlignedShot)
+                {
+                    bool aligned = sameRowOrColumn || (allowPerfectDiagonalShot && perfectDiagonal);
+                    if (!aligned)
+                    {
+                        return false;
+                    }
+                }
+
+                if (hasMaxRange)
+                {
+                    float distance = requireAlignedShot && sameRowOrColumn
+                        ? manhattanDistance
+                        : Vector2.Distance(origin, target.GridPosition);
+                    if (distance > attackRange)
+                    {
+                        return false;
+                    }
+                }
+
+                if (ignoreObstacles)
+                {
+                    return true;
+                }
+
+                return !directVision || Board.HasLineOfSight(origin, target.GridPosition);
+            default:
+                return false;
+        }
+    }
+
+    private float GetEnemyTargetDamageDelay(Enemy target)
+    {
+        float delay = Mathf.Max(0f, attackDamageDelay);
+        if (!multiplyAttackDamageDelayByDistance || target == null)
+        {
+            return delay;
+        }
+
+        int distance = Mathf.Abs(target.GridPosition.x - gridPosition.x) + Mathf.Abs(target.GridPosition.y - gridPosition.y);
+        return delay * Mathf.Max(1, distance);
     }
 
     private void Die()

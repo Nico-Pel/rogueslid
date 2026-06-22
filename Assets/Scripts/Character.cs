@@ -310,6 +310,7 @@ public class Character : MonoBehaviour
         remainingMovementPoints--;
         NotifyMovementPointsChanged();
         Board.NotifyCharacterTraversedPath(this, startCell, destination);
+        NotifyAbilitiesCharacterMoved(startCell, destination, true);
         ApplyTraversalEffects();
         ConsumeSingleStepModifiers();
         AnimateToGrid();
@@ -389,6 +390,11 @@ public class Character : MonoBehaviour
 
     public bool TryTeleportTo(Vector2Int targetCell)
     {
+        return TryTeleportTo(targetCell, moveDuration);
+    }
+
+    public bool TryTeleportTo(Vector2Int targetCell, float animationDuration)
+    {
         if (Board == null || targetCell == gridPosition)
         {
             return false;
@@ -407,7 +413,37 @@ public class Character : MonoBehaviour
 
         gridPosition = targetCell;
         Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
-        AnimateToGrid();
+        NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
+        AnimateToGrid(animationDuration);
+        return true;
+    }
+
+    public bool TryTeleportToImmediate(Vector2Int targetCell)
+    {
+        if (Board == null || targetCell == gridPosition)
+        {
+            return false;
+        }
+
+        Vector2Int startCell = gridPosition;
+        if (!Board.IsCellWalkable(targetCell))
+        {
+            return false;
+        }
+
+        if (!Board.MoveOccupant(gridPosition, targetCell, BoardOccupantKind.PlayerCharacter))
+        {
+            return false;
+        }
+
+        moveTween?.Kill();
+        moveTween = null;
+        IsMoving = false;
+        gridPosition = targetCell;
+        Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
+        NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
+        SnapToGrid();
+        SetDashingAnimation(false);
         return true;
     }
 
@@ -430,6 +466,12 @@ public class Character : MonoBehaviour
     public void EndActionLock()
     {
         actionLockCount = Mathf.Max(0, actionLockCount - 1);
+    }
+
+    public Transform GetBodyTransform()
+    {
+        CacheBody();
+        return characterBody != null ? characterBody : transform;
     }
 
     public int DealDamageToEnemy(
@@ -673,6 +715,15 @@ public class Character : MonoBehaviour
             case ThiefsDaggerAbility:
                 weaponDamage = 5 + (2 * GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade));
                 break;
+            case HectorCrossbowAbility:
+                weaponDamage = 4;
+                break;
+            case DemonbaneAbility:
+                weaponDamage = 4;
+                break;
+            case WhisperfangAbility:
+                weaponDamage = 1;
+                break;
         }
 
         int bonus = includeTemporaryModifiers ? BonusDamage : GetNaturalBonusDamage();
@@ -813,6 +864,12 @@ public class Character : MonoBehaviour
     public void CommitCurrentTurnStateForNextTurn()
     {
         attackedLastTurn = attackedThisTurn;
+
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            runtime?.Definition?.OnTurnEnded(this, runtime);
+        }
     }
 
     public void BeginEnemyTurn()
@@ -891,6 +948,7 @@ public class Character : MonoBehaviour
 
         int hits = 0;
         HashSet<Enemy> hitEnemies = new HashSet<Enemy>();
+        HashSet<LichSkullObject> hitLichSkulls = new HashSet<LichSkullObject>();
         for (int offsetX = -range; offsetX <= range; offsetX++)
         {
             for (int offsetY = -range; offsetY <= range; offsetY++)
@@ -916,6 +974,13 @@ public class Character : MonoBehaviour
                     DealDamageToEnemy(enemy, damage, false, true, DamageSoundType.Default, sourceAbility);
                     hits++;
                 }
+                else if (Board.TryGetLichSkullObject(targetCell, out LichSkullObject lichSkull)
+                    && lichSkull != null
+                    && hitLichSkulls.Add(lichSkull))
+                {
+                    DealDamageToLichSkull(lichSkull, damage, false, DamageSoundType.Default, sourceAbility);
+                    hits++;
+                }
                 else if (Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null)
                 {
                     barrel.TakeHit();
@@ -925,6 +990,36 @@ public class Character : MonoBehaviour
         }
 
         return hits;
+    }
+
+    public bool DealDamageToEnemyLikeTargetAtCell(
+        Vector2Int targetCell,
+        int baseDamage,
+        bool addBonusDamage,
+        DamageSoundType hitSoundType = DamageSoundType.Default,
+        AbilityDefinition sourceAbility = null)
+    {
+        if (Board == null)
+        {
+            return false;
+        }
+
+        if (Board.TryGetEnemyLikeTarget(targetCell, out Enemy enemy, out LichSkullObject lichSkull))
+        {
+            if (enemy != null)
+            {
+                DealDamageToEnemy(enemy, baseDamage, addBonusDamage, true, hitSoundType, sourceAbility);
+                return true;
+            }
+
+            if (lichSkull != null)
+            {
+                DealDamageToLichSkull(lichSkull, baseDamage, addBonusDamage, hitSoundType, sourceAbility);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void DealDamageToBarrelWithAbilityTiming(AbilityDefinition sourceAbility, BarrelObstacle barrel)
@@ -1245,6 +1340,11 @@ public class Character : MonoBehaviour
 
     private void AnimateToGrid()
     {
+        AnimateToGrid(moveDuration);
+    }
+
+    private void AnimateToGrid(float duration)
+    {
         if (Board == null)
         {
             return;
@@ -1255,7 +1355,7 @@ public class Character : MonoBehaviour
         SetDashingAnimation(true);
         SoundManager.Instance?.PlayDash(transform.position);
         Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
-        moveTween = transform.DOMove(targetPosition, moveDuration)
+        moveTween = transform.DOMove(targetPosition, Mathf.Max(0.01f, duration))
             .SetEase(Ease.Linear)
             .OnComplete(() =>
             {
@@ -1722,6 +1822,27 @@ public class Character : MonoBehaviour
         {
             characterBody = transform.Find("Pandora");
         }
+
+        if (characterBody == null)
+        {
+            characterBody = transform.Find("Pandora_Body");
+        }
+
+        if (characterBody == null && transform.childCount > 0)
+        {
+            characterBody = transform.GetChild(0);
+        }
+    }
+
+    private void NotifyAbilitiesCharacterMoved(Vector2Int previousCell, Vector2Int currentCell, bool consumedMovementPoint)
+    {
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            runtime?.Definition?.OnCharacterMoved(this, runtime, previousCell, currentCell, consumedMovementPoint);
+        }
+
+        NotifyAbilitiesChanged();
     }
 
     private void CacheTrail()
@@ -2163,6 +2284,11 @@ public class Character : MonoBehaviour
         {
             Destroy(spawnedFx, destroyAfterSeconds);
         }
+    }
+
+    public void PlayExecuteProcFx(Transform targetAnchor = null)
+    {
+        PlayProcFx(CharacterProcFxKey.Execute, targetAnchor);
     }
 
     private CharacterProcFxConfig FindProcFxConfig(CharacterProcFxKey key)

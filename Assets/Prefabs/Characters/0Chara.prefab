@@ -80,7 +80,7 @@ MonoBehaviour:
     positionOffset: {x: 0, y: 0.25, z: 0}
     destroyAfterSeconds: 2
   - key: 4
-    fxPrefab: {fileID: 4015235826899696612, guid: c5e0753db71804fe7be2f906ead7b0a1, type: 3}
+    fxPrefab: {fileID: 6160909684301080723, guid: 1fbae4ab4a7ff4e2aac46df2ad4ff117, type: 3}
     positionOffset: {x: 0, y: 0, z: 0}
     destroyAfterSeconds: 2
   - key: 3

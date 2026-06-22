@@ -13,13 +13,15 @@ public class CharacterAbilityRuntime
     public int RemainingCooldown { get; private set; }
     public bool IsActive { get; private set; }
     public int BonusUsesThisTurn { get; private set; }
+    public int UsesThisTurnCount => UsesThisTurn;
     private bool hasPreparedActivationPendingConsumption;
     private int pendingBaseDamageModifierForNextUse;
     private bool suppressNextPrimaryEffectOnce;
+    private int definitionBonusUsesThisTurn;
     public AbilityTargetingMode TargetingMode => Definition != null ? Definition.TargetingMode : AbilityTargetingMode.Immediate;
     public int RemainingUsesThisTurn => Definition == null || Definition.UsesPerTurn <= 0
         ? int.MaxValue
-        : Mathf.Max(0, Definition.UsesPerTurn + BonusUsesThisTurn - UsesThisTurn);
+        : Mathf.Max(0, Definition.UsesPerTurn + definitionBonusUsesThisTurn + BonusUsesThisTurn - UsesThisTurn);
     public int RemainingUsesThisCombat => Definition == null || Definition.UsesPerCombat <= 0
         ? int.MaxValue
         : Mathf.Max(0, Definition.UsesPerCombat - UsesThisCombat);
@@ -31,6 +33,7 @@ public class CharacterAbilityRuntime
         RemainingCooldown = 0;
         IsActive = false;
         BonusUsesThisTurn = 0;
+        definitionBonusUsesThisTurn = 0;
         hasPreparedActivationPendingConsumption = false;
         pendingBaseDamageModifierForNextUse = 0;
         suppressNextPrimaryEffectOnce = false;
@@ -45,6 +48,7 @@ public class CharacterAbilityRuntime
 
         UsesThisTurn = 0;
         BonusUsesThisTurn = 0;
+        definitionBonusUsesThisTurn = Definition != null ? Mathf.Max(0, Definition.GetBonusUsesPerTurn(character, this)) : 0;
         if (RemainingCooldown > 0)
         {
             RemainingCooldown--;
@@ -52,6 +56,7 @@ public class CharacterAbilityRuntime
 
         pendingBaseDamageModifierForNextUse = 0;
         suppressNextPrimaryEffectOnce = false;
+        Definition?.OnTurnStarted(character, this);
     }
 
     public bool IsUsable(Character character)
@@ -71,7 +76,7 @@ public class CharacterAbilityRuntime
             return false;
         }
 
-        if (Definition.UsesPerTurn > 0 && UsesThisTurn >= Definition.UsesPerTurn + BonusUsesThisTurn)
+        if (Definition.UsesPerTurn > 0 && UsesThisTurn >= Definition.UsesPerTurn + definitionBonusUsesThisTurn + BonusUsesThisTurn)
         {
             return false;
         }
@@ -203,6 +208,11 @@ public class CharacterAbilityRuntime
         }
 
         RemainingCooldown = Mathf.Max(0, RemainingCooldown - amount);
+    }
+
+    public void SetRemainingCooldown(int amount)
+    {
+        RemainingCooldown = Mathf.Max(0, amount);
     }
 
     public void ConsumePreparedActivation()

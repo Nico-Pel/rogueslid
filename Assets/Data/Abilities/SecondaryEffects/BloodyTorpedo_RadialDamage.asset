@@ -15,9 +15,9 @@ MonoBehaviour:
   characterAnimationClip: {fileID: 7400000, guid: b38d7f7a102c24e0ca2516e2429bfbf1, type: 2}
   fxSpawns:
   - fxPrefab: {fileID: 1391671794322985783, guid: aa27115c58d6246e59e84dcc0e9d6fca, type: 3}
-    spawnDelay: 0
+    spawnDelay: 0.01
     destroyAfterSeconds: 1
-    spawnAnchor: 0
+    spawnAnchor: 2
     offsetReference: 0
     positionOffset: {x: 0, y: 0, z: 0}
   anchor: 2

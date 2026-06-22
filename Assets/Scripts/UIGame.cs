@@ -51,6 +51,20 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Image switchAbilityOldIcon;
     [SerializeField] private Button switchAbilityConfirmButton;
     [SerializeField] private Button switchAbilityCancelButton;
+    [SerializeField] private Button toolsButton;
+    [SerializeField] private GameObject toolsMenu;
+    [SerializeField] private Button toolsMenuBackdropButton;
+    [SerializeField] private TMP_InputField toolsBuildNameInput;
+    [SerializeField] private TMP_Text toolsSelectedBuildLabel;
+    [SerializeField] private TMP_Text toolsBuildCountLabel;
+    [SerializeField] private TMP_Text toolsBuildDetailsLabel;
+    [SerializeField] private TMP_Text toolsStatusLabel;
+    [SerializeField] private Button toolsPreviousBuildButton;
+    [SerializeField] private Button toolsNextBuildButton;
+    [SerializeField] private Button toolsSaveBuildButton;
+    [SerializeField] private Button toolsLoadBuildButton;
+    [SerializeField] private Button toolsDeleteBuildButton;
+    [SerializeField] private Button toolsCloseButton;
     [SerializeField] private float statsMenuClickThreshold = 16f;
     [SerializeField] private bool disableAbilityButtonsWithoutValidTargets = false;
 
@@ -80,8 +94,11 @@ public class UIGame : MonoBehaviour
     private Action onYesNoAccepted;
     private Action onYesNoDeclined;
     private Action onRetryRequested;
-    private float targetableOnlyCellIndicatorDuration = 1f;
+    private float targetableOnlyCellIndicatorDuration = 0.75f;
     private Coroutine clearTargetableOnlyIndicatorsCoroutine;
+    private readonly List<EquipmentBuildData> availableEquipmentBuilds = new List<EquipmentBuildData>();
+    private int selectedEquipmentBuildIndex = -1;
+    private float targetableOnlyCellIndicatorObstacleHeightOffset = 0.7f;
 
     private void Awake()
     {
@@ -192,6 +209,7 @@ public class UIGame : MonoBehaviour
         CacheLoseMenu();
         CacheAbilityCheckMenu();
         CacheSwitchAbilityMenu();
+        EnsureToolsUI();
         if (rewardsMenu != null)
         {
             rewardsMenu.SetActive(false);
@@ -202,6 +220,7 @@ public class UIGame : MonoBehaviour
         HideLoseMenu();
         HideAbilityCheck();
         HideSwitchAbilityMenu();
+        HideToolsMenu();
     }
 
     private void OnEnable()
@@ -230,6 +249,7 @@ public class UIGame : MonoBehaviour
 
         ClearTargetCellIndicators();
         ClearTargetableOnlyCellIndicators();
+        HideToolsMenu();
         UnbindCharacter();
     }
 
@@ -450,6 +470,7 @@ public class UIGame : MonoBehaviour
         RefreshItemsList();
         RefreshFooterCharacterInfo();
         RefreshTargetCellIndicators();
+        RefreshAvailableEquipmentBuilds();
     }
 
     private void UnbindCharacter()
@@ -1349,6 +1370,11 @@ public class UIGame : MonoBehaviour
                 }
 
                 Vector3 spawnPosition = board.GridToWorldPosition(cell);
+                if (board.TryGetCell(cell, out BoardCell boardCell) && boardCell != null && boardCell.HasBlockingTerrain)
+                {
+                    spawnPosition += Vector3.up * targetableOnlyCellIndicatorObstacleHeightOffset;
+                }
+
                 GameObject indicator = Instantiate(targetableOnlyCellIndicatorPrefab, spawnPosition, targetableOnlyCellIndicatorPrefab.transform.rotation, board.transform);
                 indicator.name = $"{targetableOnlyCellIndicatorPrefab.name}_{cell.x}_{cell.y}";
                 indicator.transform.localScale = targetableOnlyCellIndicatorPrefab.transform.localScale;
@@ -1480,6 +1506,851 @@ public class UIGame : MonoBehaviour
 
         SoundManager.Instance?.PlayClick();
         UpdateAbilityCheckSelection(optionIndex);
+    }
+
+    private void EnsureToolsUI()
+    {
+        CacheToolsMenu();
+        if (toolsButton == null || toolsMenu == null)
+        {
+            CreateRuntimeToolsUI();
+            CacheToolsMenu();
+        }
+
+        if (toolsButton != null)
+        {
+            toolsButton.onClick.RemoveListener(HandleToolsButtonClicked);
+            toolsButton.onClick.AddListener(HandleToolsButtonClicked);
+        }
+
+        BindToolsButton(toolsMenuBackdropButton, HandleToolsCloseBuildMenuClicked);
+        BindToolsButton(toolsPreviousBuildButton, HandleToolsPreviousBuildClicked);
+        BindToolsButton(toolsNextBuildButton, HandleToolsNextBuildClicked);
+        BindToolsButton(toolsSaveBuildButton, HandleToolsSaveBuildClicked);
+        BindToolsButton(toolsLoadBuildButton, HandleToolsLoadBuildClicked);
+        BindToolsButton(toolsDeleteBuildButton, HandleToolsDeleteBuildClicked);
+        BindToolsButton(toolsCloseButton, HandleToolsCloseBuildMenuClicked);
+
+        RefreshAvailableEquipmentBuilds();
+    }
+
+    private void CacheToolsMenu()
+    {
+        if (toolsButton == null)
+        {
+            toolsButton = FindComponentByName<Button>(transform, "BTools");
+        }
+
+        if (toolsMenu == null)
+        {
+            Transform toolsMenuTransform = transform.Find("MenuTools");
+            toolsMenu = toolsMenuTransform != null ? toolsMenuTransform.gameObject : null;
+        }
+
+        if (toolsMenu == null)
+        {
+            return;
+        }
+
+        if (toolsMenuBackdropButton == null)
+        {
+            toolsMenuBackdropButton = FindComponentByName<Button>(toolsMenu.transform, "BToolsBackdrop");
+        }
+
+        if (toolsBuildNameInput == null)
+        {
+            toolsBuildNameInput = FindComponentByName<TMP_InputField>(toolsMenu.transform, "InputBuildName");
+        }
+
+        if (toolsSelectedBuildLabel == null)
+        {
+            toolsSelectedBuildLabel = FindComponentByName<TMP_Text>(toolsMenu.transform, "tSelectedBuild");
+        }
+
+        if (toolsBuildCountLabel == null)
+        {
+            toolsBuildCountLabel = FindComponentByName<TMP_Text>(toolsMenu.transform, "tBuildCount");
+        }
+
+        if (toolsBuildDetailsLabel == null)
+        {
+            toolsBuildDetailsLabel = FindComponentByName<TMP_Text>(toolsMenu.transform, "tBuildDetails");
+        }
+
+        if (toolsStatusLabel == null)
+        {
+            toolsStatusLabel = FindComponentByName<TMP_Text>(toolsMenu.transform, "tToolsStatus");
+        }
+
+        if (toolsPreviousBuildButton == null)
+        {
+            toolsPreviousBuildButton = FindComponentByName<Button>(toolsMenu.transform, "BPrevBuild");
+        }
+
+        if (toolsNextBuildButton == null)
+        {
+            toolsNextBuildButton = FindComponentByName<Button>(toolsMenu.transform, "BNextBuild");
+        }
+
+        if (toolsSaveBuildButton == null)
+        {
+            toolsSaveBuildButton = FindComponentByName<Button>(toolsMenu.transform, "BSaveBuild");
+        }
+
+        if (toolsLoadBuildButton == null)
+        {
+            toolsLoadBuildButton = FindComponentByName<Button>(toolsMenu.transform, "BLoadBuild");
+        }
+
+        if (toolsDeleteBuildButton == null)
+        {
+            toolsDeleteBuildButton = FindComponentByName<Button>(toolsMenu.transform, "BDeleteBuild");
+        }
+
+        if (toolsCloseButton == null)
+        {
+            toolsCloseButton = FindComponentByName<Button>(toolsMenu.transform, "BCloseTools");
+        }
+    }
+
+    private void CreateRuntimeToolsUI()
+    {
+        RectTransform rootRect = transform as RectTransform;
+        if (rootRect == null)
+        {
+            return;
+        }
+
+        TMP_FontAsset fontAsset = ResolveDefaultUiFont();
+        if (fontAsset == null)
+        {
+            return;
+        }
+
+        if (toolsButton == null)
+        {
+            toolsButton = CreateLabeledButton(
+                rootRect,
+                "BTools",
+                "TOOLS",
+                new Vector2(150f, 58f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(-24f, -24f),
+                fontAsset,
+                new Color(0.56f, 0.14f, 0.73f, 0.95f));
+        }
+
+        if (toolsMenu == null)
+        {
+            toolsMenu = new GameObject("MenuTools", typeof(RectTransform));
+            toolsMenu.transform.SetParent(rootRect, false);
+        }
+
+        RectTransform menuRect = toolsMenu.GetComponent<RectTransform>();
+        EnsureCanvasRenderer(toolsMenu);
+        menuRect.anchorMin = Vector2.zero;
+        menuRect.anchorMax = Vector2.one;
+        menuRect.offsetMin = Vector2.zero;
+        menuRect.offsetMax = Vector2.zero;
+
+        toolsMenuBackdropButton = EnsureBackdropButton(toolsMenuBackdropButton, menuRect);
+
+        Transform panelTransform = toolsMenu.transform.Find("Panel");
+        if (panelTransform == null)
+        {
+            GameObject panelObject = new GameObject("Panel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            panelObject.transform.SetParent(toolsMenu.transform, false);
+            panelTransform = panelObject.transform;
+        }
+
+        RectTransform panelRect = panelTransform as RectTransform;
+        Image panelImage = panelTransform.GetComponent<Image>();
+        if (panelImage == null)
+        {
+            panelImage = panelTransform.gameObject.AddComponent<Image>();
+        }
+
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot = new Vector2(0.5f, 0.5f);
+        panelRect.sizeDelta = new Vector2(620f, 470f);
+        panelRect.anchoredPosition = Vector2.zero;
+        panelImage.color = new Color(0.11f, 0.07f, 0.16f, 0.985f);
+
+        EnsureLabelByName(panelRect, "tToolsTitle", "BUILD TOOLS", fontAsset, 32, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(480f, 46f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -34f), new Color(1f, 0.73f, 0f, 1f));
+        EnsureLabel(ref toolsSelectedBuildLabel, panelRect, "tSelectedBuild", "No build saved", fontAsset, 24, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(300f, 34f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -96f), Color.white);
+        EnsureLabel(ref toolsBuildCountLabel, panelRect, "tBuildCount", "0 builds saved", fontAsset, 16, FontStyles.Italic, TextAlignmentOptions.Center, new Vector2(220f, 24f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -126f), new Color(0.9f, 0.78f, 0.95f, 1f));
+        EnsureLabel(ref toolsBuildDetailsLabel, panelRect, "tBuildDetails", string.Empty, fontAsset, 20, FontStyles.Normal, TextAlignmentOptions.TopLeft, new Vector2(510f, 145f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -180f), new Color(0.93f, 0.83f, 0.95f, 1f));
+        EnsureLabel(ref toolsStatusLabel, panelRect, "tToolsStatus", string.Empty, fontAsset, 16, FontStyles.Italic, TextAlignmentOptions.Center, new Vector2(520f, 26f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 20f), new Color(0.95f, 0.73f, 0.31f, 1f));
+
+        toolsPreviousBuildButton = EnsureLabeledButton(toolsPreviousBuildButton, panelRect, "BPrevBuild", "<", new Vector2(58f, 44f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(32f, -96f), fontAsset, new Color(0.34f, 0.16f, 0.45f, 1f));
+        toolsNextBuildButton = EnsureLabeledButton(toolsNextBuildButton, panelRect, "BNextBuild", ">", new Vector2(58f, 44f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-32f, -96f), fontAsset, new Color(0.34f, 0.16f, 0.45f, 1f));
+
+        EnsureLabelByName(panelRect, "tBuildNameLabel", "Build Name", fontAsset, 18, FontStyles.Bold, TextAlignmentOptions.Left, new Vector2(510f, 28f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 144f), new Color(0.95f, 0.83f, 0.32f, 1f));
+        toolsBuildNameInput = EnsureInputField(toolsBuildNameInput, panelRect, "InputBuildName", fontAsset, new Vector2(510f, 52f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 104f));
+
+        toolsSaveBuildButton = EnsureLabeledButton(toolsSaveBuildButton, panelRect, "BSaveBuild", "SAVE CURRENT BUILD", new Vector2(215f, 52f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(34f, 36f), fontAsset, new Color(0.56f, 0.14f, 0.73f, 1f));
+        toolsLoadBuildButton = EnsureLabeledButton(toolsLoadBuildButton, panelRect, "BLoadBuild", "LOAD SELECTED", new Vector2(190f, 52f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 36f), fontAsset, new Color(0.11f, 0.58f, 0.85f, 1f));
+        toolsDeleteBuildButton = EnsureLabeledButton(toolsDeleteBuildButton, panelRect, "BDeleteBuild", "DELETE", new Vector2(130f, 52f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-34f, 36f), fontAsset, new Color(0.66f, 0.18f, 0.22f, 1f));
+        toolsCloseButton = EnsureLabeledButton(toolsCloseButton, panelRect, "BCloseTools", "CLOSE", new Vector2(160f, 44f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-20f, -20f), fontAsset, new Color(0.16f, 0.08f, 0.23f, 1f));
+        toolsMenu.transform.SetAsLastSibling();
+    }
+
+    private void HandleToolsButtonClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        if (toolsMenu != null && toolsMenu.activeSelf)
+        {
+            HideToolsMenu();
+            return;
+        }
+
+        ShowToolsMenu();
+    }
+
+    private void HandleToolsPreviousBuildClicked()
+    {
+        if (availableEquipmentBuilds.Count == 0)
+        {
+            return;
+        }
+
+        SoundManager.Instance?.PlayClick();
+        selectedEquipmentBuildIndex = (selectedEquipmentBuildIndex - 1 + availableEquipmentBuilds.Count) % availableEquipmentBuilds.Count;
+        UpdateToolsMenuState();
+    }
+
+    private void HandleToolsNextBuildClicked()
+    {
+        if (availableEquipmentBuilds.Count == 0)
+        {
+            return;
+        }
+
+        SoundManager.Instance?.PlayClick();
+        selectedEquipmentBuildIndex = (selectedEquipmentBuildIndex + 1) % availableEquipmentBuilds.Count;
+        UpdateToolsMenuState();
+    }
+
+    private void HandleToolsSaveBuildClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        BoardManager board = gameTurnManager != null ? gameTurnManager.Board : null;
+        if (board == null)
+        {
+            UpdateToolsMenuState("No active board.");
+            return;
+        }
+
+        string desiredBuildName = toolsBuildNameInput != null ? toolsBuildNameInput.text.Trim() : string.Empty;
+        if (string.IsNullOrWhiteSpace(desiredBuildName))
+        {
+            desiredBuildName = GenerateDefaultEquipmentBuildName();
+        }
+
+        EquipmentBuildData buildData = board.CreateEquipmentBuildSnapshot(desiredBuildName);
+        if (buildData == null)
+        {
+            UpdateToolsMenuState("Unable to save this build.");
+            return;
+        }
+
+        EquipmentBuildLibrary.SaveBuild(buildData);
+        RefreshAvailableEquipmentBuilds(buildData.BuildName);
+        UpdateToolsMenuState($"Saved \"{buildData.BuildName}\".");
+    }
+
+    private void HandleToolsLoadBuildClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        EquipmentBuildData selectedBuild = GetSelectedEquipmentBuild();
+        BoardManager board = gameTurnManager != null ? gameTurnManager.Board : null;
+        if (selectedBuild == null || board == null)
+        {
+            UpdateToolsMenuState("No build selected.");
+            return;
+        }
+
+        if (!board.ApplyEquipmentBuild(selectedBuild))
+        {
+            UpdateToolsMenuState("Unable to load this build.");
+            return;
+        }
+
+        BindToCurrentCharacter();
+        RefreshMobilityBar();
+        RefreshAbilityButtons();
+        RefreshItemsList();
+        RefreshFooterCharacterInfo();
+        UpdateToolsMenuState($"Loaded \"{selectedBuild.BuildName}\".");
+    }
+
+    private void HandleToolsDeleteBuildClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        EquipmentBuildData selectedBuild = GetSelectedEquipmentBuild();
+        string characterId = GetCurrentToolsCharacterId();
+        if (selectedBuild == null || string.IsNullOrWhiteSpace(characterId))
+        {
+            UpdateToolsMenuState("No build selected.");
+            return;
+        }
+
+        EquipmentBuildLibrary.DeleteBuild(characterId, selectedBuild.BuildName);
+        RefreshAvailableEquipmentBuilds();
+        UpdateToolsMenuState($"Deleted \"{selectedBuild.BuildName}\".");
+    }
+
+    private void HandleToolsCloseBuildMenuClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        HideToolsMenu();
+    }
+
+    private void ShowToolsMenu()
+    {
+        RefreshAvailableEquipmentBuilds();
+        if (toolsMenu != null)
+        {
+            toolsMenu.SetActive(true);
+        }
+
+        UpdateToolsMenuState();
+    }
+
+    private void HideToolsMenu()
+    {
+        if (toolsMenu != null)
+        {
+            toolsMenu.SetActive(false);
+        }
+    }
+
+    private void RefreshAvailableEquipmentBuilds(string preferredBuildName = null)
+    {
+        string characterId = GetCurrentToolsCharacterId();
+        string currentSelectedName = preferredBuildName;
+        if (string.IsNullOrWhiteSpace(currentSelectedName))
+        {
+            EquipmentBuildData selectedBuild = GetSelectedEquipmentBuild();
+            currentSelectedName = selectedBuild != null ? selectedBuild.BuildName : string.Empty;
+        }
+
+        availableEquipmentBuilds.Clear();
+        availableEquipmentBuilds.AddRange(EquipmentBuildLibrary.GetBuilds(characterId));
+
+        selectedEquipmentBuildIndex = -1;
+        if (!string.IsNullOrWhiteSpace(currentSelectedName))
+        {
+            for (int index = 0; index < availableEquipmentBuilds.Count; index++)
+            {
+                if (string.Equals(availableEquipmentBuilds[index].BuildName, currentSelectedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    selectedEquipmentBuildIndex = index;
+                    break;
+                }
+            }
+        }
+
+        if (selectedEquipmentBuildIndex < 0 && availableEquipmentBuilds.Count > 0)
+        {
+            selectedEquipmentBuildIndex = 0;
+        }
+    }
+
+    private void UpdateToolsMenuState(string statusMessage = null)
+    {
+        EquipmentBuildData selectedBuild = GetSelectedEquipmentBuild();
+        if (toolsSelectedBuildLabel != null)
+        {
+            toolsSelectedBuildLabel.text = selectedBuild != null ? selectedBuild.BuildName : "No build saved";
+        }
+
+        if (toolsBuildCountLabel != null)
+        {
+            int buildCount = availableEquipmentBuilds.Count;
+            toolsBuildCountLabel.text = buildCount == 1 ? "1 build saved" : $"{buildCount} builds saved";
+        }
+
+        if (toolsBuildDetailsLabel != null)
+        {
+            toolsBuildDetailsLabel.text = BuildEquipmentDetailsText(selectedBuild);
+        }
+
+        if (toolsBuildNameInput != null)
+        {
+            if (selectedBuild != null)
+            {
+                toolsBuildNameInput.text = selectedBuild.BuildName;
+            }
+            else if (string.IsNullOrWhiteSpace(toolsBuildNameInput.text))
+            {
+                toolsBuildNameInput.text = GenerateDefaultEquipmentBuildName();
+            }
+        }
+
+        if (toolsStatusLabel != null)
+        {
+            toolsStatusLabel.text = statusMessage ?? string.Empty;
+        }
+
+        bool hasSavedBuild = selectedBuild != null;
+        if (toolsPreviousBuildButton != null)
+        {
+            toolsPreviousBuildButton.interactable = availableEquipmentBuilds.Count > 1;
+        }
+
+        if (toolsNextBuildButton != null)
+        {
+            toolsNextBuildButton.interactable = availableEquipmentBuilds.Count > 1;
+        }
+
+        if (toolsLoadBuildButton != null)
+        {
+            toolsLoadBuildButton.interactable = hasSavedBuild;
+        }
+
+        if (toolsDeleteBuildButton != null)
+        {
+            toolsDeleteBuildButton.interactable = hasSavedBuild;
+        }
+    }
+
+    private EquipmentBuildData GetSelectedEquipmentBuild()
+    {
+        return selectedEquipmentBuildIndex >= 0 && selectedEquipmentBuildIndex < availableEquipmentBuilds.Count
+            ? availableEquipmentBuilds[selectedEquipmentBuildIndex]
+            : null;
+    }
+
+    private string GetCurrentToolsCharacterId()
+    {
+        BoardManager board = gameTurnManager != null ? gameTurnManager.Board : null;
+        if (board != null)
+        {
+            return board.GetCurrentCharacterId();
+        }
+
+        return observedCharacter != null && observedCharacter.Data != null ? observedCharacter.Data.name : string.Empty;
+    }
+
+    private string GenerateDefaultEquipmentBuildName()
+    {
+        string baseName = "Build";
+        int suffix = 1;
+        HashSet<string> existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int index = 0; index < availableEquipmentBuilds.Count; index++)
+        {
+            EquipmentBuildData build = availableEquipmentBuilds[index];
+            if (build != null && !string.IsNullOrWhiteSpace(build.BuildName))
+            {
+                existingNames.Add(build.BuildName.Trim());
+            }
+        }
+
+        string candidate = $"{baseName} {suffix}";
+        while (existingNames.Contains(candidate))
+        {
+            suffix++;
+            candidate = $"{baseName} {suffix}";
+        }
+
+        return candidate;
+    }
+
+    private string BuildEquipmentDetailsText(EquipmentBuildData buildData)
+    {
+        if (buildData == null)
+        {
+            return "Save your current Weapon, Mobility, Power, upgrades and items here.";
+        }
+
+        int upgradeCount = 0;
+        if (buildData.Upgrades != null)
+        {
+            for (int index = 0; index < buildData.Upgrades.Count; index++)
+            {
+                EquipmentBuildUpgradeEntry entry = buildData.Upgrades[index];
+                if (entry != null && entry.Stacks > 0)
+                {
+                    upgradeCount += entry.Stacks;
+                }
+            }
+        }
+
+        int itemCount = buildData.OwnedItems != null ? buildData.OwnedItems.Count : 0;
+        return $"Weapon: {FormatEquipmentAbilityName(buildData.BasicAttackAbilityId)}\n"
+             + $"Mobility: {FormatEquipmentAbilityName(buildData.MobilityAbilityId)}\n"
+             + $"Power: {FormatEquipmentAbilityName(buildData.SpecialAbilityId)}\n"
+             + $"Upgrades: {upgradeCount}\n"
+             + $"Items: {itemCount}";
+    }
+
+    private string FormatEquipmentAbilityName(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+        {
+            return "-";
+        }
+
+        CharacterData characterData = observedCharacter != null ? observedCharacter.Data : null;
+        if (characterData != null)
+        {
+            List<AbilityDefinition> abilities = characterData.GetAllPotentialAbilities();
+            for (int index = 0; index < abilities.Count; index++)
+            {
+                AbilityDefinition ability = abilities[index];
+                if (ability != null && ability.name == abilityId)
+                {
+                    return ability.AbilityName;
+                }
+            }
+        }
+
+        return abilityId;
+    }
+
+    private static void BindToolsButton(Button button, UnityEngine.Events.UnityAction callback)
+    {
+        if (button == null || callback == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(callback);
+        button.onClick.AddListener(callback);
+    }
+
+    private TMP_FontAsset ResolveDefaultUiFont()
+    {
+        if (turnLabel != null && turnLabel.font != null)
+        {
+            return turnLabel.font;
+        }
+
+        TMP_Text fallbackText = GetComponentInChildren<TMP_Text>(true);
+        return fallbackText != null ? fallbackText.font : null;
+    }
+
+    private static Button CreateLabeledButton(
+        Transform parent,
+        string objectName,
+        string label,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        TMP_FontAsset fontAsset,
+        Color backgroundColor)
+    {
+        GameObject buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = buttonObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = anchorMin;
+        rectTransform.anchorMax = anchorMax;
+        rectTransform.pivot = pivot;
+        rectTransform.sizeDelta = size;
+        rectTransform.anchoredPosition = anchoredPosition;
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = backgroundColor;
+
+        GameObject labelObject = new GameObject("tLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
+        labelObject.transform.SetParent(buttonObject.transform, false);
+        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+
+        TextMeshProUGUI labelText = labelObject.GetComponent<TextMeshProUGUI>();
+        labelText.font = fontAsset;
+        labelText.fontSize = 22f;
+        labelText.fontStyle = FontStyles.Bold;
+        labelText.alignment = TextAlignmentOptions.Center;
+        labelText.color = Color.white;
+        labelText.text = label;
+
+        return buttonObject.GetComponent<Button>();
+    }
+
+    private static TMP_Text CreateLabel(
+        Transform parent,
+        string objectName,
+        string text,
+        TMP_FontAsset fontAsset,
+        float fontSize,
+        FontStyles fontStyles,
+        TextAlignmentOptions alignment,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        Color color)
+    {
+        GameObject labelObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        labelObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = labelObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = anchorMin;
+        rectTransform.anchorMax = anchorMax;
+        rectTransform.pivot = pivot;
+        rectTransform.sizeDelta = size;
+        rectTransform.anchoredPosition = anchoredPosition;
+
+        TextMeshProUGUI textComponent = labelObject.GetComponent<TextMeshProUGUI>();
+        textComponent.font = fontAsset;
+        textComponent.fontSize = fontSize;
+        textComponent.fontStyle = fontStyles;
+        textComponent.alignment = alignment;
+        textComponent.color = color;
+        textComponent.text = text;
+        return textComponent;
+    }
+
+    private static TMP_InputField CreateInputField(
+        Transform parent,
+        string objectName,
+        TMP_FontAsset fontAsset,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition)
+    {
+        GameObject inputObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(TMP_InputField));
+        inputObject.transform.SetParent(parent, false);
+
+        RectTransform rectTransform = inputObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = anchorMin;
+        rectTransform.anchorMax = anchorMax;
+        rectTransform.pivot = pivot;
+        rectTransform.sizeDelta = size;
+        rectTransform.anchoredPosition = anchoredPosition;
+
+        Image background = inputObject.GetComponent<Image>();
+        background.color = new Color(0.16f, 0.09f, 0.23f, 1f);
+
+        TMP_InputField inputField = inputObject.GetComponent<TMP_InputField>();
+
+        TMP_Text textComponent = CreateLabel(inputObject.transform, "Text", string.Empty, fontAsset, 20f, FontStyles.Bold, TextAlignmentOptions.Left, Vector2.zero, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Color.white);
+        RectTransform textRect = textComponent.rectTransform;
+        textRect.offsetMin = new Vector2(16f, 0f);
+        textRect.offsetMax = new Vector2(-16f, 0f);
+
+        TMP_Text placeholderComponent = CreateLabel(inputObject.transform, "Placeholder", "Build name", fontAsset, 20f, FontStyles.Italic, TextAlignmentOptions.Left, Vector2.zero, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, new Color(0.8f, 0.72f, 0.84f, 0.65f));
+        RectTransform placeholderRect = placeholderComponent.rectTransform;
+        placeholderRect.offsetMin = new Vector2(16f, 0f);
+        placeholderRect.offsetMax = new Vector2(-16f, 0f);
+
+        inputField.textViewport = rectTransform;
+        inputField.textComponent = textComponent as TextMeshProUGUI;
+        inputField.placeholder = placeholderComponent;
+        inputField.characterLimit = 32;
+        inputField.lineType = TMP_InputField.LineType.SingleLine;
+        return inputField;
+    }
+
+    private static void EnsureCanvasRenderer(GameObject target)
+    {
+        if (target != null && target.GetComponent<CanvasRenderer>() == null)
+        {
+            target.AddComponent<CanvasRenderer>();
+        }
+    }
+
+    private Button EnsureBackdropButton(Button currentButton, RectTransform parent)
+    {
+        Button button = currentButton;
+        if (button == null)
+        {
+            GameObject buttonObject = new GameObject("BToolsBackdrop", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+            button = buttonObject.GetComponent<Button>();
+        }
+
+        RectTransform rectTransform = button.GetComponent<RectTransform>();
+        rectTransform.anchorMin = Vector2.zero;
+        rectTransform.anchorMax = Vector2.one;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+
+        Image image = button.GetComponent<Image>();
+        if (image == null)
+        {
+            image = button.gameObject.AddComponent<Image>();
+        }
+
+        image.color = new Color(0f, 0f, 0f, 0.55f);
+        return button;
+    }
+
+    private Button EnsureLabeledButton(
+        Button currentButton,
+        Transform parent,
+        string objectName,
+        string label,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        TMP_FontAsset fontAsset,
+        Color backgroundColor)
+    {
+        Button button = currentButton;
+        if (button == null)
+        {
+            button = CreateLabeledButton(parent, objectName, label, size, anchorMin, anchorMax, pivot, anchoredPosition, fontAsset, backgroundColor);
+        }
+        else
+        {
+            EnsureCanvasRenderer(button.gameObject);
+            RectTransform rectTransform = button.GetComponent<RectTransform>();
+            rectTransform.anchorMin = anchorMin;
+            rectTransform.anchorMax = anchorMax;
+            rectTransform.pivot = pivot;
+            rectTransform.sizeDelta = size;
+            rectTransform.anchoredPosition = anchoredPosition;
+
+            Image image = button.GetComponent<Image>();
+            if (image == null)
+            {
+                image = button.gameObject.AddComponent<Image>();
+            }
+
+            image.color = backgroundColor;
+            TMP_Text labelText = button.GetComponentInChildren<TMP_Text>(true);
+            if (labelText == null)
+            {
+                labelText = CreateLabel(button.transform, "tLabel", label, fontAsset, 22f, FontStyles.Bold, TextAlignmentOptions.Center, Vector2.zero, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Color.white);
+                RectTransform labelRect = labelText.rectTransform;
+                labelRect.offsetMin = Vector2.zero;
+                labelRect.offsetMax = Vector2.zero;
+            }
+
+            labelText.font = fontAsset;
+            labelText.text = label;
+            labelText.color = Color.white;
+        }
+
+        return button;
+    }
+
+    private void EnsureLabel(
+        ref TMP_Text targetLabel,
+        Transform parent,
+        string objectName,
+        string text,
+        TMP_FontAsset fontAsset,
+        float fontSize,
+        FontStyles fontStyles,
+        TextAlignmentOptions alignment,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        Color color)
+    {
+        targetLabel = EnsureLabelByName(parent, objectName, text, fontAsset, fontSize, fontStyles, alignment, size, anchorMin, anchorMax, pivot, anchoredPosition, color);
+    }
+
+    private TMP_Text EnsureLabelByName(
+        Transform parent,
+        string objectName,
+        string text,
+        TMP_FontAsset fontAsset,
+        float fontSize,
+        FontStyles fontStyles,
+        TextAlignmentOptions alignment,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        Color color)
+    {
+        TMP_Text label = FindComponentByName<TMP_Text>(parent, objectName);
+        if (label == null)
+        {
+            label = CreateLabel(parent, objectName, text, fontAsset, fontSize, fontStyles, alignment, size, anchorMin, anchorMax, pivot, anchoredPosition, color);
+        }
+        else
+        {
+            EnsureCanvasRenderer(label.gameObject);
+            RectTransform rectTransform = label.rectTransform;
+            rectTransform.anchorMin = anchorMin;
+            rectTransform.anchorMax = anchorMax;
+            rectTransform.pivot = pivot;
+            rectTransform.sizeDelta = size;
+            rectTransform.anchoredPosition = anchoredPosition;
+            label.font = fontAsset;
+            label.fontSize = fontSize;
+            label.fontStyle = fontStyles;
+            label.alignment = alignment;
+            label.color = color;
+            label.text = text;
+        }
+
+        return label;
+    }
+
+    private TMP_InputField EnsureInputField(
+        TMP_InputField currentInputField,
+        Transform parent,
+        string objectName,
+        TMP_FontAsset fontAsset,
+        Vector2 size,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition)
+    {
+        TMP_InputField inputField = currentInputField;
+        if (inputField == null)
+        {
+            inputField = CreateInputField(parent, objectName, fontAsset, size, anchorMin, anchorMax, pivot, anchoredPosition);
+        }
+        else
+        {
+            EnsureCanvasRenderer(inputField.gameObject);
+            RectTransform rectTransform = inputField.GetComponent<RectTransform>();
+            rectTransform.anchorMin = anchorMin;
+            rectTransform.anchorMax = anchorMax;
+            rectTransform.pivot = pivot;
+            rectTransform.sizeDelta = size;
+            rectTransform.anchoredPosition = anchoredPosition;
+
+            Image image = inputField.GetComponent<Image>();
+            if (image == null)
+            {
+                image = inputField.gameObject.AddComponent<Image>();
+            }
+
+            image.color = new Color(0.16f, 0.09f, 0.23f, 1f);
+            TMP_Text textComponent = FindComponentByName<TMP_Text>(inputField.transform, "Text");
+            TMP_Text placeholderComponent = FindComponentByName<TMP_Text>(inputField.transform, "Placeholder");
+            if (textComponent == null || placeholderComponent == null)
+            {
+                inputField = CreateInputField(parent, objectName, fontAsset, size, anchorMin, anchorMax, pivot, anchoredPosition);
+            }
+            else
+            {
+                textComponent.font = fontAsset;
+                placeholderComponent.font = fontAsset;
+                inputField.textComponent = textComponent as TextMeshProUGUI;
+                inputField.placeholder = placeholderComponent;
+                inputField.textViewport = rectTransform;
+            }
+        }
+
+        return inputField;
     }
 
     private void RefreshFooterCharacterInfo()

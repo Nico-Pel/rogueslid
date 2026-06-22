@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 204fd778342246f98a0cb80371bd4f11, type: 3}
+  m_Name: Whisperfang
+  m_EditorClassIdentifier: 
+  abilityName: Whisperfang
+  icon: {fileID: -1770338178, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
+  category: 0
+  attackAnimationClip: {fileID: 7400000, guid: 6bc6144603e014bc584004ac9c33e89a, type: 2}
+  linkedUpgradeRewards: []
+  usesPerTurn: 2
+  usesPerCombat: 0
+  cooldownTurns: 1
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 1
+  range: 10
+  projectilePrefab: {fileID: 4669369967587303769, guid: 9234510d5bd194a6e9e8b3e0bf0a3c53, type: 3}
+  projectileSpeed: 32
+  projectileLaunchDelay: 0.06
+  projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
+  projectileImpactOffset: {x: 0, y: 0.2, z: 0}

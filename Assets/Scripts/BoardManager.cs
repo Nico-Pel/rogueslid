@@ -843,6 +843,25 @@ public class BoardManager : MonoBehaviour
         return lichSkullObject != null && !lichSkullObject.IsResolving;
     }
 
+    public bool TryGetEnemyLikeTarget(Vector2Int gridPosition, out Enemy enemy, out LichSkullObject lichSkullObject)
+    {
+        if (TryGetEnemy(gridPosition, out enemy) && enemy != null)
+        {
+            lichSkullObject = null;
+            return true;
+        }
+
+        if (TryGetLichSkullObject(gridPosition, out lichSkullObject) && lichSkullObject != null)
+        {
+            enemy = null;
+            return true;
+        }
+
+        enemy = null;
+        lichSkullObject = null;
+        return false;
+    }
+
     public void ClearStaticObstacle(Vector2Int gridPosition, GameObject expectedObstacle = null)
     {
         if (!TryGetCell(gridPosition, out BoardCell cell))
@@ -932,7 +951,10 @@ public class BoardManager : MonoBehaviour
 
     public bool SpawnSkeletonSkull(Enemy enemy)
     {
-        if (enemy == null || enemy.Data is not SkeletonEnemyData skeletonData || skeletonData.SkullObjectPrefab == null)
+        if (enemy == null
+            || enemy.Data is not SkeletonEnemyData skeletonData
+            || !skeletonData.CanSpawnSkullOnDeath
+            || skeletonData.SkullObjectPrefab == null)
         {
             return false;
         }
@@ -1607,6 +1629,123 @@ public class BoardManager : MonoBehaviour
         return null;
     }
 
+    public string GetCurrentCharacterId()
+    {
+        Character character = player != null ? player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        return characterData != null ? characterData.name : string.Empty;
+    }
+
+    public EquipmentBuildData CreateEquipmentBuildSnapshot(string buildName)
+    {
+        Character character = player != null ? player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        if (character == null || characterData == null)
+        {
+            return null;
+        }
+
+        EnsureRunRewardStateInitialized(character);
+        if (runRewardState == null)
+        {
+            return null;
+        }
+
+        EquipmentBuildData buildData = new EquipmentBuildData
+        {
+            BuildName = string.IsNullOrWhiteSpace(buildName) ? "Build" : buildName.Trim(),
+            CharacterId = characterData.name,
+            BasicAttackAbilityId = GetAbilityId(runRewardState.GetEquippedAbility(AbilityCategory.BasicAttack)),
+            MobilityAbilityId = GetAbilityId(runRewardState.GetEquippedAbility(AbilityCategory.MobilitySkill)),
+            SpecialAbilityId = GetAbilityId(runRewardState.GetEquippedAbility(AbilityCategory.SpecialPower))
+        };
+
+        Dictionary<AbilityUpgradeKey, int> upgradeSnapshot = runRewardState.GetAllUpgradeStacks();
+        foreach (KeyValuePair<AbilityUpgradeKey, int> pair in upgradeSnapshot)
+        {
+            if (pair.Value <= 0)
+            {
+                continue;
+            }
+
+            buildData.Upgrades.Add(new EquipmentBuildUpgradeEntry
+            {
+                UpgradeKey = pair.Key.ToString(),
+                Stacks = pair.Value
+            });
+        }
+
+        List<ItemRewardKey> ownedItems = runRewardState.GetOwnedItems();
+        for (int index = 0; index < ownedItems.Count; index++)
+        {
+            buildData.OwnedItems.Add(ownedItems[index].ToString());
+        }
+
+        return buildData;
+    }
+
+    public bool ApplyEquipmentBuild(EquipmentBuildData buildData)
+    {
+        Character character = player != null ? player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        if (character == null || characterData == null || buildData == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(buildData.CharacterId)
+            && !string.Equals(buildData.CharacterId, characterData.name, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        PlayerRunRewardState loadedState = new PlayerRunRewardState();
+        loadedState.InitializeFrom(characterData.StartingAbilities, character.CurrentHealth);
+
+        Dictionary<string, AbilityDefinition> potentialAbilitiesById = BuildPotentialAbilityLookup(characterData);
+        ApplyBuiltAbilitySlot(loadedState, AbilityCategory.BasicAttack, buildData.BasicAttackAbilityId, potentialAbilitiesById);
+        ApplyBuiltAbilitySlot(loadedState, AbilityCategory.MobilitySkill, buildData.MobilityAbilityId, potentialAbilitiesById);
+        ApplyBuiltAbilitySlot(loadedState, AbilityCategory.SpecialPower, buildData.SpecialAbilityId, potentialAbilitiesById);
+
+        if (buildData.Upgrades != null)
+        {
+            for (int index = 0; index < buildData.Upgrades.Count; index++)
+            {
+                EquipmentBuildUpgradeEntry entry = buildData.Upgrades[index];
+                if (entry == null
+                    || string.IsNullOrWhiteSpace(entry.UpgradeKey)
+                    || entry.Stacks <= 0
+                    || !Enum.TryParse(entry.UpgradeKey, out AbilityUpgradeKey upgradeKey))
+                {
+                    continue;
+                }
+
+                for (int stackIndex = 0; stackIndex < entry.Stacks; stackIndex++)
+                {
+                    loadedState.AddUpgrade(upgradeKey);
+                }
+            }
+        }
+
+        if (buildData.OwnedItems != null)
+        {
+            for (int index = 0; index < buildData.OwnedItems.Count; index++)
+            {
+                string itemKeyString = buildData.OwnedItems[index];
+                if (string.IsNullOrWhiteSpace(itemKeyString) || !Enum.TryParse(itemKeyString, out ItemRewardKey itemKey))
+                {
+                    continue;
+                }
+
+                loadedState.AddItem(itemKey);
+            }
+        }
+
+        runRewardState = loadedState;
+        player.ControlledCharacter.ApplyRunRewardState(runRewardState);
+        return true;
+    }
+
     private void EnsureRunRewardStateInitialized(Character character)
     {
         if (runRewardState == null)
@@ -1620,6 +1759,53 @@ public class BoardManager : MonoBehaviour
         }
 
         runRewardState.InitializeFrom(character.GetCurrentAbilityDefinitions(), character.CurrentHealth);
+    }
+
+    private static string GetAbilityId(AbilityDefinition ability)
+    {
+        return ability != null ? ability.name : string.Empty;
+    }
+
+    private static Dictionary<string, AbilityDefinition> BuildPotentialAbilityLookup(CharacterData characterData)
+    {
+        Dictionary<string, AbilityDefinition> lookup = new Dictionary<string, AbilityDefinition>(StringComparer.Ordinal);
+        if (characterData == null)
+        {
+            return lookup;
+        }
+
+        List<AbilityDefinition> potentialAbilities = characterData.GetAllPotentialAbilities();
+        for (int index = 0; index < potentialAbilities.Count; index++)
+        {
+            AbilityDefinition ability = potentialAbilities[index];
+            if (ability == null || string.IsNullOrWhiteSpace(ability.name) || lookup.ContainsKey(ability.name))
+            {
+                continue;
+            }
+
+            lookup.Add(ability.name, ability);
+        }
+
+        return lookup;
+    }
+
+    private static void ApplyBuiltAbilitySlot(
+        PlayerRunRewardState loadedState,
+        AbilityCategory category,
+        string abilityId,
+        Dictionary<string, AbilityDefinition> potentialAbilitiesById)
+    {
+        if (loadedState == null
+            || string.IsNullOrWhiteSpace(abilityId)
+            || potentialAbilitiesById == null
+            || !potentialAbilitiesById.TryGetValue(abilityId, out AbilityDefinition ability)
+            || ability == null
+            || ability.Category != category)
+        {
+            return;
+        }
+
+        loadedState.UnlockAbility(ability);
     }
 
     private List<RewardOffer> BuildAvailablePowerOffers()

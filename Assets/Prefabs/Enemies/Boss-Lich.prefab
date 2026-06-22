@@ -1207,7 +1207,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: flee
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: force
@@ -1227,7 +1227,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 12a3fa26d9d23414ca8823cc77fc44d7, type: 2}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: maxHealth
-      value: 65
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackRange
@@ -1243,7 +1243,7 @@ PrefabInstance:
       objectReference: {fileID: 2714023341723823481}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: maxFleeTurns
-      value: 3
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: moveDuration
@@ -1255,7 +1255,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: currentHealth
-      value: 65
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: enemyAnimator
@@ -1268,7 +1268,7 @@ PrefabInstance:
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: projectilePrefab
       value: 
-      objectReference: {fileID: 1209601309875748, guid: b170aebab32c55e468901bd9220320f8, type: 3}
+      objectReference: {fileID: 121798, guid: 672a9f8d9b8441b47a4cc0a5c3d60b7c, type: 3}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackDamageDelay
       value: 0.1
@@ -1279,7 +1279,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: fleeThresholdPercent
-      value: 20
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: projectileTravelSpeed
@@ -1338,6 +1338,38 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2166426622599667544}
     m_Modifications:
+    - target: {fileID: 4582928758990567736, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4582928758990567736, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4582928758990567736, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4582928758990567736, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5230870062190417210, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5230870062190417210, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5230870062190417210, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5230870062190417210, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6653158938518547043, guid: 70169091766eb4eaba0b689434aa6c67, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5

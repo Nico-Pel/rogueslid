@@ -59,7 +59,31 @@ public enum AbilityUpgradeKey
     ArcaneTrapArcaneSustain,
     ArcaneTrapArcaneEruption,
     ArcaneTrapArcaneWave,
-    ArcaneTrapArcaneExhaustion
+    ArcaneTrapArcaneExhaustion,
+    DemonbaneBlindSpot,
+    DemonbaneBloodCallsBlood,
+    DemonbaneWhereverYouAre,
+    DemonbaneLastChance,
+    WhisperfangOneMoreForTheRoad,
+    WhisperfangRicochet,
+    WhisperfangMultiShot,
+    WhisperfangLuckyBolt,
+    TridimensionalPortalEnergy,
+    TridimensionalPortalEye,
+    TridimensionalPortalImpact,
+    TridimensionalPortalDistortion,
+    HeartRipperHookedFist,
+    HeartRipperRevigoratingHeart,
+    HeartRipperDemonicDuel,
+    HeartRipperDemonicHand,
+    MistySpiritUnsteadySteps,
+    MistySpiritBrokenHeart,
+    MistySpiritParanoia,
+    MistySpiritMistDispersion,
+    SomersaultJumpRoseThorns,
+    SomersaultJumpHeroicCascade,
+    SomersaultJumpDoubleJump,
+    SomersaultJumpSmallJump
 }
 
 public enum ItemRewardKey
@@ -231,6 +255,11 @@ public sealed class PlayerRunRewardState
     public int GetUpgradeStacks(AbilityUpgradeKey upgradeKey)
     {
         return upgradeStacks.TryGetValue(upgradeKey, out int stacks) ? stacks : 0;
+    }
+
+    public Dictionary<AbilityUpgradeKey, int> GetAllUpgradeStacks()
+    {
+        return new Dictionary<AbilityUpgradeKey, int>(upgradeStacks);
     }
 
     public void AddItem(ItemRewardKey itemKey)

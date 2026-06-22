@@ -218,7 +218,7 @@ MonoBehaviour:
   shrinkDuration: 0.25
   finalScale: 0.1
   victoryResolveDelay: 0.5
-  maxHealth: 3
+  maxHealth: 5
   reviveTurns: 3
   canvasUnitUI: {fileID: 1924717293154157947}
 --- !u!114 &2447879038179547084

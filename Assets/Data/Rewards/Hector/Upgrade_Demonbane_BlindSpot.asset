@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6f433c87d304e2b86d08a3347f75003, type: 3}
+  m_Name: Upgrade_Demonbane_BlindSpot
+  m_EditorClassIdentifier: 
+  rewardId: upgrade_demonbane_blind_spot
+  rewardTitle: Angle mort
+  rewardDescription: Demonbane peut désormais viser les ennemis en parfaite diagonale.
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: 7bc93bc40cb14ca7a2d7791da8c45211, type: 2}
+  upgradeKey: 42
+  stackable: 0
+  maxStacks: 0

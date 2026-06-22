@@ -1,5 +1,6 @@
 public enum CombatStatusType
 {
     Poisoned,
-    Frozen
+    Frozen,
+    Bleeding
 }

@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b03a13a8a34f49ebbe93f80c35295611, type: 3}
+  m_Name: TridimensionalPortal
+  m_EditorClassIdentifier: 
+  abilityName: Portail tridimensionnel
+  icon: {fileID: 1889169128, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  category: 1
+  attackAnimationClip: {fileID: 7400000, guid: f8bd8d0c56d5b43bb9dd1b688791662e, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: 25ed45c0aa0b478f83cf51a268e1d211, type: 2}
+  - {fileID: 11400000, guid: 68ef14d783cc49a29a2831496946f211, type: 2}
+  - {fileID: 11400000, guid: 7e12f8069e9946fb92de2f18536b6211, type: 2}
+  - {fileID: 11400000, guid: c198f9d514b74c41a77f39e3faa0a211, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 2
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  activePortalIcon: {fileID: 1356344920, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  portalVisualPrefab: {fileID: 2628561491948644552, guid: 8128e165cea7147f7bc9de0790ea9fda, type: 3}
+  portalVisualOffset: {x: 0, y: 0, z: 0}
+  portalPlacementFx:
+    fxPrefab: {fileID: 7839843593225048449, guid: 037a8987e594c4f0cae8867dc29a64f7, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 1
+  portalEntryFx:
+    fxPrefab: {fileID: 3307331487394302918, guid: 3c40fd14ff31e4e30b4c82cafe5895d7, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 1
+  portalExitFx:
+    fxPrefab: {fileID: 6162089470693167633, guid: a414e8de8fe8c4e729cb24e96a0a526e, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 1
+  disappearDuration: 0.25
+  reappearDuration: 0.25
+  vanishedScaleMultiplier: 0.1
+  portalVisualAppearDelay: 0.25
+  portalVisualAppearDuration: 0.25
+  portalVisualAppearFromScaleMultiplier: 0.1

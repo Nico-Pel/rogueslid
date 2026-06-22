@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d02f0bf041b945de98527b357a172fa3, type: 3}
+  m_Name: Hector
+  m_EditorClassIdentifier: 
+  characterName: Hector
+  description: A relentless ranged hunter who bleeds enemies dry and bends space
+    to control the fight.
+  portrait: {fileID: 21300000, guid: 306cf99fa94d546028d154f5458fa8aa, type: 3}
+  portraitLose: {fileID: 21300000, guid: ebd33678914a444498a4471941d25ed1, type: 3}
+  maxHealth: 10
+  bonusDamage: 0
+  resistance: 0
+  movementPointsPerTurn: 4
+  startingAbilities:
+  - {fileID: 11400000, guid: 6c2d0ca1f1574680883c8a8b1ec31211, type: 2}
+  - {fileID: 11400000, guid: 364ec113b09a42ffb823f413bdad6b22, type: 2}
+  - {fileID: 0}
+  unlockableAbilityRewards:
+  - {fileID: 11400000, guid: 21318e21923d435783585b85d988894d, type: 2}
+  - {fileID: 11400000, guid: 2f59f1a58a39411fa87af4efb4df1211, type: 2}
+  - {fileID: 11400000, guid: 7fb8d3191f5f43db9c35c29ec66c4211, type: 2}
+  - {fileID: 11400000, guid: d3e10f1d3815476382d1915338cf0211, type: 2}
+  - {fileID: 11400000, guid: 21318e21923d435783585b85d988894d, type: 2}

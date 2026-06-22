@@ -309,6 +309,23 @@ public class GameTurnManager : MonoBehaviour
         return true;
     }
 
+    private void RequestAbilityUseForSlot(int slotIndex)
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (character == null)
+        {
+            return;
+        }
+
+        int runtimeIndex = character.GetRuntimeIndexForSlot(slotIndex);
+        if (runtimeIndex < 0)
+        {
+            return;
+        }
+
+        RequestAbilityUse(runtimeIndex);
+    }
+
     private void HandleDebugKeyboardInput()
     {
         if (Input.GetKeyDown(debugEndTurnKey))
@@ -333,19 +350,19 @@ public class GameTurnManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
-            RequestAbilityUse(0);
+            RequestAbilityUseForSlot(0);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
-            RequestAbilityUse(1);
+            RequestAbilityUseForSlot(1);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.Alpha3))
         {
-            RequestAbilityUse(2);
+            RequestAbilityUseForSlot(2);
             return;
         }
 

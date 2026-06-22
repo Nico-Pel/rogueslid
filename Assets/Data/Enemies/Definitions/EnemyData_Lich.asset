@@ -29,11 +29,11 @@ MonoBehaviour:
   hasMaxRange: 1
   ignoreObstacles: 0
   attackAlways: 0
-  flee: 1
-  maxFleeTurns: 3
+  flee: 0
+  maxFleeTurns: 1
   attackFirst: 0
   fleeAfterAttacking: 0
-  fleeThresholdPercent: 20
+  fleeThresholdPercent: 100
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0

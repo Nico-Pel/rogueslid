@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1f288406c74494bb45e30f112af9011, type: 3}
+  m_Name: Demonbane
+  m_EditorClassIdentifier: 
+  abilityName: Demonbane
+  icon: {fileID: -968068259, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
+  category: 0
+  attackAnimationClip: {fileID: 7400000, guid: bdeda82d9ca524e368195c9a05c658d7, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: d14a7537936c4e00b8e0b14c77c11211, type: 2}
+  - {fileID: 11400000, guid: 9b06ce278d6e4684b8b9f0fbcfaa2211, type: 2}
+  - {fileID: 11400000, guid: f6b6152bca3b4603a6808fc240f47211, type: 2}
+  - {fileID: 11400000, guid: c4d216ff6f73488b8d43809bb5bc0211, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 4
+  range: 10
+  projectilePrefab: {fileID: 4669369967587303769, guid: ba71559fc8e4d492aa3767aea679a391, type: 3}
+  projectileSpeed: 28
+  projectileLaunchDelay: 0.08
+  projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
+  projectileImpactOffset: {x: 0, y: 0.2, z: 0}

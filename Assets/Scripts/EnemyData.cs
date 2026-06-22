@@ -37,6 +37,9 @@ public class EnemyData : ScriptableObject
     [SerializeField] private bool fleeAfterAttacking;
     [Range(0f, 100f)]
     [SerializeField] private float fleeThresholdPercent;
+    [SerializeField] private GameObject fearFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float fearBodyWiggleStrength;
     [SerializeField] private bool ignoreObstaclesForMovement;
     [SerializeField] private bool canEndTurnOnObstacle;
     [SerializeField] private bool advanceTowardsCharacterWhenAlreadyInRange;
@@ -90,6 +93,8 @@ public class EnemyData : ScriptableObject
     public bool AttackFirst => attackFirst;
     public bool FleeAfterAttacking => fleeAfterAttacking;
     public float FleeThresholdPercent => Mathf.Clamp(fleeThresholdPercent, 0f, 100f);
+    public GameObject FearFxPrefab => fearFxPrefab;
+    public float FearBodyWiggleStrength => Mathf.Max(0f, fearBodyWiggleStrength);
     public bool IgnoreObstaclesForMovement => ignoreObstaclesForMovement;
     public bool CanEndTurnOnObstacle => canEndTurnOnObstacle;
     public bool AdvanceTowardsCharacterWhenAlreadyInRange => advanceTowardsCharacterWhenAlreadyInRange;

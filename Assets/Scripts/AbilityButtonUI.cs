@@ -13,6 +13,8 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     [SerializeField] private Image abilityTypeImage;
     [SerializeField] private TMP_Text countLabel;
     [SerializeField] private GameObject countRoot;
+    [SerializeField] private GameObject cooldownRoot;
+    [SerializeField] private TMP_Text cooldownCountLabel;
     [SerializeField] private GameObject activeIndicator;
     [SerializeField] private Color availableColor = Color.white;
     [SerializeField] private Color disabledColor = new Color(1f, 1f, 1f, 0.5f);
@@ -104,14 +106,13 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         int runtimeIndex = character != null ? character.GetRuntimeIndexForSlot(abilitySlotIndex) : -1;
         bool hasAbility = runtime != null && runtime.Definition != null;
         SetEmptyState(!hasAbility);
+        string counterText = hasAbility ? runtime.Definition.GetCounterText(runtime) : string.Empty;
 
         bool isPlayerTurn = gameTurnManager != null && gameTurnManager.CurrentTurn == TurnSide.Player;
         bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character) && hasAnyValidTarget;
         bool isTargetingThis = hasAbility && gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex;
         bool isOnCooldown = hasAbility && runtime.RemainingCooldown > 0;
-        bool showUsageCount = hasAbility
-            && !isOnCooldown
-            && (runtime.Definition.UsesPerTurn > 0 || runtime.Definition.UsesPerCombat > 0);
+        bool showUsageCount = hasAbility && !isOnCooldown && !string.IsNullOrEmpty(counterText);
 
         if (button != null)
         {
@@ -131,14 +132,20 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
                 countRoot.SetActive(false);
             }
 
+            if (cooldownRoot != null)
+            {
+                cooldownRoot.SetActive(false);
+            }
+
             return;
         }
 
-        if (runtime.Definition.Icon != null)
+        Sprite runtimeIcon = runtime.Definition.GetIcon(runtime);
+        if (runtimeIcon != null)
         {
             if (abilityImage != null)
             {
-                abilityImage.sprite = runtime.Definition.Icon;
+                abilityImage.sprite = runtimeIcon;
             }
         }
 
@@ -168,7 +175,17 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         if (countLabel != null)
         {
-            countLabel.text = showUsageCount ? runtime.Definition.GetCounterText(runtime) : string.Empty;
+            countLabel.text = showUsageCount ? counterText : string.Empty;
+        }
+
+        if (cooldownRoot != null)
+        {
+            cooldownRoot.SetActive(isOnCooldown);
+        }
+
+        if (cooldownCountLabel != null)
+        {
+            cooldownCountLabel.text = isOnCooldown ? $"-{runtime.RemainingCooldown}" : string.Empty;
         }
     }
 
@@ -268,6 +285,20 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         if (countLabel == null)
         {
             countLabel = transform.Find("iCount/tCount")?.GetComponent<TMP_Text>();
+        }
+
+        if (cooldownRoot == null)
+        {
+            Transform cooldownTransform = transform.Find("iCooldown");
+            if (cooldownTransform != null)
+            {
+                cooldownRoot = cooldownTransform.gameObject;
+            }
+        }
+
+        if (cooldownCountLabel == null)
+        {
+            cooldownCountLabel = transform.Find("iCooldown/tCooldownCount")?.GetComponent<TMP_Text>();
         }
 
         if (activeIndicator == null)

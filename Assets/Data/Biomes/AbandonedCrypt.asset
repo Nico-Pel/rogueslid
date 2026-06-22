@@ -22,6 +22,8 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 5972763937f2e40749f1f2a026933883, type: 3}
   - {fileID: 2800000, guid: bd98e836e12c546ce8300a5855f48e3e, type: 3}
   - {fileID: 2800000, guid: 2262e2349dcf94726a65eb90f4cc0e54, type: 3}
+  - {fileID: 2800000, guid: cdddb3b21d8ba4b57bb60b3b3f98d802, type: 3}
+  - {fileID: 2800000, guid: 8f9848f1d9e8f481cbcd68a0b288be2d, type: 3}
   obstaclePrefabs:
   - {fileID: 6748463629275346963, guid: a76b12e87250c449689e0e25f1c18354, type: 3}
   - {fileID: 9205521067862607340, guid: 14e00a236f17545ebbee3ee97d65a7be, type: 3}
@@ -58,7 +60,11 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 950dc48758b0248d2a822a0574d9fa0e, type: 2}
     - {fileID: 11400000, guid: b62390ed6ef6a4f19be9aaa36d9e3b92, type: 2}
     minArenaCount: 5
-    maxArenaCount: 1000
+    maxArenaCount: 9
+  - pools:
+    - {fileID: 11400000, guid: 3d1b193ee85b544c5ab9646c58b2034a, type: 2}
+    minArenaCount: 10
+    maxArenaCount: 10
   spawnableEnemies:
   - {fileID: 2433636361208229482, guid: 5e02e45a02b3c4d2fa68fb36875a5910, type: 3}
   - {fileID: 2433636361208229482, guid: 23c1c133efa194f50b536ca66dc2a4cf, type: 3}

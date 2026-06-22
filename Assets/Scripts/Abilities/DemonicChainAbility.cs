@@ -106,6 +106,7 @@ public class DemonicChainAbility : AbilityDefinition
                 && PullEnemyTowardsCharacter(character, enemy, true))
             {
                 yield return WaitForEnemyMovement(enemy);
+                character.PlayExecuteProcFx(enemy.EffectAnchor);
                 character.DealDamageToEnemy(enemy, enemy.CurrentHealth, false);
             }
 

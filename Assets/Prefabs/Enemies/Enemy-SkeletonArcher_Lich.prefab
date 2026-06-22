@@ -1263,7 +1263,7 @@ PrefabInstance:
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: enemyData
       value: 
-      objectReference: {fileID: 11400000, guid: 27a0b155cb3c545328a8776fa9025e23, type: 2}
+      objectReference: {fileID: 11400000, guid: b3199002a43be4104a23bee2fac8324a, type: 2}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: hpFillBar
       value: 

@@ -149,6 +149,11 @@ MonoBehaviour:
   flee: 0
   maxFleeTurns: 2
   attackFirst: 0
+  fearFeedbackDelay: 0.25
+  bleedingFxPrefab: {fileID: 6925175126638118432, guid: 9f6f4b3ae632d4c8ca926d87bee5c5a0, type: 3}
+  bleedingDamageRandomDelayMax: 0.33
+  mistyConfusionFxPrefab: {fileID: 3468207010824757432, guid: 1f8e43011d3444e9ea2321d090620d36, type: 3}
+  mistyConfusionFxMaxDuration: 2
   fleeThresholdPercent: 0
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0

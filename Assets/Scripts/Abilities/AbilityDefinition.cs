@@ -134,6 +134,8 @@ public abstract class AbilityDefinition : ScriptableObject
     public virtual bool KeepsActiveStateBetweenTurns => true;
     public virtual bool RefundUseIfDeactivatedWithoutConsumption => false;
     public virtual bool DeactivateAfterSelectedCellActivation => true;
+    public virtual int GetBonusUsesPerTurn(Character character, CharacterAbilityRuntime runtime) => 0;
+    public virtual Sprite GetIcon(CharacterAbilityRuntime runtime) => icon;
 
     public virtual bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
@@ -309,6 +311,23 @@ public abstract class AbilityDefinition : ScriptableObject
         {
             character.ClearTrailReplacementOverride(this);
         }
+    }
+
+    public virtual void OnTurnStarted(Character character, CharacterAbilityRuntime runtime)
+    {
+    }
+
+    public virtual void OnTurnEnded(Character character, CharacterAbilityRuntime runtime)
+    {
+    }
+
+    public virtual void OnCharacterMoved(
+        Character character,
+        CharacterAbilityRuntime runtime,
+        Vector2Int previousCell,
+        Vector2Int currentCell,
+        bool consumedMovementPoint)
+    {
     }
 
     public abstract bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell);

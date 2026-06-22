@@ -7,6 +7,10 @@ public class NighttimeMenaceAbility : AbilityDefinition
     [Min(1)]
     [SerializeField] private int baseRange = 3;
     [SerializeField] private List<UpgradedSecondaryEffectEntry> secondaryEffects = new List<UpgradedSecondaryEffectEntry>();
+    [SerializeField] private GameObject disappearanceFxPrefab;
+    [SerializeField] private GameObject appearanceFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float teleportFxDestroyAfterSeconds = 1f;
     [SerializeField] private float delayAfterBloodyEscapeBeforeTeleport = 0.5f;
     [SerializeField] private float delayAfterTeleportBeforeTheatricalAppearance = 0.2f;
 
@@ -60,6 +64,7 @@ public class NighttimeMenaceAbility : AbilityDefinition
             yield return new WaitForSeconds(delayAfterBloodyEscapeBeforeTeleport);
         }
 
+        SpawnTeleportFx(disappearanceFxPrefab, character.transform.position);
         bool success = character.TryTeleportTo(context.TargetCell);
         if (!success)
         {
@@ -68,6 +73,7 @@ public class NighttimeMenaceAbility : AbilityDefinition
         }
 
         yield return new WaitUntil(() => !character.IsMoving);
+        SpawnTeleportFx(appearanceFxPrefab, character.transform.position);
 
         if (hasAfterMovementEffects && delayAfterTeleportBeforeTheatricalAppearance > 0f)
         {
@@ -101,5 +107,24 @@ public class NighttimeMenaceAbility : AbilityDefinition
         }
 
         return false;
+    }
+
+    private void SpawnTeleportFx(GameObject fxPrefab, Vector3 worldPosition)
+    {
+        if (fxPrefab == null)
+        {
+            return;
+        }
+
+        Quaternion defaultRotation = fxPrefab.transform.rotation;
+        Vector3 defaultScale = fxPrefab.transform.localScale;
+        GameObject spawnedFx = Instantiate(fxPrefab, worldPosition, defaultRotation);
+        spawnedFx.transform.rotation = defaultRotation;
+        spawnedFx.transform.localScale = defaultScale;
+
+        if (teleportFxDestroyAfterSeconds > 0f)
+        {
+            Destroy(spawnedFx, teleportFxDestroyAfterSeconds);
+        }
     }
 }

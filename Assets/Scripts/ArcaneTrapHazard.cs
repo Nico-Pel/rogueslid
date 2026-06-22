@@ -17,6 +17,10 @@ public class ArcaneTrapHazard : BoardHazard
     [SerializeField] private GameObject trapObjPrefab;
     [SerializeField] private float warningFxLifetime;
     [SerializeField] private float trapObjLifetime;
+    [SerializeField] private float trapObjSpawnStartScale = 0.1f;
+    [SerializeField] private float trapObjSpawnScaleDuration = 0.5f;
+    [SerializeField] private float trapObjExpireEndScale = 0.1f;
+    [SerializeField] private float trapObjExpireScaleDuration = 0.5f;
     [SerializeField] private string trapActionTriggerParameter = "Action";
     [SerializeField] private float enemyTriggerDelay = 0.15f;
     [SerializeField] private int baseDamage = 4;
@@ -53,7 +57,7 @@ public class ArcaneTrapHazard : BoardHazard
         warningFxPrefab = warningPrefab;
         trapObjPrefab = trapPrefab;
         baseDamage = Mathf.Max(1, damage);
-        activePlayerTurnDuration = Mathf.Max(1, 1 + sustainStacks);
+        activePlayerTurnDuration = Mathf.Max(1, 3 + sustainStacks);
         eruptionBonusDamage = Mathf.Max(0, eruptionBonus);
         waveTrigger = wave;
         applyExhaustion = exhaustion;
@@ -97,7 +101,7 @@ public class ArcaneTrapHazard : BoardHazard
         remainingActivePlayerTurnStarts = Mathf.Max(0, remainingActivePlayerTurnStarts - 1);
         if (remainingActivePlayerTurnStarts <= 0)
         {
-            DestroyHazard();
+            BeginNaturalExpiration();
         }
     }
 
@@ -234,8 +238,18 @@ public class ArcaneTrapHazard : BoardHazard
         }
 
         GameObject instance = Instantiate(prefab, transform.position, prefab.transform.rotation, transform);
-        instance.transform.localScale = prefab.transform.localScale;
-        if (lifetime > 0f)
+        Vector3 targetScale = prefab.transform.localScale;
+        instance.transform.localScale = targetScale;
+
+        if (prefab == trapObjPrefab)
+        {
+            float startScale = Mathf.Max(0f, trapObjSpawnStartScale);
+            instance.transform.localScale = targetScale * startScale;
+            instance.transform.DOScale(targetScale, Mathf.Max(0f, trapObjSpawnScaleDuration))
+                .SetEase(Ease.OutBack);
+        }
+
+        if (lifetime > 0f && prefab != trapObjPrefab)
         {
             Destroy(instance, lifetime);
         }
@@ -257,9 +271,66 @@ public class ArcaneTrapHazard : BoardHazard
     private void DestroyHazard()
     {
         phase = TrapPhase.Expired;
+        isResolving = true;
         ClearVisual(ref warningFxInstance);
         ClearVisual(ref trapObjInstance);
         board?.UnregisterHazard(this);
         Destroy(gameObject);
+    }
+
+    private void BeginNaturalExpiration()
+    {
+        if (phase == TrapPhase.Expired || isResolving)
+        {
+            return;
+        }
+
+        phase = TrapPhase.Expired;
+        isResolving = true;
+        ClearVisual(ref warningFxInstance);
+        board?.UnregisterHazard(this);
+
+        if (trapObjInstance == null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Transform trapTransform = trapObjInstance.transform;
+        Vector3 startScale = trapTransform.localScale;
+        Vector3 endScale = startScale * Mathf.Max(0f, trapObjExpireEndScale);
+
+        float totalDuration = Mathf.Max(0.01f, trapObjExpireScaleDuration);
+        float growDuration = totalDuration * 0.35f;
+        float shrinkDuration = totalDuration - growDuration;
+        Vector3 overshootScale = startScale * 1.08f;
+
+        trapTransform.DOComplete();
+        DOTween.Sequence()
+            .Append(trapTransform.DOScale(overshootScale, growDuration).SetEase(Ease.OutBack))
+            .Append(trapTransform.DOScale(endScale, shrinkDuration).SetEase(Ease.InBack))
+            .OnComplete(() =>
+            {
+                if (trapObjInstance != null)
+                {
+                    Destroy(trapObjInstance);
+                    trapObjInstance = null;
+                }
+
+                Destroy(gameObject);
+            })
+            .OnKill(() =>
+            {
+                if (trapObjInstance != null)
+                {
+                    Destroy(trapObjInstance);
+                    trapObjInstance = null;
+                }
+
+                if (this != null)
+                {
+                    Destroy(gameObject);
+                }
+            });
     }
 }
