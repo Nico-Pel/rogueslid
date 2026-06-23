@@ -3,13 +3,30 @@ using UnityEngine.UI;
 using System;
 using System.Collections;
 
+public readonly struct ItemIconTheme
+{
+    public readonly Color BackgroundColor;
+    public readonly Color ActivationColor;
+
+    public ItemIconTheme(Color backgroundColor, Color activationColor)
+    {
+        BackgroundColor = backgroundColor;
+        ActivationColor = activationColor;
+    }
+}
+
 public class ItemIconUI : MonoBehaviour
 {
     [SerializeField] private Button button;
+    [SerializeField] private Image backgroundImage;
     [SerializeField] private Image spriteImage;
     [SerializeField] private GameObject activationCTA;
     private ItemRewardDefinition itemDefinition;
     private Coroutine activationPulseCoroutine;
+
+    public static ItemIconTheme DefaultTheme => new ItemIconTheme(
+        new Color(0.53409004f, 0f, 1f, 0.08627451f),
+        new Color(1f, 0.69796455f, 0f, 1f));
 
     public Image SpriteImage => spriteImage;
     public Button Button => button;
@@ -25,7 +42,7 @@ public class ItemIconUI : MonoBehaviour
         CacheReferences();
     }
 
-    public void Bind(ItemRewardDefinition definition, Action<ItemRewardDefinition> onClicked)
+    public void Bind(ItemRewardDefinition definition, ItemIconTheme theme, Action<ItemRewardDefinition> onClicked)
     {
         CacheReferences();
         itemDefinition = definition;
@@ -51,6 +68,7 @@ public class ItemIconUI : MonoBehaviour
         Sprite sprite = definition != null ? definition.Artwork : null;
         spriteImage.sprite = sprite;
         spriteImage.enabled = sprite != null;
+        ApplyTheme(theme);
         SetActivationVisible(false);
     }
 
@@ -92,6 +110,11 @@ public class ItemIconUI : MonoBehaviour
             button = GetComponent<Button>();
         }
 
+        if (backgroundImage == null)
+        {
+            backgroundImage = GetComponent<Image>();
+        }
+
         if (spriteImage == null)
         {
             spriteImage = transform.Find("Sprite")?.GetComponent<Image>();
@@ -100,6 +123,20 @@ public class ItemIconUI : MonoBehaviour
         if (activationCTA == null)
         {
             activationCTA = transform.Find("ActivationCTA")?.gameObject;
+        }
+    }
+
+    private void ApplyTheme(ItemIconTheme theme)
+    {
+        if (backgroundImage != null)
+        {
+            backgroundImage.color = theme.BackgroundColor;
+        }
+
+        Image activationImage = activationCTA != null ? activationCTA.GetComponent<Image>() : null;
+        if (activationImage != null)
+        {
+            activationImage.color = theme.ActivationColor;
         }
     }
 }

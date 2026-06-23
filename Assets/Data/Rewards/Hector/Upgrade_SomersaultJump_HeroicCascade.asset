@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Upgrade_SomersaultJump_HeroicCascade
   m_EditorClassIdentifier: 
   rewardId: upgrade_somersault_jump_heroic_cascade
-  rewardTitle: Cascade heroique
-  rewardDescription: Saut perilleux peut desormais traverser plusieurs obstacles alignes pour atteindre la premiere case libre derriere.
+  rewardTitle: Heroic Cascade
+  rewardDescription: Somersault Jump can now clear multiple aligned obstacles to reach the first free cell behind them.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 51131711ec0c4ea0b6b6e4eed348140f, type: 2}
-  upgradeKey: 59
+  upgradeKey: 63
   stackable: 0
   maxStacks: 0

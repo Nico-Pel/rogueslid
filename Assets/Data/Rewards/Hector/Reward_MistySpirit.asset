@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Reward_MistySpirit
   m_EditorClassIdentifier: 
   rewardId: reward_misty_spirit
-  rewardTitle: Esprit brumeux
-  rewardDescription: Confuse an enemy so it turns on the weakest ally within its attack range.
+  rewardTitle: Misty Mind
+  rewardDescription: Confuses an enemy and immediately forces it to attack the weakest enemy within its attack range.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: e72095304fe2454aad9f7d0e41d33211, type: 2}

@@ -58,7 +58,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.903281, g: 0.7311321, b: 1, a: 0.015686275}
+  m_Color: {r: 0.903281, g: 0.7311321, b: 1, a: 0.12941177}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -824,12 +824,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   button: {fileID: 4088837295338675714}
+  backgroundImage: {fileID: 0}
   abilityImage: {fileID: 5420263284988316735}
+  outlineImage: {fileID: 0}
+  typeOutlineImage: {fileID: 0}
   componentsRoot: {fileID: 1999697230284267415}
   emptyRoot: {fileID: 8001417060029466045}
+  countBackgroundImage: {fileID: 0}
+  emptyBackgroundImage: {fileID: 0}
   abilityTypeImage: {fileID: 5094271230440094874}
   countLabel: {fileID: 8914165635278078596}
   countRoot: {fileID: 7413133170774265102}
+  cooldownRoot: {fileID: 2139778034330595986}
+  cooldownCountLabel: {fileID: 5473628641108648312}
   activeIndicator: {fileID: 8101188561296980128}
   availableColor: {r: 1, g: 1, b: 1, a: 1}
   disabledColor: {r: 1, g: 1, b: 1, a: 0.5}

@@ -4,6 +4,21 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Whisperfang", fileName = "Whisperfang")]
 public class WhisperfangAbility : AbilityDefinition
 {
+    private sealed class WhisperfangTargetCandidate
+    {
+        public Vector2Int Cell;
+        public Enemy Enemy;
+        public LichSkullObject Skull;
+        public BarrelObstacle Barrel;
+        public int Health;
+        public int Distance;
+        public bool IsStraight;
+        public float TieBreaker;
+
+        public bool IsNeutralOnly => Enemy == null && Skull == null && Barrel != null;
+        public Transform TargetTransform => Enemy != null ? Enemy.transform : Skull != null ? Skull.transform : Barrel != null ? Barrel.transform : null;
+    }
+
     [Min(1)]
     [SerializeField] private int baseDamage = 1;
     [Min(1)]
@@ -15,8 +30,32 @@ public class WhisperfangAbility : AbilityDefinition
     [SerializeField] private float projectileLaunchDelay = 0.06f;
     [SerializeField] private Vector3 projectileSpawnOffset = new Vector3(0f, 0.2f, 0f);
     [SerializeField] private Vector3 projectileImpactOffset = new Vector3(0f, 0.2f, 0f);
+    [Min(0f)]
+    [SerializeField] private float autoReshootDelayAfterMove = 0.02f;
+    [Min(0.1f)]
+    [SerializeField] private float delayBetweenAutomaticShots = 0.1f;
 
-    public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
+    public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
+    public override bool KeepsActiveStateBetweenTurns => false;
+
+    public override void PlayActivationAnimation(Character character)
+    {
+    }
+
+    public override string GetCounterText(CharacterAbilityRuntime runtime)
+    {
+        if (runtime == null)
+        {
+            return string.Empty;
+        }
+
+        if (runtime.IsActive)
+        {
+            return runtime.RemainingUsesThisTurn.ToString();
+        }
+
+        return base.GetCounterText(runtime);
+    }
 
     public override int GetBonusUsesPerTurn(Character character, CharacterAbilityRuntime runtime)
     {
@@ -30,22 +69,29 @@ public class WhisperfangAbility : AbilityDefinition
         Vector2Int currentCell,
         bool consumedMovementPoint)
     {
-        if (character == null || runtime == null || previousCell == currentCell)
+        if (character == null || runtime == null || previousCell == currentCell || !runtime.IsActive)
         {
             return;
         }
 
         runtime.GrantBonusTurnUse(1);
+        character.RefreshAbilityState();
+        character.StartCoroutine(ResolveAutoReshootAfterMove(character, runtime));
+    }
+
+    public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)
+    {
+        return character != null && runtime != null;
     }
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
-        return CanTargetCell(character, targetCell, true);
+        return false;
     }
 
     public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
-        return CanTargetCell(character, targetCell, true, true);
+        return false;
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
@@ -55,101 +101,188 @@ public class WhisperfangAbility : AbilityDefinition
             return false;
         }
 
+        int availableShots = runtime.RemainingUsesThisTurn;
+        if (availableShots <= 0)
+        {
+            return false;
+        }
+
+        if (GatherTargetCandidates(character, true).Count <= 0)
+        {
+            return false;
+        }
+
+        character.BeginActionLock();
+        character.StartCoroutine(ResolveAutomaticVolleySequence(character, runtime, availableShots, true, true));
+        return true;
+    }
+
+    private System.Collections.IEnumerator ResolveAutoReshootAfterMove(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (character == null || runtime == null)
+        {
+            yield break;
+        }
+
+        yield return new WaitUntil(() => !character.IsMoving);
+        if (autoReshootDelayAfterMove > 0f)
+        {
+            yield return new WaitForSeconds(autoReshootDelayAfterMove);
+        }
+
+        if (!runtime.IsActive || runtime.RemainingUsesThisTurn <= 0)
+        {
+            yield break;
+        }
+
+        if (GatherTargetCandidates(character, false).Count <= 0)
+        {
+            yield break;
+        }
+
+        character.BeginActionLock();
+        yield return ResolveAutomaticVolleySequence(character, runtime, runtime.RemainingUsesThisTurn, false, false);
+    }
+
+    private System.Collections.IEnumerator ResolveAutomaticVolleySequence(
+        Character character,
+        CharacterAbilityRuntime runtime,
+        int maxShots,
+        bool allowNeutralFallbackOnFirstShot,
+        bool firstShotAlreadyConsumed)
+    {
+        if (character == null || runtime == null || maxShots <= 0)
+        {
+            yield break;
+        }
+
+        yield return null;
+
+        float minimumShotDelay = Mathf.Max(0.1f, delayBetweenAutomaticShots);
+        bool canFallbackToNeutral = allowNeutralFallbackOnFirstShot;
+        bool activationUseConsumed = firstShotAlreadyConsumed;
+        HashSet<Vector2Int> touchedCells = new HashSet<Vector2Int>();
+
+        for (int shotIndex = 0; shotIndex < maxShots; shotIndex++)
+        {
+            List<WhisperfangTargetCandidate> candidates = GatherTargetCandidates(character, canFallbackToNeutral);
+            WhisperfangTargetCandidate candidate = SelectBestCandidate(
+                candidates,
+                touchedCells,
+                character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangMultiShot) > 0);
+            if (candidate == null)
+            {
+                break;
+            }
+
+            if (!activationUseConsumed)
+            {
+                if (!runtime.TryConsumeAutomaticUse())
+                {
+                    break;
+                }
+            }
+
+            activationUseConsumed = false;
+            canFallbackToNeutral = false;
+            touchedCells.Add(candidate.Cell);
+            base.PlayActivationAnimation(character);
+            HashSet<Enemy> shotHitEnemies = new HashSet<Enemy>();
+            FireShotAtCandidate(character, candidate, GetShotDamage(character, runtime.UsesThisTurnCount, candidate), shotHitEnemies);
+            PlayConfiguredFx(character, shotHitEnemies);
+            character.RefreshAbilityState();
+
+            if (shotIndex < maxShots - 1)
+            {
+                yield return new WaitForSeconds(Mathf.Max(minimumShotDelay, GetEstimatedImpactDelay(character, candidate)));
+            }
+        }
+
+        character.EndActionLock();
+        character.RefreshAbilityState();
+    }
+
+    private int GetShotDamage(Character character, int shotOrdinal, WhisperfangTargetCandidate candidate)
+    {
         int damage = baseDamage;
-        if (character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangLuckyBolt) > 0 && runtime.UsesThisTurnCount >= 4)
+        if (character != null
+            && character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangLuckyBolt) > 0
+            && shotOrdinal == 5)
         {
             damage += 1;
         }
 
-        if (character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangMultiShot) > 0)
-        {
-            List<Vector2Int> targets = GatherMultiShotTargets(character);
-            if (targets.Count == 0)
-            {
-                return false;
-            }
-
-            HashSet<Enemy> hitEnemies = new HashSet<Enemy>();
-            for (int index = 0; index < targets.Count; index++)
-            {
-                ResolveSingleShot(character, targets[index], damage, hitEnemies);
-            }
-
-            PlayConfiguredFx(character, hitEnemies);
-            return true;
-        }
-
-        if (!targetCell.HasValue)
-        {
-            return false;
-        }
-
-        HashSet<Enemy> singleHitEnemies = new HashSet<Enemy>();
-        bool hitSomething = ResolveSingleShot(character, targetCell.Value, damage, singleHitEnemies);
-        if (hitSomething)
-        {
-            PlayConfiguredFx(character, singleHitEnemies);
-        }
-
-        return hitSomething;
+        return damage;
     }
 
-    private bool ResolveSingleShot(Character character, Vector2Int targetCell, int damage, HashSet<Enemy> hitEnemies)
+    private float GetEstimatedImpactDelay(Character character, WhisperfangTargetCandidate candidate)
     {
-        if (character == null || character.Board == null)
+        if (character == null || candidate == null)
+        {
+            return projectileLaunchDelay;
+        }
+
+        Vector3 startPosition = character.transform.position + projectileSpawnOffset;
+        Vector3 targetPosition = candidate.TargetTransform != null
+            ? candidate.TargetTransform.position + projectileImpactOffset
+            : character.Board.GridToWorldPosition(candidate.Cell) + projectileImpactOffset;
+        float travelDuration = Mathf.Max(0.05f, Vector3.Distance(startPosition, targetPosition) / Mathf.Max(0.01f, projectileSpeed));
+        return Mathf.Max(0f, projectileLaunchDelay) + travelDuration;
+    }
+
+    private bool FireShotAtCandidate(Character character, WhisperfangTargetCandidate candidate, int damage, HashSet<Enemy> hitEnemies)
+    {
+        if (character == null || character.Board == null || candidate == null)
         {
             return false;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell, true, range, out Vector2Int direction, out _)
-            || !HectorAbilityUtils.IsLineClear(character.Board, character.GridPosition, targetCell, direction))
-        {
-            return false;
-        }
+        character.FaceTargetCell(candidate.Cell);
+        Vector3 impactPosition = candidate.TargetTransform != null
+            ? candidate.TargetTransform.position + projectileImpactOffset
+            : character.Board.GridToWorldPosition(candidate.Cell) + projectileImpactOffset;
 
-        character.FaceTargetCell(targetCell);
-
-        if (character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null)
+        if (candidate.Enemy != null)
         {
             HectorAbilityUtils.TryPlayLinearProjectile(
                 character,
                 projectilePrefab,
-                enemy.transform.position + projectileImpactOffset,
+                impactPosition,
                 projectileSpeed,
                 projectileSpawnOffset,
                 projectileLaunchDelay,
                 () =>
                 {
-                    character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Default, this);
-                    ResolveRicochet(character, enemy, damage, hitEnemies);
+                    character.DealDamageToEnemy(candidate.Enemy, damage, true, true, DamageSoundType.Default, this);
+                    ResolveRicochet(character, candidate.Enemy, damage, hitEnemies);
                 });
-            hitEnemies?.Add(enemy);
+            hitEnemies?.Add(candidate.Enemy);
             return true;
         }
 
-        if (character.Board.TryGetLichSkullObject(targetCell, out LichSkullObject skull) && skull != null)
+        if (candidate.Skull != null)
         {
             HectorAbilityUtils.TryPlayLinearProjectile(
                 character,
                 projectilePrefab,
-                skull.transform.position + projectileImpactOffset,
+                impactPosition,
                 projectileSpeed,
                 projectileSpawnOffset,
                 projectileLaunchDelay,
-                () => character.DealDamageToLichSkull(skull, damage, true, DamageSoundType.Default, this));
+                () => character.DealDamageToLichSkull(candidate.Skull, damage, true, DamageSoundType.Default, this));
             return true;
         }
 
-        if (character.Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null)
+        if (candidate.Barrel != null)
         {
             HectorAbilityUtils.TryPlayLinearProjectile(
                 character,
                 projectilePrefab,
-                character.Board.GridToWorldPosition(barrel.GridPosition) + projectileImpactOffset,
+                impactPosition,
                 projectileSpeed,
                 projectileSpawnOffset,
                 projectileLaunchDelay,
-                barrel.TakeHit);
+                candidate.Barrel.TakeHit);
             return true;
         }
 
@@ -221,54 +354,141 @@ public class WhisperfangAbility : AbilityDefinition
         return untouchedCandidate ?? fallbackCandidate;
     }
 
-    private List<Vector2Int> GatherMultiShotTargets(Character character)
+    private WhisperfangTargetCandidate SelectBestCandidate(
+        List<WhisperfangTargetCandidate> candidates,
+        HashSet<Vector2Int> touchedCells,
+        bool preferUntouchedTargets)
     {
-        List<Vector2Int> targets = new List<Vector2Int>();
+        WhisperfangTargetCandidate bestCandidate = null;
+        bool foundUntouchedCandidate = false;
+        int bestHealthScore = int.MaxValue;
+        int bestDistance = int.MaxValue;
+        int bestLinePriority = int.MaxValue;
+        float bestTieBreaker = float.MaxValue;
+
+        for (int index = 0; index < candidates.Count; index++)
+        {
+            WhisperfangTargetCandidate candidate = candidates[index];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            bool isUntouched = touchedCells == null || !touchedCells.Contains(candidate.Cell);
+            if (preferUntouchedTargets)
+            {
+                if (foundUntouchedCandidate && !isUntouched)
+                {
+                    continue;
+                }
+
+                if (!foundUntouchedCandidate && isUntouched)
+                {
+                    bestCandidate = null;
+                    bestHealthScore = int.MaxValue;
+                    bestDistance = int.MaxValue;
+                    bestLinePriority = int.MaxValue;
+                    bestTieBreaker = float.MaxValue;
+                    foundUntouchedCandidate = true;
+                }
+            }
+
+            int healthScore = candidate.IsNeutralOnly ? int.MaxValue - 1 : candidate.Health;
+            int linePriority = candidate.IsStraight ? 0 : 1;
+
+            bool isBetter = bestCandidate == null
+                || healthScore < bestHealthScore
+                || (healthScore == bestHealthScore && candidate.Distance < bestDistance)
+                || (healthScore == bestHealthScore && candidate.Distance == bestDistance && linePriority < bestLinePriority)
+                || (healthScore == bestHealthScore && candidate.Distance == bestDistance && linePriority == bestLinePriority && candidate.TieBreaker < bestTieBreaker);
+            if (!isBetter)
+            {
+                continue;
+            }
+
+            bestCandidate = candidate;
+            bestHealthScore = healthScore;
+            bestDistance = candidate.Distance;
+            bestLinePriority = linePriority;
+            bestTieBreaker = candidate.TieBreaker;
+        }
+
+        return bestCandidate;
+    }
+
+    private List<WhisperfangTargetCandidate> GatherTargetCandidates(Character character, bool allowNeutralFallback)
+    {
+        List<WhisperfangTargetCandidate> enemyLikeCandidates = new List<WhisperfangTargetCandidate>();
+        List<WhisperfangTargetCandidate> neutralCandidates = new List<WhisperfangTargetCandidate>();
         if (character == null || character.Board == null)
         {
-            return targets;
+            return enemyLikeCandidates;
         }
 
         Vector2Int[] directions = HectorAbilityUtils.OrthogonalAndDiagonalDirections;
         for (int index = 0; index < directions.Length; index++)
         {
-            if (HectorAbilityUtils.TryGetFirstEnemyLikeTargetInDirection(
-                    character.Board,
-                    character.GridPosition,
-                    directions[index],
-                    range,
-                    out Vector2Int targetCell,
-                    out _,
-                    out _,
-                    out _))
+            Vector2Int direction = directions[index];
+            Vector2Int scan = character.GridPosition + direction;
+            int distance = 1;
+            while (character.Board.IsInsideBoard(scan) && distance <= range)
             {
-                targets.Add(targetCell);
+                if (character.Board.TryGetEnemy(scan, out Enemy enemy) && enemy != null)
+                {
+                    enemyLikeCandidates.Add(new WhisperfangTargetCandidate
+                    {
+                        Cell = scan,
+                        Enemy = enemy,
+                        Health = enemy.CurrentHealth,
+                        Distance = distance,
+                        IsStraight = direction.x == 0 || direction.y == 0,
+                        TieBreaker = Random.value
+                    });
+                    break;
+                }
+
+                if (character.Board.TryGetLichSkullObject(scan, out LichSkullObject skull) && skull != null)
+                {
+                    enemyLikeCandidates.Add(new WhisperfangTargetCandidate
+                    {
+                        Cell = scan,
+                        Skull = skull,
+                        Health = skull.CurrentHealth,
+                        Distance = distance,
+                        IsStraight = direction.x == 0 || direction.y == 0,
+                        TieBreaker = Random.value
+                    });
+                    break;
+                }
+
+                if (character.Board.TryGetBarrel(scan, out BarrelObstacle barrel) && barrel != null)
+                {
+                    neutralCandidates.Add(new WhisperfangTargetCandidate
+                    {
+                        Cell = scan,
+                        Barrel = barrel,
+                        Distance = distance,
+                        IsStraight = direction.x == 0 || direction.y == 0,
+                        TieBreaker = Random.value
+                    });
+                    break;
+                }
+
+                if (character.Board.TryGetCell(scan, out BoardCell cell) && cell.HasBlockingTerrain)
+                {
+                    break;
+                }
+
+                scan += direction;
+                distance++;
             }
         }
 
-        return targets;
-    }
-
-    private bool CanTargetCell(Character character, Vector2Int targetCell, bool allowDiagonals, bool allowEmptyCell = false)
-    {
-        if (character == null || character.Board == null)
+        if (enemyLikeCandidates.Count > 0)
         {
-            return false;
+            return enemyLikeCandidates;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell, allowDiagonals, range, out Vector2Int direction, out _)
-            || !HectorAbilityUtils.IsLineClear(character.Board, character.GridPosition, targetCell, direction))
-        {
-            return false;
-        }
-
-        if (allowEmptyCell)
-        {
-            return character.Board.IsInsideBoard(targetCell);
-        }
-
-        return (character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null)
-            || (character.Board.TryGetLichSkullObject(targetCell, out LichSkullObject skull) && skull != null)
-            || (character.Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null);
+        return allowNeutralFallback ? neutralCandidates : enemyLikeCandidates;
     }
 }

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_TridimensionalPortal_Eye
   m_EditorClassIdentifier: 
   rewardId: upgrade_tridimensional_portal_eye
-  rewardTitle: Oeil tridimensionnel
-  rewardDescription: Augmente la portée de pose du portail de 1. Max 3 stacks.
+  rewardTitle: Three-dimensional eye
+  rewardDescription: Increases the placement range of the portal by 1. Max 3 stacks.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 4c67b939bf2648578e89a5b2349b7211, type: 2}
   upgradeKey: 51

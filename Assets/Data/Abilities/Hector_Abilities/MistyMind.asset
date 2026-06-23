@@ -10,19 +10,31 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d05ac5beec2f4339b8b9af11f1de8011, type: 3}
-  m_Name: MistySpirit
+  m_Name: MistyMind
   m_EditorClassIdentifier: 
-  abilityName: Esprit brumeux
+  abilityName: Misty Mind
   icon: {fileID: -1207557939, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   category: 2
   attackAnimationClip: {fileID: 7400000, guid: f8bd8d0c56d5b43bb9dd1b688791662e, type: 2}
-  linkedUpgradeRewards: []
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: 9e1344f38a9340b7b5391ef49e3ece0a, type: 2}
+  - {fileID: 11400000, guid: 1367ffd1d89a462a91dae448a813abc8, type: 2}
+  - {fileID: 11400000, guid: 2e1d773191a64c318708a99432ce2865, type: 2}
+  - {fileID: 11400000, guid: 979218ba003345c3809d5ee997ee5a2f, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 1
+  reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 0
-  fxSpawns: []
+  fxSpawns:
+  - fxPrefab: {fileID: 2407364176693153571, guid: a66daf307f4864f2183ba9b16b78556e, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 0
+    spawnAnchor: 1
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 0
   damageApplyDelay: 0
   damageDelayDistanceMultiplier: 1
   damageFxOverridePrefab: {fileID: 0}

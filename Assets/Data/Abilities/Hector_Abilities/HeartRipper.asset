@@ -16,16 +16,28 @@ MonoBehaviour:
   icon: {fileID: -767586726, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   category: 2
   attackAnimationClip: {fileID: 7400000, guid: bc7bd89b1afec43898786e8805565fbc, type: 2}
-  linkedUpgradeRewards: []
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: bc74136ce00842bdb190d8b4fb12e00a, type: 2}
+  - {fileID: 11400000, guid: 9f6eaaf0568244ba9f1bfc7c566577aa, type: 2}
+  - {fileID: 11400000, guid: 63a5a5028cf44a14bed65834f11c012a, type: 2}
+  - {fileID: 11400000, guid: cf75e9fe5e0a4f3a8c6765b47a681708, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 1
+  reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 0
-  fxSpawns: []
-  damageApplyDelay: 0.04
+  fxSpawns:
+  - fxPrefab: {fileID: 167524, guid: fdac75e990da47649b31f10049c400b0, type: 3}
+    spawnDelay: 0.75
+    destroyAfterSeconds: 0
+    spawnAnchor: 1
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 0
+  damageApplyDelay: 0.75
   damageDelayDistanceMultiplier: 1
-  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePrefab: {fileID: 7126338465964733858, guid: c2a4a2f3effa44898af786693bae6886, type: 3}
   damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
   damageFxOverrideDestroyAfterSeconds: 1
   trailColorMode: 0

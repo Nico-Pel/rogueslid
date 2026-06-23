@@ -78,8 +78,13 @@ public class UIGame : MonoBehaviour
     private Character observedCharacter;
     private Action<RewardOffer> onRewardSelected;
     private Action onRewardsIgnored;
+    private RewardButtonStyle basePowerRewardStyle;
+    private RewardButtonStyle baseItemRewardStyle;
     private RewardButtonStyle powerRewardStyle;
     private RewardButtonStyle itemRewardStyle;
+    private RewardButtonTheme powerRewardTheme = RewardButtonUI.DefaultPowerTheme;
+    private RewardButtonTheme itemRewardTheme = RewardButtonUI.DefaultItemTheme;
+    private ItemIconTheme itemIconTheme = ItemIconUI.DefaultTheme;
     private Sprite basicAttackRewardIcon;
     private Sprite mobilityRewardIcon;
     private Sprite specialRewardIcon;
@@ -289,8 +294,9 @@ public class UIGame : MonoBehaviour
         {
             RewardOffer rewardOffer = rewardOffers != null && index < rewardOffers.Count ? rewardOffers[index] : null;
             RewardButtonStyle style = rewardOffer != null && rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
+            RewardButtonTheme theme = rewardOffer != null && rewardOffer.Kind == RewardOfferKind.Item ? itemRewardTheme : powerRewardTheme;
             Sprite typeSprite = rewardOffer != null ? ResolveTypeIconSprite(rewardOffer.IconKind) : null;
-            rewardCards[index].Bind(rewardOffer, style, typeSprite, HandleRewardPreviewRequested);
+            rewardCards[index].Bind(rewardOffer, style, theme, typeSprite, HandleRewardPreviewRequested);
         }
     }
 
@@ -465,6 +471,7 @@ public class UIGame : MonoBehaviour
             observedCharacter.ItemActivationChanged += HandleItemActivationChanged;
         }
 
+        ApplyCurrentCharacterTheme();
         RebuildMobilityBar();
         RefreshAbilityButtons();
         RefreshItemsList();
@@ -483,6 +490,7 @@ public class UIGame : MonoBehaviour
             observedCharacter = null;
         }
 
+        ApplyCurrentCharacterTheme();
         ClearTargetCellIndicators();
     }
 
@@ -956,15 +964,17 @@ public class UIGame : MonoBehaviour
             RewardButtonUI powerCard = rewardCards.Find(card => card != itemCard);
             if (powerCard != null)
             {
-                powerRewardStyle = powerCard.CaptureStyle();
+                basePowerRewardStyle = powerCard.CaptureStyle();
             }
 
             if (itemCard != null)
             {
-                itemRewardStyle = itemCard.CaptureStyle();
+                baseItemRewardStyle = itemCard.CaptureStyle();
                 objectRewardIcon = itemCard.CurrentTypeSprite;
             }
         }
+
+        ApplyCurrentCharacterTheme();
     }
 
     private void CacheRewardCheckMenu()
@@ -1330,6 +1340,12 @@ public class UIGame : MonoBehaviour
             CacheAbilityButtons();
         }
 
+        Color abilityButtonBackgroundColor = GetCharacterThemeColor(CharacterUIColorKey.AbilityButtonBackground, new Color(0.74272823f, 0f, 1f, 1f));
+        Color abilityButtonOutlineColor = GetCharacterThemeColor(CharacterUIColorKey.AbilityButtonOutline, new Color(0.5722367f, 0f, 0.745283f, 1f));
+        Color abilityButtonCountBackgroundColor = GetCharacterThemeColor(CharacterUIColorKey.AbilityButtonCountBackground, new Color(0.47843137f, 0.003921569f, 0.5921569f, 1f));
+        Color abilityButtonTypeIconColor = GetCharacterThemeColor(CharacterUIColorKey.AbilityButtonTypeIcon, new Color(0.44419536f, 0f, 0.6226415f, 1f));
+        Color abilityButtonTypeOutlineColor = GetCharacterThemeColor(CharacterUIColorKey.AbilityButtonTypeOutline, new Color(0.5471698f, 0.3875786f, 0f, 1f));
+
         for (int index = 0; index < abilityButtons.Count; index++)
         {
             AbilityButtonUI button = abilityButtons[index];
@@ -1346,6 +1362,7 @@ public class UIGame : MonoBehaviour
                 || gameTurnManager == null
                 || gameTurnManager.HasAnyUsableTarget(observedCharacter, runtime);
             button.SetHasAnyValidTarget(hasValidTarget);
+            button.ApplyTheme(abilityButtonBackgroundColor, abilityButtonOutlineColor, abilityButtonCountBackgroundColor, abilityButtonTypeIconColor, abilityButtonTypeOutlineColor);
         }
     }
 
@@ -1442,7 +1459,7 @@ public class UIGame : MonoBehaviour
                 itemIcon = itemIconObject.AddComponent<ItemIconUI>();
             }
 
-            itemIcon.Bind(itemRewardDefinition, HandleItemIconClicked);
+            itemIcon.Bind(itemRewardDefinition, itemIconTheme, HandleItemIconClicked);
             itemIcon.SetActivationVisible(observedCharacter.IsItemActivationActive(itemRewardDefinition.ItemKey));
             itemIcons.Add(itemIconObject);
             itemIconsByKey[itemRewardDefinition.ItemKey] = itemIcon;
@@ -1468,6 +1485,121 @@ public class UIGame : MonoBehaviour
         }
 
         itemIcon.SetActivationVisible(isActive);
+    }
+
+    private void ApplyCurrentCharacterTheme()
+    {
+        mobilityAvailableColor = GetCharacterThemeColor(CharacterUIColorKey.MobilityAvailable, Color.white);
+        mobilityConsumedColor = GetCharacterThemeColor(CharacterUIColorKey.MobilityConsumed, Color.black);
+
+        powerRewardStyle = BuildRewardStyle(
+            basePowerRewardStyle,
+            CharacterUIColorKey.PowerRewardBackground,
+            CharacterUIColorKey.PowerRewardTitleBackground,
+            CharacterUIColorKey.PowerRewardTitleText,
+            CharacterUIColorKey.PowerRewardDescriptionBackground,
+            CharacterUIColorKey.PowerRewardDescriptionText,
+            CharacterUIColorKey.PowerRewardTypeContainer,
+            CharacterUIColorKey.PowerRewardTypeIcon);
+
+        itemRewardStyle = baseItemRewardStyle;
+
+        powerRewardTheme = new RewardButtonTheme(
+            GetCharacterThemeColor(CharacterUIColorKey.PowerRewardOutline, RewardButtonUI.DefaultPowerTheme.OutlineColor),
+            GetCharacterThemeColor(CharacterUIColorKey.PowerRewardSubtitleBackground, RewardButtonUI.DefaultPowerTheme.SubtitleBackgroundColor),
+            GetCharacterThemeColor(CharacterUIColorKey.PowerRewardSubtitleText, RewardButtonUI.DefaultPowerTheme.SubtitleTextColor),
+            GetCharacterThemeColor(CharacterUIColorKey.PowerRewardNewSubtitleBackground, RewardButtonUI.DefaultPowerTheme.NewSubtitleBackgroundColor),
+            GetCharacterThemeColor(CharacterUIColorKey.PowerRewardNewSubtitleText, RewardButtonUI.DefaultPowerTheme.NewSubtitleTextColor));
+
+        itemRewardTheme = RewardButtonUI.DefaultItemTheme;
+
+        itemIconTheme = new ItemIconTheme(
+            GetCharacterThemeColor(CharacterUIColorKey.ItemIconBackground, ItemIconUI.DefaultTheme.BackgroundColor),
+            GetCharacterThemeColor(CharacterUIColorKey.ItemIconActivation, ItemIconUI.DefaultTheme.ActivationColor));
+
+        ApplyHudTheme();
+        ApplyToolsTheme();
+    }
+
+    private RewardButtonStyle BuildRewardStyle(
+        RewardButtonStyle baseStyle,
+        CharacterUIColorKey backgroundKey,
+        CharacterUIColorKey titleBackgroundKey,
+        CharacterUIColorKey titleTextKey,
+        CharacterUIColorKey descriptionBackgroundKey,
+        CharacterUIColorKey descriptionTextKey,
+        CharacterUIColorKey typeContainerKey,
+        CharacterUIColorKey typeIconKey)
+    {
+        return new RewardButtonStyle(
+            baseStyle.ArtworkSprite,
+            GetCharacterThemeColor(backgroundKey, baseStyle.BackgroundColor),
+            GetCharacterThemeColor(titleBackgroundKey, baseStyle.TitleBackgroundColor),
+            GetCharacterThemeColor(titleTextKey, baseStyle.TitleTextColor),
+            GetCharacterThemeColor(descriptionBackgroundKey, baseStyle.DescriptionBackgroundColor),
+            GetCharacterThemeColor(descriptionTextKey, baseStyle.DescriptionTextColor),
+            GetCharacterThemeColor(typeContainerKey, baseStyle.TypeContainerColor),
+            GetCharacterThemeColor(typeIconKey, baseStyle.TypeIconColor));
+    }
+
+    private Color GetCharacterThemeColor(CharacterUIColorKey key, Color fallback)
+    {
+        CharacterData characterData = observedCharacter != null ? observedCharacter.Data : null;
+        return characterData != null ? characterData.GetUIColor(key, fallback) : fallback;
+    }
+
+    private void ApplyHudTheme()
+    {
+        if (footerUI != null)
+        {
+            Image footerBackground = footerUI.GetComponent<Image>();
+            if (footerBackground != null)
+            {
+                footerBackground.color = GetCharacterThemeColor(CharacterUIColorKey.FooterBackground, new Color(0.1086727f, 0.070487715f, 0.1509434f, 1f));
+            }
+
+            if (footerUI.PortraitButton != null)
+            {
+                Image portraitBackground = footerUI.PortraitButton.GetComponent<Image>();
+                if (portraitBackground != null)
+                {
+                    portraitBackground.color = GetCharacterThemeColor(CharacterUIColorKey.PortraitBackground, new Color(0.39572334f, 0f, 0.49056602f, 0.2627451f));
+                }
+            }
+
+            if (footerUI.CharacterNameLabel != null)
+            {
+                Image nameplateBackground = footerUI.CharacterNameLabel.transform.parent != null
+                    ? footerUI.CharacterNameLabel.transform.parent.GetComponent<Image>()
+                    : null;
+                if (nameplateBackground != null)
+                {
+                    nameplateBackground.color = GetCharacterThemeColor(CharacterUIColorKey.PortraitNameplateBackground, new Color(0.25490198f, 0.07450981f, 0.29803923f, 1f));
+                }
+            }
+
+            if (footerUI.ArenaCountLabel != null)
+            {
+                Image arenaCountBackground = footerUI.ArenaCountLabel.transform.parent != null
+                    ? footerUI.ArenaCountLabel.transform.parent.GetComponent<Image>()
+                    : null;
+                if (arenaCountBackground != null)
+                {
+                    arenaCountBackground.color = GetCharacterThemeColor(CharacterUIColorKey.PortraitNameplateBackground, new Color(0.25490198f, 0.07450981f, 0.29803923f, 1f));
+                }
+            }
+        }
+
+        if (mobilityBar != null)
+        {
+            Image mobilityBackground = mobilityBar.GetComponent<Image>();
+            if (mobilityBackground != null)
+            {
+                mobilityBackground.color = GetCharacterThemeColor(CharacterUIColorKey.MobilityBarBackground, new Color(0.49411765f, 0.003921569f, 0.5568628f, 0.20784314f));
+            }
+        }
+
+        RefreshMobilityBar();
     }
 
     private void HandleItemIconClicked(ItemRewardDefinition itemRewardDefinition)
@@ -1696,6 +1828,65 @@ public class UIGame : MonoBehaviour
         toolsDeleteBuildButton = EnsureLabeledButton(toolsDeleteBuildButton, panelRect, "BDeleteBuild", "DELETE", new Vector2(130f, 52f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-34f, 36f), fontAsset, new Color(0.66f, 0.18f, 0.22f, 1f));
         toolsCloseButton = EnsureLabeledButton(toolsCloseButton, panelRect, "BCloseTools", "CLOSE", new Vector2(160f, 44f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-20f, -20f), fontAsset, new Color(0.16f, 0.08f, 0.23f, 1f));
         toolsMenu.transform.SetAsLastSibling();
+        ApplyToolsTheme();
+    }
+
+    private void ApplyToolsTheme()
+    {
+        if (toolsButton != null)
+        {
+            ApplyButtonBackgroundColor(toolsButton, GetCharacterThemeColor(CharacterUIColorKey.ToolsPrimaryButtonBackground, new Color(0.56f, 0.14f, 0.73f, 0.95f)));
+        }
+
+        Image panelImage = toolsMenu != null ? FindComponentByName<Image>(toolsMenu.transform, "Panel") : null;
+        if (panelImage != null)
+        {
+            panelImage.color = GetCharacterThemeColor(CharacterUIColorKey.ToolsPanelBackground, new Color(0.11f, 0.07f, 0.16f, 0.985f));
+        }
+
+        if (toolsBuildCountLabel != null)
+        {
+            toolsBuildCountLabel.color = GetCharacterThemeColor(CharacterUIColorKey.ToolsSecondaryText, new Color(0.9f, 0.78f, 0.95f, 1f));
+        }
+
+        if (toolsBuildDetailsLabel != null)
+        {
+            toolsBuildDetailsLabel.color = GetCharacterThemeColor(CharacterUIColorKey.ToolsDetailText, new Color(0.93f, 0.83f, 0.95f, 1f));
+        }
+
+        Color navigationColor = GetCharacterThemeColor(CharacterUIColorKey.ToolsNavigationButtonBackground, new Color(0.34f, 0.16f, 0.45f, 1f));
+        ApplyButtonBackgroundColor(toolsPreviousBuildButton, navigationColor);
+        ApplyButtonBackgroundColor(toolsNextBuildButton, navigationColor);
+        ApplyButtonBackgroundColor(toolsSaveBuildButton, GetCharacterThemeColor(CharacterUIColorKey.ToolsPrimaryButtonBackground, new Color(0.56f, 0.14f, 0.73f, 1f)));
+        ApplyButtonBackgroundColor(toolsCloseButton, GetCharacterThemeColor(CharacterUIColorKey.ToolsCloseButtonBackground, new Color(0.16f, 0.08f, 0.23f, 1f)));
+
+        if (toolsBuildNameInput != null)
+        {
+            Image inputBackground = toolsBuildNameInput.GetComponent<Image>();
+            if (inputBackground != null)
+            {
+                inputBackground.color = GetCharacterThemeColor(CharacterUIColorKey.ToolsInputBackground, new Color(0.16f, 0.09f, 0.23f, 1f));
+            }
+
+            if (toolsBuildNameInput.placeholder is TMP_Text placeholderText)
+            {
+                placeholderText.color = GetCharacterThemeColor(CharacterUIColorKey.ToolsInputPlaceholder, new Color(0.8f, 0.72f, 0.84f, 0.65f));
+            }
+        }
+    }
+
+    private static void ApplyButtonBackgroundColor(Button button, Color color)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        Image image = button.GetComponent<Image>();
+        if (image != null)
+        {
+            image.color = color;
+        }
     }
 
     private void HandleToolsButtonClicked()
@@ -2385,6 +2576,7 @@ public class UIGame : MonoBehaviour
 
                     isStatsPointerTracking = true;
                     statsPointerStartPosition = touch.position;
+                    TryUnlockEndTurnFromScreenPosition(touch.position);
                     break;
                 case TouchPhase.Ended:
                     if (!isStatsPointerTracking)
@@ -2412,12 +2604,28 @@ public class UIGame : MonoBehaviour
 
             isStatsPointerTracking = true;
             statsPointerStartPosition = Input.mousePosition;
+            TryUnlockEndTurnFromScreenPosition(Input.mousePosition);
         }
         else if (Input.GetMouseButtonUp(0) && isStatsPointerTracking)
         {
             isStatsPointerTracking = false;
             TryOpenEnemyStatsFromScreenPosition(Input.mousePosition, (Vector2)Input.mousePosition - statsPointerStartPosition);
         }
+    }
+
+    private void TryUnlockEndTurnFromScreenPosition(Vector2 screenPosition)
+    {
+        if (gameTurnManager == null || gameTurnManager.Board == null || gameTurnManager.CanEndTurn)
+        {
+            return;
+        }
+
+        if (!TryGetGridCellFromScreenPosition(screenPosition, out _))
+        {
+            return;
+        }
+
+        gameTurnManager.UnlockEndTurnFromGameTouch();
     }
 
     private void TryOpenEnemyStatsFromScreenPosition(Vector2 screenPosition, Vector2 pointerDelta)
@@ -2531,8 +2739,9 @@ public class UIGame : MonoBehaviour
         }
 
         RewardButtonStyle style = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
+        RewardButtonTheme theme = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardTheme : powerRewardTheme;
         Sprite typeSprite = ResolveTypeIconSprite(rewardOffer.IconKind);
-        rewardCheckCard.Bind(rewardOffer, style, typeSprite, null);
+        rewardCheckCard.Bind(rewardOffer, style, theme, typeSprite, null);
 
         if (rewardCheckChooseButton != null)
         {
@@ -2595,7 +2804,8 @@ public class UIGame : MonoBehaviour
         int clampedIndex = Mathf.Clamp(selectedIndex, 0, currentAbilityCheckOffers.Count - 1);
         RewardOffer rewardOffer = currentAbilityCheckOffers[clampedIndex];
         RewardButtonStyle style = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
-        abilityCheckCard.Bind(rewardOffer, style, ResolveTypeIconSprite(rewardOffer.IconKind), null);
+        RewardButtonTheme theme = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardTheme : powerRewardTheme;
+        abilityCheckCard.Bind(rewardOffer, style, theme, ResolveTypeIconSprite(rewardOffer.IconKind), null);
 
         for (int index = 0; index < abilityCheckOptionButtons.Count; index++)
         {

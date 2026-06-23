@@ -32,7 +32,7 @@ MonoBehaviour:
   maxFleeTurns: 2
   attackFirst: 0
   fleeAfterAttacking: 0
-  fleeThresholdPercent: 33
+  fleeThresholdPercent: 45
   fearFxPrefab: {fileID: 8335289513195480944, guid: 81c8e5be748904defb436d0ec9f5800d, type: 3}
   fearBodyWiggleStrength: 2.5
   ignoreObstaclesForMovement: 1

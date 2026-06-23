@@ -132,6 +132,17 @@ public class GameTurnManager : MonoBehaviour
         enemyTurnCoroutine = StartCoroutine(RunEnemyTurn());
     }
 
+    public void UnlockEndTurnFromGameTouch()
+    {
+        if (CurrentTurn != TurnSide.Player || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen || isLoseMenuOpen)
+        {
+            return;
+        }
+
+        StopEndTurnUnlockTimer();
+        SetCanEndTurn(true);
+    }
+
     public void RestartForNewBoard()
     {
         if (!hasStarted)

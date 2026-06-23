@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b03a13a8a34f49ebbe93f80c35295611, type: 3}
   m_Name: TridimensionalPortal
   m_EditorClassIdentifier: 
-  abilityName: Portail tridimensionnel
+  abilityName: Three-dimensional portal
   icon: {fileID: 1889169128, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   category: 1
   attackAnimationClip: {fileID: 7400000, guid: f8bd8d0c56d5b43bb9dd1b688791662e, type: 2}
@@ -21,9 +21,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 68ef14d783cc49a29a2831496946f211, type: 2}
   - {fileID: 11400000, guid: 7e12f8069e9946fb92de2f18536b6211, type: 2}
   - {fileID: 11400000, guid: c198f9d514b74c41a77f39e3faa0a211, type: 2}
+  - {fileID: 11400000, guid: ea5699db0241413dac9d3c898c8d8072, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 2
+  reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 0
   fxSpawns: []

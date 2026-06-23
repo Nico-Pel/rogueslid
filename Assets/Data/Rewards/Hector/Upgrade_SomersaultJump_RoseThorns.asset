@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Upgrade_SomersaultJump_RoseThorns
   m_EditorClassIdentifier: 
   rewardId: upgrade_somersault_jump_rose_thorns
-  rewardTitle: Epines de rose
-  rewardDescription: Les ennemis touches par Saut perilleux recoivent un saignement.
+  rewardTitle: Rose Thorns
+  rewardDescription: Enemies hit by Somersault Jump darts gain bleeding.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 51131711ec0c4ea0b6b6e4eed348140f, type: 2}
-  upgradeKey: 58
+  upgradeKey: 62
   stackable: 0
   maxStacks: 0

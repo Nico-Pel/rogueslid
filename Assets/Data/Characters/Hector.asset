@@ -26,8 +26,96 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 364ec113b09a42ffb823f413bdad6b22, type: 2}
   - {fileID: 0}
   unlockableAbilityRewards:
-  - {fileID: 11400000, guid: 21318e21923d435783585b85d988894d, type: 2}
+  - {fileID: 11400000, guid: f303bf6ed87c4e0b8c314c3a53c32e49, type: 2}
+  - {fileID: 11400000, guid: 1c56ad6be3e54b6aa1624144650c0880, type: 2}
   - {fileID: 11400000, guid: 2f59f1a58a39411fa87af4efb4df1211, type: 2}
   - {fileID: 11400000, guid: 7fb8d3191f5f43db9c35c29ec66c4211, type: 2}
   - {fileID: 11400000, guid: d3e10f1d3815476382d1915338cf0211, type: 2}
   - {fileID: 11400000, guid: 21318e21923d435783585b85d988894d, type: 2}
+  uiColors:
+  - key: 0
+    color: {r: 0.29803923, g: 0.08235294, b: 0.08627451, a: 1}
+  - key: 1
+    color: {r: 0.12, g: 0.05, b: 0.05, a: 1}
+  - key: 2
+    color: {r: 1, g: 0.97, b: 0.97, a: 1}
+  - key: 3
+    color: {r: 0.11, g: 0.05, b: 0.05, a: 1}
+  - key: 4
+    color: {r: 0.88, g: 0.65, b: 0.65, a: 1}
+  - key: 5
+    color: {r: 0, g: 0, b: 0, a: 1}
+  - key: 6
+    color: {r: 0.77, g: 0.18, b: 0.2, a: 1}
+  - key: 7
+    color: {r: 0.82, g: 0.12, b: 0.16, a: 1}
+  - key: 8
+    color: {r: 0.35, g: 0.1, b: 0.11, a: 1}
+  - key: 9
+    color: {r: 0.86, g: 0.46, b: 0.47, a: 1}
+  - key: 10
+    color: {r: 0.18, g: 0.05, b: 0.05, a: 1}
+  - key: 11
+    color: {r: 1, g: 0.73333335, b: 0, a: 1}
+  - key: 12
+    color: {r: 0.29803923, g: 0.08235294, b: 0.08627451, a: 1}
+  - key: 13
+    color: {r: 0.12, g: 0.05, b: 0.05, a: 1}
+  - key: 14
+    color: {r: 1, g: 0.95, b: 0.93, a: 1}
+  - key: 15
+    color: {r: 0.11, g: 0.05, b: 0.05, a: 1}
+  - key: 16
+    color: {r: 0.92, g: 0.76, b: 0.68, a: 1}
+  - key: 17
+    color: {r: 0.72, g: 0.29, b: 0.21, a: 1}
+  - key: 18
+    color: {r: 0.92, g: 0.53, b: 0.39, a: 1}
+  - key: 19
+    color: {r: 0.72, g: 0.34, b: 0.26, a: 1}
+  - key: 20
+    color: {r: 0.72, g: 0.29, b: 0.21, a: 1}
+  - key: 21
+    color: {r: 0.98, g: 0.83, b: 0.74, a: 1}
+  - key: 22
+    color: {r: 0.85, g: 0.1, b: 0.1, a: 0.12}
+  - key: 23
+    color: {r: 1, g: 0.45, b: 0.1, a: 1}
+  - key: 24
+    color: {r: 0.82, g: 0.12, b: 0.16, a: 1}
+  - key: 25
+    color: {r: 0.72, g: 0.14, b: 0.18, a: 0.95}
+  - key: 26
+    color: {r: 0.15, g: 0.06, b: 0.07, a: 0.985}
+  - key: 27
+    color: {r: 0.95, g: 0.78, b: 0.8, a: 1}
+  - key: 28
+    color: {r: 0.96, g: 0.84, b: 0.84, a: 1}
+  - key: 29
+    color: {r: 0.42, g: 0.14, b: 0.16, a: 1}
+  - key: 30
+    color: {r: 0.23, g: 0.08, b: 0.09, a: 1}
+  - key: 31
+    color: {r: 0.22, g: 0.08, b: 0.09, a: 1}
+  - key: 32
+    color: {r: 0.88, g: 0.71, b: 0.73, a: 0.65}
+  - key: 33
+    color: {r: 0.14, g: 0.06, b: 0.08, a: 1}
+  - key: 34
+    color: {r: 0.46, g: 0.03, b: 0.05, a: 0.36}
+  - key: 35
+    color: {r: 0.29803923, g: 0.08235294, b: 0.08627451, a: 1}
+  - key: 36
+    color: {r: 0.62, g: 0.05, b: 0.08, a: 0.22}
+  - key: 37
+    color: {r: 1, g: 0.96, b: 0.96, a: 1}
+  - key: 38
+    color: {r: 0.08, g: 0, b: 0, a: 1}
+  - key: 39
+    color: {r: 0.74, g: 0.06, b: 0.1, a: 1}
+  - key: 40
+    color: {r: 0.58, g: 0.06, b: 0.09, a: 1}
+  - key: 41
+    color: {r: 0.82, g: 0.18, b: 0.2, a: 1}
+  - key: 42
+    color: {r: 0.78, g: 0.16, b: 0.18, a: 1}

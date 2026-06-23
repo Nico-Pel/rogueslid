@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Upgrade_SomersaultJump_SmallJump
   m_EditorClassIdentifier: 
   rewardId: upgrade_somersault_jump_small_jump
-  rewardTitle: Petit saut
-  rewardDescription: Hector peut desormais sauter jusqu'a 2 cases de distance si la trajectoire est libre.
+  rewardTitle: Small Jump
+  rewardDescription: Hector can now jump up to 2 cells away when the path is clear.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 51131711ec0c4ea0b6b6e4eed348140f, type: 2}
-  upgradeKey: 61
+  upgradeKey: 65
   stackable: 0
   maxStacks: 0

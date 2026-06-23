@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6f433c87d304e2b86d08a3347f75003, type: 3}
+  m_Name: Upgrade_Whisperfang_OneMoreForTheRoad
+  m_EditorClassIdentifier: 
+  rewardId: upgrade_whisperfang_one_more_for_the_road
+  rewardTitle: One More for the Road
+  rewardDescription: Whisperfang gains 1 extra base use per turn. Max 2 stacks.
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: ee2979b98ecf4214acbdd64b0dd56211, type: 2}
+  upgradeKey: 46
+  stackable: 1
+  maxStacks: 2

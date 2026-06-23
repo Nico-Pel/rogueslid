@@ -127,7 +127,6 @@ public class Enemy : MonoBehaviour
     private readonly Dictionary<CombatStatusType, int> statusDurations = new Dictionary<CombatStatusType, int>();
     private readonly Dictionary<CombatStatusType, int> statusPotencies = new Dictionary<CombatStatusType, int>();
     private int forceModifierFromStatuses;
-    private bool mistyConfusionPending;
     private bool mistyConfusionParanoia;
     private bool mistyConfusionBrokenHeart;
     private GameObject activeMistyConfusionFxInstance;
@@ -435,17 +434,6 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
-        if (mistyConfusionPending)
-        {
-            if (CanAttackAnyEnemyAlly())
-            {
-                yield return ResolveMistyConfusionTurn();
-                yield break;
-            }
-
-            ClearMistyConfusion();
-        }
-
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
         UpdateFearState(persistentFleeBehaviour);
         if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
@@ -546,17 +534,6 @@ public class Enemy : MonoBehaviour
         if (isDying || currentHealth <= 0)
         {
             yield break;
-        }
-
-        if (mistyConfusionPending)
-        {
-            if (CanAttackAnyEnemyAlly())
-            {
-                yield return ResolveMistyConfusionTurn();
-                yield break;
-            }
-
-            ClearMistyConfusion();
         }
 
         combatTurnCount++;
@@ -793,7 +770,7 @@ public class Enemy : MonoBehaviour
         PathPlan approachPlan = default;
         PathPlan fallbackApproachPlan = default;
         bool hasAttackObjective = !shouldAdvanceAggressively
-            && TryFindBestAttackObjective(target, out _, out attackPlan);
+            && TryFindBestAttackObjective(target, maxSteps, out _, out attackPlan);
         bool hasApproachPath = TryBuildWeightedPathForCurrentMovementRules(gridPosition, target.GridPosition, out approachPlan, true);
         bool hasFallbackApproachObjective = !hasApproachPath
             && TryFindBestApproachObjective(target, out _, out fallbackApproachPlan);
@@ -918,9 +895,8 @@ public class Enemy : MonoBehaviour
         pendingMobilityPenalty += amount;
     }
 
-    public void ApplyMistyConfusion(bool paranoia, bool brokenHeart, bool reduceMobilityNextTurn)
+    public IEnumerator ApplyMistyConfusion(bool paranoia, bool brokenHeart, bool reduceMobilityNextTurn)
     {
-        mistyConfusionPending = true;
         mistyConfusionParanoia = paranoia;
         mistyConfusionBrokenHeart = brokenHeart;
         ShowMistyConfusionFx();
@@ -929,6 +905,14 @@ public class Enemy : MonoBehaviour
         {
             ApplyMobilityPenaltyNextTurn(1);
         }
+
+        if (currentHealth <= 0 || !CanAttackAnyEnemyAlly())
+        {
+            ClearMistyConfusion();
+            yield break;
+        }
+
+        yield return ResolveMistyConfusionTurn();
     }
 
     public bool TryForcedMoveTo(Vector2Int targetCell)
@@ -995,6 +979,7 @@ public class Enemy : MonoBehaviour
         IsMoving = false;
         SetFlyingAnimation(false);
         RefreshCanvasHeight(false);
+        ClearMistyConfusion();
         ClearDeathMarkFx();
     }
 
@@ -1711,10 +1696,15 @@ public class Enemy : MonoBehaviour
     private bool TryFindBestAttackObjective(Character target, out Vector2Int bestObjective)
     {
         bestObjective = gridPosition;
-        return TryFindBestAttackObjective(target, out bestObjective, out _);
+        return TryFindBestAttackObjective(target, int.MaxValue, out bestObjective, out _);
     }
 
     private bool TryFindBestAttackObjective(Character target, out Vector2Int bestObjective, out PathPlan bestPlan)
+    {
+        return TryFindBestAttackObjective(target, int.MaxValue, out bestObjective, out bestPlan);
+    }
+
+    private bool TryFindBestAttackObjective(Character target, int maxReachableSteps, out Vector2Int bestObjective, out PathPlan bestPlan)
     {
         bestObjective = gridPosition;
         bestPlan = default;
@@ -1724,6 +1714,7 @@ public class Enemy : MonoBehaviour
         }
 
         bool foundObjective = false;
+        bool foundReachableObjective = false;
         int bestPathCost = int.MaxValue;
         int bestPathDistance = int.MaxValue;
         for (int x = 0; x < Board.Width; x++)
@@ -1746,14 +1737,23 @@ public class Enemy : MonoBehaviour
                     continue;
                 }
 
+                bool candidateIsReachableThisTurn = candidatePlan.StepCount <= Mathf.Max(0, maxReachableSteps);
                 if (!foundObjective
+                    || (candidateIsReachableThisTurn && !foundReachableObjective)
                     || candidatePlan.TotalCost < bestPathCost
-                    || (candidatePlan.TotalCost == bestPathCost && candidatePlan.StepCount < bestPathDistance)
+                    || (candidatePlan.TotalCost == bestPathCost
+                        && candidatePlan.StepCount < bestPathDistance)
                     || (candidatePlan.TotalCost == bestPathCost
                         && candidatePlan.StepCount == bestPathDistance
                         && Board.GetManhattanDistance(cellPosition, target.GridPosition) < Board.GetManhattanDistance(bestObjective, target.GridPosition)))
                 {
+                    if (foundReachableObjective && !candidateIsReachableThisTurn)
+                    {
+                        continue;
+                    }
+
                     foundObjective = true;
+                    foundReachableObjective = candidateIsReachableThisTurn;
                     bestObjective = cellPosition;
                     bestPathCost = candidatePlan.TotalCost;
                     bestPathDistance = candidatePlan.StepCount;
@@ -2285,12 +2285,17 @@ public class Enemy : MonoBehaviour
 
     private void FaceTargetForAttack(Character target)
     {
-        if (!lookAtTargetWhenAttacking || target == null)
+        FaceTargetForAttack(target != null ? target.transform : null);
+    }
+
+    private void FaceTargetForAttack(Transform targetTransform)
+    {
+        if (!lookAtTargetWhenAttacking || targetTransform == null)
         {
             return;
         }
 
-        Vector3 targetDirection = target.transform.position - transform.position;
+        Vector3 targetDirection = targetTransform.position - transform.position;
         targetDirection.y = 0f;
         if (targetDirection.sqrMagnitude <= 0.0001f)
         {
@@ -2935,6 +2940,38 @@ public class Enemy : MonoBehaviour
         Destroy(projectile);
     }
 
+    private IEnumerator FireProjectileAtEnemy(Enemy target, Transform launchAnchor = null, bool playArrowShotSound = true)
+    {
+        if (target == null)
+        {
+            yield break;
+        }
+
+        Transform resolvedLaunchAnchor = launchAnchor != null ? launchAnchor : projectileSpawnPos;
+        Vector3 launchPosition = resolvedLaunchAnchor != null
+            ? resolvedLaunchAnchor.position
+            : transform.position + Vector3.up * 0.5f;
+        if (playArrowShotSound)
+        {
+            SoundManager.Instance?.PlayArrowShot(launchPosition);
+        }
+
+        Vector3 targetPosition = target.transform.position + Vector3.up * projectileTravelHeight;
+        GameObject projectile = Instantiate(projectilePrefab, launchPosition, Quaternion.identity);
+
+        Vector3 direction = targetPosition - launchPosition;
+        if (direction.sqrMagnitude > 0.0001f)
+        {
+            projectile.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        }
+
+        float duration = Mathf.Max(0.08f, direction.magnitude / Mathf.Max(0.01f, projectileTravelSpeed));
+        Tween projectileTween = projectile.transform.DOMove(targetPosition, duration).SetEase(Ease.Linear);
+        yield return projectileTween.WaitForCompletion();
+
+        Destroy(projectile);
+    }
+
     private IEnumerator FlyToCell(Vector2Int targetCell, float duration)
     {
         if (Board == null || targetCell == gridPosition)
@@ -3359,16 +3396,30 @@ public class Enemy : MonoBehaviour
         for (int index = 0; index < targetsToAttack.Count; index++)
         {
             Enemy target = targetsToAttack[index];
+            if (currentHealth <= 0)
+            {
+                break;
+            }
+
             if (target == null || target == this || target.CurrentHealth <= 0 || !CanAttackEnemyTargetFrom(gridPosition, target))
             {
                 continue;
             }
 
+            FaceTargetForAttack(target.transform);
             TriggerAttackAnimation();
-            float damageDelay = GetEnemyTargetDamageDelay(target);
-            if (damageDelay > 0f)
+
+            if (attackPattern == EnemyAttackPattern.Projectile && projectilePrefab != null)
             {
-                yield return new WaitForSeconds(damageDelay);
+                yield return FireProjectileAtEnemy(target);
+            }
+            else
+            {
+                float damageDelay = GetEnemyTargetDamageDelay(target);
+                if (damageDelay > 0f)
+                {
+                    yield return new WaitForSeconds(damageDelay);
+                }
             }
 
             target.TakeDamage(EffectiveForce, damageSoundType);
@@ -3385,7 +3436,6 @@ public class Enemy : MonoBehaviour
 
     private void ClearMistyConfusion()
     {
-        mistyConfusionPending = false;
         mistyConfusionParanoia = false;
         mistyConfusionBrokenHeart = false;
         ClearMistyConfusionFx();
@@ -3454,9 +3504,9 @@ public class Enemy : MonoBehaviour
         ClearMistyConfusionFx();
 
         Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
-        activeMistyConfusionFxInstance = Instantiate(mistyConfusionFxPrefab, anchor.position, mistyConfusionFxPrefab.transform.rotation);
-        activeMistyConfusionFxInstance.transform.SetParent(anchor, true);
-        activeMistyConfusionFxInstance.transform.rotation = mistyConfusionFxPrefab.transform.rotation;
+        activeMistyConfusionFxInstance = Instantiate(mistyConfusionFxPrefab, anchor);
+        activeMistyConfusionFxInstance.transform.localPosition = Vector3.zero;
+        activeMistyConfusionFxInstance.transform.localRotation = mistyConfusionFxPrefab.transform.localRotation;
         activeMistyConfusionFxInstance.transform.localScale = mistyConfusionFxPrefab.transform.localScale;
 
         if (mistyConfusionFxMaxDuration > 0f)

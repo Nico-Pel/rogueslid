@@ -149,12 +149,15 @@ MonoBehaviour:
   flee: 0
   maxFleeTurns: 2
   attackFirst: 0
-  fearFeedbackDelay: 0.25
-  bleedingFxPrefab: {fileID: 6925175126638118432, guid: 9f6f4b3ae632d4c8ca926d87bee5c5a0, type: 3}
-  bleedingDamageRandomDelayMax: 0.33
-  mistyConfusionFxPrefab: {fileID: 3468207010824757432, guid: 1f8e43011d3444e9ea2321d090620d36, type: 3}
-  mistyConfusionFxMaxDuration: 2
+  fleeAfterAttacking: 0
   fleeThresholdPercent: 0
+  fearFxPrefab: {fileID: 0}
+  fearBodyWiggleStrength: 0
+  fearFeedbackDelay: 0.25
+  bleedingFxPrefab: {fileID: 1350399091613688021, guid: 9f6f4b3ae632d4c8ca926d87bee5c5a0, type: 3}
+  bleedingDamageRandomDelayMax: 0.33
+  mistyConfusionFxPrefab: {fileID: 2802341358885575091, guid: 1f8e43011d3444e9ea2321d090620d36, type: 3}
+  mistyConfusionFxMaxDuration: 2
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
@@ -173,6 +176,7 @@ MonoBehaviour:
   fxDeathMarkPrefab: {fileID: 2578824418090859650, guid: 7782a0cf82895444b87b08d06394b1a5, type: 3}
   canvasUnitUI: {fileID: 759575812783619439}
   projectilePrefab: {fileID: 0}
+  projectileSpawnPos: {fileID: 0}
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
   enemyBody: {fileID: 0}
@@ -180,6 +184,9 @@ MonoBehaviour:
   enemyAnimator: {fileID: 0}
   attackTriggerParameter: Attack
   optionalActionTriggerParameter: AltAttack
+  optionalActionSecondaryTriggerParameter: AltAttack2
+  attackStateSourceClip: {fileID: 0}
+  bodySpawnScaleDuration: 0.5
   useFlyAnimationOnObstacle: 0
   flyingBoolParameter: Flying
   obstacleCanvasHeightOffset: 1

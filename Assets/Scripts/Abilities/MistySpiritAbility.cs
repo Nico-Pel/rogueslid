@@ -54,11 +54,30 @@ public class MistySpiritAbility : AbilityDefinition
         }
 
         character.FaceTargetCell(targetCell.Value);
-        enemy.ApplyMistyConfusion(
+        character.StartCoroutine(ResolveMistySpiritSequence(
+            character,
+            enemy,
             character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritParanoia) > 0,
             character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritBrokenHeart) > 0,
-            character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritUnsteadySteps) > 0);
-        PlayConfiguredFx(character, new[] { enemy });
+            character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritUnsteadySteps) > 0));
         return true;
+    }
+
+    private System.Collections.IEnumerator ResolveMistySpiritSequence(
+        Character character,
+        Enemy enemy,
+        bool paranoia,
+        bool brokenHeart,
+        bool reduceMobilityNextTurn)
+    {
+        if (character == null || enemy == null)
+        {
+            yield break;
+        }
+
+        character.BeginActionLock();
+        PlayConfiguredFx(character, new[] { enemy });
+        yield return enemy.ApplyMistyConfusion(paranoia, brokenHeart, reduceMobilityNextTurn);
+        character.EndActionLock();
     }
 }

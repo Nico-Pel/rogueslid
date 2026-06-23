@@ -35,6 +35,29 @@ public readonly struct RewardButtonStyle
     }
 }
 
+public readonly struct RewardButtonTheme
+{
+    public readonly Color OutlineColor;
+    public readonly Color SubtitleBackgroundColor;
+    public readonly Color SubtitleTextColor;
+    public readonly Color NewSubtitleBackgroundColor;
+    public readonly Color NewSubtitleTextColor;
+
+    public RewardButtonTheme(
+        Color outlineColor,
+        Color subtitleBackgroundColor,
+        Color subtitleTextColor,
+        Color newSubtitleBackgroundColor,
+        Color newSubtitleTextColor)
+    {
+        OutlineColor = outlineColor;
+        SubtitleBackgroundColor = subtitleBackgroundColor;
+        SubtitleTextColor = subtitleTextColor;
+        NewSubtitleBackgroundColor = newSubtitleBackgroundColor;
+        NewSubtitleTextColor = newSubtitleTextColor;
+    }
+}
+
 public class RewardButtonUI : MonoBehaviour
 {
     private static readonly Color PowerOutlineColor = new Color32(0x92, 0x00, 0xBE, 0xFF);
@@ -73,6 +96,20 @@ public class RewardButtonUI : MonoBehaviour
         CacheReferences();
     }
 
+    public static RewardButtonTheme DefaultPowerTheme => new RewardButtonTheme(
+        PowerOutlineColor,
+        PowerSubtitleBackgroundColor,
+        PowerSubtitleTextColor,
+        NewPowerSubtitleBackgroundColor,
+        NewPowerSubtitleTextColor);
+
+    public static RewardButtonTheme DefaultItemTheme => new RewardButtonTheme(
+        ItemOutlineColor,
+        ItemSubtitleBackgroundColor,
+        ItemSubtitleTextColor,
+        ItemSubtitleBackgroundColor,
+        ItemSubtitleTextColor);
+
     public RewardButtonStyle CaptureStyle()
     {
         CacheReferences();
@@ -87,7 +124,7 @@ public class RewardButtonUI : MonoBehaviour
             typeIcon != null ? typeIcon.color : Color.white);
     }
 
-    public void Bind(RewardOffer rewardOffer, RewardButtonStyle style, Sprite resolvedTypeIcon, Action<RewardOffer> onClicked)
+    public void Bind(RewardOffer rewardOffer, RewardButtonStyle style, RewardButtonTheme theme, Sprite resolvedTypeIcon, Action<RewardOffer> onClicked)
     {
         CacheReferences();
         if (button != null)
@@ -117,7 +154,7 @@ public class RewardButtonUI : MonoBehaviour
         if (subtitleText != null)
         {
             subtitleText.text = GetSubtitleText(rewardOffer);
-            subtitleText.color = GetSubtitleTextColor(rewardOffer);
+            subtitleText.color = GetSubtitleTextColor(rewardOffer, theme);
         }
 
         if (artworkImage != null)
@@ -132,14 +169,12 @@ public class RewardButtonUI : MonoBehaviour
 
         if (outlineImage != null)
         {
-            outlineImage.color = rewardOffer.Kind == RewardOfferKind.Item
-                ? ItemOutlineColor
-                : PowerOutlineColor;
+            outlineImage.color = theme.OutlineColor;
         }
 
         if (subtitleBackground != null)
         {
-            subtitleBackground.color = GetSubtitleBackgroundColor(rewardOffer);
+            subtitleBackground.color = GetSubtitleBackgroundColor(rewardOffer, theme);
         }
 
         if (powerStroke != null)
@@ -295,37 +330,37 @@ public class RewardButtonUI : MonoBehaviour
         }
     }
 
-    private static Color GetSubtitleBackgroundColor(RewardOffer rewardOffer)
+    private static Color GetSubtitleBackgroundColor(RewardOffer rewardOffer, RewardButtonTheme theme)
     {
         if (rewardOffer == null)
         {
-            return PowerSubtitleBackgroundColor;
+            return theme.SubtitleBackgroundColor;
         }
 
         if (rewardOffer.Kind == RewardOfferKind.Item)
         {
-            return ItemSubtitleBackgroundColor;
+            return theme.SubtitleBackgroundColor;
         }
 
         return rewardOffer.Kind == RewardOfferKind.AbilityUpgrade
-            ? PowerSubtitleBackgroundColor
-            : NewPowerSubtitleBackgroundColor;
+            ? theme.SubtitleBackgroundColor
+            : theme.NewSubtitleBackgroundColor;
     }
 
-    private static Color GetSubtitleTextColor(RewardOffer rewardOffer)
+    private static Color GetSubtitleTextColor(RewardOffer rewardOffer, RewardButtonTheme theme)
     {
         if (rewardOffer == null)
         {
-            return PowerSubtitleTextColor;
+            return theme.SubtitleTextColor;
         }
 
         if (rewardOffer.Kind == RewardOfferKind.Item)
         {
-            return ItemSubtitleTextColor;
+            return theme.SubtitleTextColor;
         }
 
         return rewardOffer.Kind == RewardOfferKind.AbilityUpgrade
-            ? PowerSubtitleTextColor
-            : NewPowerSubtitleTextColor;
+            ? theme.SubtitleTextColor
+            : theme.NewSubtitleTextColor;
     }
 }

@@ -85,6 +85,8 @@ public abstract class AbilityDefinition : ScriptableObject
     [SerializeField] private int usesPerCombat;
     [Min(0)]
     [SerializeField] private int cooldownTurns;
+    [Min(0f)]
+    [SerializeField] private float reuseDelaySeconds = 0.75f;
     [SerializeField] private bool consumesMovementPoint;
     [SerializeField] private bool isToggle;
 
@@ -121,6 +123,7 @@ public abstract class AbilityDefinition : ScriptableObject
     public int UsesPerTurn => usesPerTurn;
     public int UsesPerCombat => usesPerCombat;
     public int CooldownTurns => cooldownTurns;
+    public float ReuseDelaySeconds => reuseDelaySeconds > 0f ? reuseDelaySeconds : 0.75f;
     public bool ConsumesMovementPoint => consumesMovementPoint;
     public bool IsToggle => isToggle;
     public IReadOnlyList<AbilityFxSpawnConfig> FxSpawns => fxSpawns;
@@ -149,6 +152,12 @@ public abstract class AbilityDefinition : ScriptableObject
 
     public virtual bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
+        return false;
+    }
+
+    public virtual bool TryGetAutomaticTargetCell(Character character, CharacterAbilityRuntime runtime, out Vector2Int targetCell)
+    {
+        targetCell = default;
         return false;
     }
 

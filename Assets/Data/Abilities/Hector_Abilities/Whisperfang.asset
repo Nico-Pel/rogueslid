@@ -16,12 +16,17 @@ MonoBehaviour:
   icon: {fileID: -1770338178, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: 6bc6144603e014bc584004ac9c33e89a, type: 2}
-  linkedUpgradeRewards: []
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: dce3bbca39264366bd229d9f5e4eb871, type: 2}
+  - {fileID: 11400000, guid: 28faf461ee4d4ff1bd4c48ba5cdf25be, type: 2}
+  - {fileID: 11400000, guid: e9c7bd83dc424c3d88e4f725bdc2da55, type: 2}
+  - {fileID: 11400000, guid: 5c1fef8ad81549198280ebcdb18a7d92, type: 2}
   usesPerTurn: 2
   usesPerCombat: 0
-  cooldownTurns: 1
+  cooldownTurns: 0
+  reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
-  isToggle: 0
+  isToggle: 1
   fxSpawns: []
   damageApplyDelay: 0
   damageDelayDistanceMultiplier: 1

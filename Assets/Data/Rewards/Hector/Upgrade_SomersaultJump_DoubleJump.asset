@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Upgrade_SomersaultJump_DoubleJump
   m_EditorClassIdentifier: 
   rewardId: upgrade_somersault_jump_double_jump
-  rewardTitle: Double-Saut
-  rewardDescription: Hector gagne une seconde charge de Saut perilleux.
+  rewardTitle: Double Jump
+  rewardDescription: Hector gains a second Somersault Jump charge each turn.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 51131711ec0c4ea0b6b6e4eed348140f, type: 2}
-  upgradeKey: 60
+  upgradeKey: 64
   stackable: 0
   maxStacks: 0

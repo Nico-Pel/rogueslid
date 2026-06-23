@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_TridimensionalPortal_Distortion
   m_EditorClassIdentifier: 
   rewardId: upgrade_tridimensional_portal_distortion
-  rewardTitle: Distorsion tridimensionnelle
-  rewardDescription: Les ennemis proches du portail subissent 1 dégât lorsqu'il est généré.
+  rewardTitle: Three-dimensional distortion
+  rewardDescription: Enemies near the portal take 1 damage when it is spawned.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 4c67b939bf2648578e89a5b2349b7211, type: 2}
   upgradeKey: 53

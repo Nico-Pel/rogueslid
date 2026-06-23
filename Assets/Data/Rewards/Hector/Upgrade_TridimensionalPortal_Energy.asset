@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_tridimensional_portal_energy
   rewardTitle: Energie tridimensionnelle
-  rewardDescription: Hector gagne 1 point de mobilité après avoir emprunté le portail.
+  rewardDescription: Hector gains 1 mobility point after passing through the portal.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 4c67b939bf2648578e89a5b2349b7211, type: 2}
   upgradeKey: 50

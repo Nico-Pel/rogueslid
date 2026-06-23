@@ -19,12 +19,17 @@ public class TridimensionalPortalAbility : AbilityDefinition
         public float DestroyAfterSeconds => destroyAfterSeconds;
     }
 
-    private sealed class PortalState
+    private sealed class PlacedPortal
     {
-        public bool IsPlaced;
-        public bool WasTeleportedThisTurn;
         public Vector2Int PortalCell;
         public GameObject VisualInstance;
+        public int RemainingExtraTurns;
+    }
+
+    private sealed class PortalState
+    {
+        public bool WasTeleportedThisTurn;
+        public readonly List<PlacedPortal> ActivePortals = new List<PlacedPortal>();
     }
 
     [SerializeField] private Sprite activePortalIcon;
@@ -34,6 +39,9 @@ public class TridimensionalPortalAbility : AbilityDefinition
     [SerializeField] private PortalFxConfig portalPlacementFx;
     [SerializeField] private PortalFxConfig portalEntryFx;
     [SerializeField] private PortalFxConfig portalExitFx;
+    [SerializeField] private PortalFxConfig portalImpactDepartureFx;
+    [SerializeField] private PortalFxConfig portalImpactArrivalFx;
+    [SerializeField] private PortalFxConfig portalDistortionSpawnFx;
     [Header("Portal Travel")]
     [Min(0f)]
     [SerializeField] private float disappearDuration = 0.25f;
@@ -48,6 +56,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
     [SerializeField] private float portalVisualAppearDuration = 0.25f;
     [Min(0.01f)]
     [SerializeField] private float portalVisualAppearFromScaleMultiplier = 0.1f;
+
     private readonly Dictionary<CharacterAbilityRuntime, PortalState> portalStates = new Dictionary<CharacterAbilityRuntime, PortalState>();
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
@@ -55,13 +64,13 @@ public class TridimensionalPortalAbility : AbilityDefinition
     public override Sprite GetIcon(CharacterAbilityRuntime runtime)
     {
         PortalState state = GetState(runtime);
-        return state.IsPlaced && activePortalIcon != null ? activePortalIcon : base.GetIcon(runtime);
+        return state.ActivePortals.Count > 0 && activePortalIcon != null ? activePortalIcon : base.GetIcon(runtime);
     }
 
     public override string GetCounterText(CharacterAbilityRuntime runtime)
     {
         PortalState state = GetState(runtime);
-        if (state.IsPlaced)
+        if (state.ActivePortals.Count > 0)
         {
             return "IN";
         }
@@ -71,21 +80,13 @@ public class TridimensionalPortalAbility : AbilityDefinition
 
     public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
-        if (!base.CanActivate(character, runtime))
+        if (!base.CanActivate(character, runtime) || character == null || character.Board == null)
         {
             return false;
         }
 
         PortalState state = GetState(runtime);
-        if (!state.IsPlaced)
-        {
-            return true;
-        }
-
-        return character != null
-            && character.Board != null
-            && character.GridPosition != state.PortalCell
-            && !character.Board.TryGetEnemy(state.PortalCell, out Enemy occupyingEnemy);
+        return HasAnyTeleportDestination(character, state) || CanPlaceAdditionalPortal(character, state);
     }
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
@@ -96,29 +97,52 @@ public class TridimensionalPortalAbility : AbilityDefinition
         }
 
         PortalState state = GetState(runtime);
-        if (state.IsPlaced)
+        if (TryFindPortalAtCell(state, targetCell, out PlacedPortal portal))
         {
-            return targetCell == state.PortalCell && CanActivate(character, runtime);
+            return character.GridPosition != portal.PortalCell
+                && !character.Board.TryGetEnemy(portal.PortalCell, out Enemy occupyingEnemy);
         }
 
         int range = 1 + character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalEye);
         Vector2Int delta = targetCell - character.GridPosition;
-        if (Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y)) > range)
+        int radialDistance = Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+        if (radialDistance > range)
         {
             return false;
         }
 
-        if (!character.Board.IsInsideBoard(targetCell) || character.Board.TryGetEnemy(targetCell, out Enemy enemyOnCell) && enemyOnCell != null)
+        if (!character.Board.IsInsideBoard(targetCell)
+            || character.Board.TryGetEnemy(targetCell, out Enemy enemyOnCell) && enemyOnCell != null)
         {
             return false;
         }
 
-        return targetCell == character.GridPosition || character.Board.IsCellWalkable(targetCell);
+        return CanPlaceAdditionalPortal(character, state)
+            && (targetCell == character.GridPosition || character.Board.IsCellWalkable(targetCell));
     }
 
     public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         return CanActivateOnCell(character, runtime, targetCell);
+    }
+
+    public override bool TryGetAutomaticTargetCell(Character character, CharacterAbilityRuntime runtime, out Vector2Int targetCell)
+    {
+        targetCell = default;
+        PortalState state = GetState(runtime);
+        if (character == null || state.ActivePortals.Count != 1)
+        {
+            return false;
+        }
+
+        PlacedPortal onlyPortal = state.ActivePortals[0];
+        if (onlyPortal == null || onlyPortal.PortalCell == character.GridPosition)
+        {
+            return false;
+        }
+
+        targetCell = onlyPortal.PortalCell;
+        return true;
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
@@ -129,32 +153,43 @@ public class TridimensionalPortalAbility : AbilityDefinition
         }
 
         PortalState state = GetState(runtime);
-        if (!state.IsPlaced)
+        if (TryFindPortalAtCell(state, targetCell.Value, out PlacedPortal destinationPortal))
         {
-            state.IsPlaced = true;
-            state.WasTeleportedThisTurn = false;
-            state.PortalCell = targetCell.Value;
-            SpawnPortalVisual(character, state);
-            PlayPortalFxAtCell(character, state.PortalCell, portalPlacementFx);
-
-            if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalDistortion) > 0)
+            Vector2Int originCell = character.GridPosition;
+            if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalImpact) > 0)
             {
-                character.DamageEnemiesAround(state.PortalCell, 1, 1, true, this);
+                character.DamageEnemiesAround(originCell, 1, 1, true, this);
+                PlayPortalFxAtCell(character, originCell, portalImpactDepartureFx);
             }
 
+            state.WasTeleportedThisTurn = true;
+            character.RefreshAbilityState();
+            character.StartCoroutine(ResolvePortalTraversal(character, state, destinationPortal, originCell));
             return true;
         }
 
-        Vector2Int originCell = character.GridPosition;
-        if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalImpact) > 0)
+        if (!CanActivateOnCell(character, runtime, targetCell.Value))
         {
-            character.DamageEnemiesAround(originCell, 1, 1, true, this);
+            return false;
         }
 
-        state.WasTeleportedThisTurn = true;
-        state.IsPlaced = false;
-        character.RefreshAbilityState();
-        character.StartCoroutine(ResolvePortalTraversal(character, state, originCell));
+        PlacedPortal newPortal = new PlacedPortal
+        {
+            PortalCell = targetCell.Value,
+            RemainingExtraTurns = character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalMultidimensionalPortals)
+        };
+        state.ActivePortals.Add(newPortal);
+        state.WasTeleportedThisTurn = false;
+        SpawnPortalVisual(character, newPortal);
+        PlayPortalFxAtCell(character, newPortal.PortalCell, portalPlacementFx);
+
+        if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalDistortion) > 0)
+        {
+            character.DamageEnemiesAround(newPortal.PortalCell, 1, 1, true, this);
+            PlayPortalFxAtCell(character, newPortal.PortalCell, portalDistortionSpawnFx);
+        }
+
+        TrimPortalCountToLimit(state, GetMaxPortalCount(character));
         return true;
     }
 
@@ -163,7 +198,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
         base.OnAbilityActivated(character, runtime);
 
         PortalState state = GetState(runtime);
-        if (!state.IsPlaced || state.WasTeleportedThisTurn || runtime == null)
+        if (state.ActivePortals.Count <= 0 || state.WasTeleportedThisTurn || runtime == null)
         {
             return;
         }
@@ -176,14 +211,31 @@ public class TridimensionalPortalAbility : AbilityDefinition
     public override void OnTurnEnded(Character character, CharacterAbilityRuntime runtime)
     {
         PortalState state = GetState(runtime);
-        if (!state.IsPlaced)
+        if (state.ActivePortals.Count <= 0)
         {
             return;
         }
 
-        ClearPortalVisual(state);
-        state.IsPlaced = false;
-        if (!state.WasTeleportedThisTurn)
+        for (int index = state.ActivePortals.Count - 1; index >= 0; index--)
+        {
+            PlacedPortal portal = state.ActivePortals[index];
+            if (portal == null)
+            {
+                state.ActivePortals.RemoveAt(index);
+                continue;
+            }
+
+            if (portal.RemainingExtraTurns > 0)
+            {
+                portal.RemainingExtraTurns--;
+                continue;
+            }
+
+            ClearPortalVisual(portal);
+            state.ActivePortals.RemoveAt(index);
+        }
+
+        if (state.ActivePortals.Count <= 0 && !state.WasTeleportedThisTurn)
         {
             runtime.SetRemainingCooldown(CooldownTurns);
         }
@@ -194,9 +246,12 @@ public class TridimensionalPortalAbility : AbilityDefinition
     public override void OnTurnStarted(Character character, CharacterAbilityRuntime runtime)
     {
         PortalState state = GetState(runtime);
-        ClearPortalVisual(state);
-        state.IsPlaced = false;
         state.WasTeleportedThisTurn = false;
+        if (state.ActivePortals.Count > 0)
+        {
+            runtime.ResetAvailability();
+            runtime.SetRemainingCooldown(0);
+        }
     }
 
     private PortalState GetState(CharacterAbilityRuntime runtime)
@@ -215,37 +270,108 @@ public class TridimensionalPortalAbility : AbilityDefinition
         return state;
     }
 
-    private void SpawnPortalVisual(Character character, PortalState state)
+    private bool HasAnyTeleportDestination(Character character, PortalState state)
     {
-        if (character == null || character.Board == null || state == null)
+        if (character == null || state == null)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < state.ActivePortals.Count; index++)
+        {
+            PlacedPortal portal = state.ActivePortals[index];
+            if (portal == null || portal.PortalCell == character.GridPosition)
+            {
+                continue;
+            }
+
+            if (!character.Board.TryGetEnemy(portal.PortalCell, out Enemy occupyingEnemy))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool CanPlaceAdditionalPortal(Character character, PortalState state)
+    {
+        return character != null && state != null && state.ActivePortals.Count < GetMaxPortalCount(character);
+    }
+
+    private int GetMaxPortalCount(Character character)
+    {
+        return 1 + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalMultidimensionalPortals) : 0);
+    }
+
+    private bool TryFindPortalAtCell(PortalState state, Vector2Int cell, out PlacedPortal portal)
+    {
+        portal = null;
+        if (state == null)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < state.ActivePortals.Count; index++)
+        {
+            PlacedPortal candidate = state.ActivePortals[index];
+            if (candidate != null && candidate.PortalCell == cell)
+            {
+                portal = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void TrimPortalCountToLimit(PortalState state, int maxPortalCount)
+    {
+        if (state == null)
         {
             return;
         }
 
-        ClearPortalVisual(state);
+        int targetCount = Mathf.Max(1, maxPortalCount);
+        while (state.ActivePortals.Count > targetCount)
+        {
+            PlacedPortal removedPortal = state.ActivePortals[0];
+            ClearPortalVisual(removedPortal);
+            state.ActivePortals.RemoveAt(0);
+        }
+    }
+
+    private void SpawnPortalVisual(Character character, PlacedPortal portal)
+    {
+        if (character == null || character.Board == null || portal == null)
+        {
+            return;
+        }
+
+        ClearPortalVisual(portal);
         if (portalVisualPrefab == null)
         {
             return;
         }
 
-        Vector3 spawnPosition = character.Board.GridToWorldPosition(state.PortalCell) + portalVisualOffset;
-        state.VisualInstance = Object.Instantiate(portalVisualPrefab, spawnPosition, portalVisualPrefab.transform.rotation);
+        Vector3 spawnPosition = character.Board.GridToWorldPosition(portal.PortalCell) + portalVisualOffset;
+        portal.VisualInstance = Object.Instantiate(portalVisualPrefab, spawnPosition, portalVisualPrefab.transform.rotation);
         Vector3 targetScale = portalVisualPrefab.transform.localScale;
-        state.VisualInstance.transform.localScale = targetScale * Mathf.Max(0.01f, portalVisualAppearFromScaleMultiplier);
-        state.VisualInstance.transform.DOScale(targetScale, portalVisualAppearDuration)
+        portal.VisualInstance.transform.localScale = targetScale * Mathf.Max(0.01f, portalVisualAppearFromScaleMultiplier);
+        portal.VisualInstance.transform.DOScale(targetScale, portalVisualAppearDuration)
             .SetDelay(portalVisualAppearDelay)
             .SetEase(Ease.OutBack);
     }
 
-    private void ClearPortalVisual(PortalState state)
+    private void ClearPortalVisual(PlacedPortal portal)
     {
-        if (state == null || state.VisualInstance == null)
+        if (portal == null || portal.VisualInstance == null)
         {
             return;
         }
 
-        Object.Destroy(state.VisualInstance);
-        state.VisualInstance = null;
+        Object.Destroy(portal.VisualInstance);
+        portal.VisualInstance = null;
     }
 
     private void PlayPortalFxAtCell(Character character, Vector2Int cell, PortalFxConfig fxConfig)
@@ -264,9 +390,9 @@ public class TridimensionalPortalAbility : AbilityDefinition
         }
     }
 
-    private IEnumerator ResolvePortalTraversal(Character character, PortalState state, Vector2Int originCell)
+    private IEnumerator ResolvePortalTraversal(Character character, PortalState state, PlacedPortal destinationPortal, Vector2Int originCell)
     {
-        if (character == null || state == null)
+        if (character == null || state == null || destinationPortal == null)
         {
             yield break;
         }
@@ -299,7 +425,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
 
         vanishTween?.Kill();
 
-        bool teleported = character.TryTeleportToImmediate(state.PortalCell);
+        bool teleported = character.TryTeleportToImmediate(destinationPortal.PortalCell);
         if (!teleported)
         {
             if (bodyTransform != null)
@@ -307,19 +433,20 @@ public class TridimensionalPortalAbility : AbilityDefinition
                 bodyTransform.localScale = bodyBaseScale;
             }
 
-            state.IsPlaced = true;
             state.WasTeleportedThisTurn = false;
             character.RefreshAbilityState();
             character.EndActionLock();
             yield break;
         }
 
-        ClearPortalVisual(state);
-        PlayPortalFxAtCell(character, state.PortalCell, portalExitFx);
+        ClearPortalVisual(destinationPortal);
+        state.ActivePortals.Remove(destinationPortal);
+        PlayPortalFxAtCell(character, destinationPortal.PortalCell, portalExitFx);
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalImpact) > 0)
         {
-            character.DamageEnemiesAround(state.PortalCell, 1, 1, true, this);
+            character.DamageEnemiesAround(destinationPortal.PortalCell, 1, 1, true, this);
+            PlayPortalFxAtCell(character, destinationPortal.PortalCell, portalImpactArrivalFx);
         }
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalEnergy) > 0)

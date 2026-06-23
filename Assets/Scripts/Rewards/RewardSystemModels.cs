@@ -83,7 +83,8 @@ public enum AbilityUpgradeKey
     SomersaultJumpRoseThorns,
     SomersaultJumpHeroicCascade,
     SomersaultJumpDoubleJump,
-    SomersaultJumpSmallJump
+    SomersaultJumpSmallJump,
+    TridimensionalPortalMultidimensionalPortals
 }
 
 public enum ItemRewardKey

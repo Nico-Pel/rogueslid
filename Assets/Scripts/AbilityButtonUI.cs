@@ -7,9 +7,14 @@ using UnityEngine.EventSystems;
 public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
     [SerializeField] private Button button;
+    [SerializeField] private Image backgroundImage;
     [SerializeField] private Image abilityImage;
+    [SerializeField] private Image outlineImage;
+    [SerializeField] private Image typeOutlineImage;
     [SerializeField] private GameObject componentsRoot;
     [SerializeField] private GameObject emptyRoot;
+    [SerializeField] private Image countBackgroundImage;
+    [SerializeField] private Image emptyBackgroundImage;
     [SerializeField] private Image abilityTypeImage;
     [SerializeField] private TMP_Text countLabel;
     [SerializeField] private GameObject countRoot;
@@ -34,6 +39,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private bool longPressTriggered;
     private bool suppressNextClick;
     private float pointerDownStartTime;
+    private bool wasWaitingForReuseDelay;
 
     public int AbilityIndex => abilitySlotIndex;
     public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
@@ -55,6 +61,15 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
     private void Update()
     {
+        CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
+        bool isWaitingForReuseDelay = runtime != null && Time.time < runtime.NextReusableTime;
+        if (wasWaitingForReuseDelay && !isWaitingForReuseDelay)
+        {
+            Refresh();
+        }
+
+        wasWaitingForReuseDelay = isWaitingForReuseDelay;
+
         if (!isPointerDown || longPressTriggered || abilityCheckLongPressDuration <= 0f)
         {
             return;
@@ -77,6 +92,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         abilitySlotIndex = index;
         clickInterceptor = onPrimaryClick;
         longPressCallback = onLongPress;
+        wasWaitingForReuseDelay = false;
         Refresh();
     }
 
@@ -95,6 +111,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         isPointerDown = false;
         longPressTriggered = false;
         suppressNextClick = false;
+        wasWaitingForReuseDelay = false;
         Refresh();
     }
 
@@ -238,6 +255,40 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         isPointerDown = false;
     }
 
+    public void ApplyTheme(Color backgroundColor, Color outlineColor, Color countBackgroundColor, Color typeIconColor, Color typeOutlineColor)
+    {
+        CacheReferences();
+        if (backgroundImage != null)
+        {
+            backgroundImage.color = backgroundColor;
+        }
+
+        if (outlineImage != null)
+        {
+            outlineImage.color = outlineColor;
+        }
+
+        if (countBackgroundImage != null)
+        {
+            countBackgroundImage.color = countBackgroundColor;
+        }
+
+        if (abilityTypeImage != null)
+        {
+            abilityTypeImage.color = typeIconColor;
+        }
+
+        if (typeOutlineImage != null)
+        {
+            typeOutlineImage.color = typeOutlineColor;
+        }
+
+        if (emptyBackgroundImage != null)
+        {
+            emptyBackgroundImage.color = backgroundColor;
+        }
+    }
+
     private void CacheReferences()
     {
         if (button == null)
@@ -245,9 +296,24 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             button = GetComponent<Button>();
         }
 
+        if (backgroundImage == null)
+        {
+            backgroundImage = GetComponent<Image>();
+        }
+
         if (abilityImage == null)
         {
             abilityImage = transform.Find("Mask/iAbility")?.GetComponent<Image>();
+        }
+
+        if (outlineImage == null)
+        {
+            outlineImage = transform.Find("Mask/iOutline")?.GetComponent<Image>();
+        }
+
+        if (typeOutlineImage == null)
+        {
+            typeOutlineImage = transform.Find("Components/iPowerPlace/iOutline")?.GetComponent<Image>();
         }
 
         if (componentsRoot == null)
@@ -266,6 +332,16 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             {
                 emptyRoot = emptyTransform.gameObject;
             }
+        }
+
+        if (countBackgroundImage == null)
+        {
+            countBackgroundImage = transform.Find("Components/iCount")?.GetComponent<Image>();
+        }
+
+        if (emptyBackgroundImage == null && emptyRoot != null)
+        {
+            emptyBackgroundImage = emptyRoot.GetComponent<Image>();
         }
 
         if (abilityTypeImage == null)

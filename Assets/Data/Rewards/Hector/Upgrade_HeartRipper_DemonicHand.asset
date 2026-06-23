@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6f433c87d304e2b86d08a3347f75003, type: 3}
+  m_Name: Upgrade_HeartRipper_DemonicHand
+  m_EditorClassIdentifier: 
+  rewardId: upgrade_heart_ripper_demonic_hand
+  rewardTitle: Demonic Hand
+  rewardDescription: Heart Ripper gains +1 radial range and also strikes an enemy standing between Hector and the main target.
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: 80bd0606b395414dbdf0905fd004a211, type: 2}
+  upgradeKey: 57
+  stackable: 0
+  maxStacks: 0

@@ -24,6 +24,7 @@ MonoBehaviour:
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 1
+  reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 0
   fxSpawns:
@@ -48,7 +49,7 @@ MonoBehaviour:
   baseDamage: 1
   adjacentRange: 1
   volleyRange: 10
-  projectilePrefab: {fileID: 4669369967587303769, guid: 9234510d5bd194a6e9e8b3e0bf0a3c53, type: 3}
+  projectilePrefab: {fileID: 4669369967587303769, guid: f6a19f5ab8975468280f55dc5ec35aa4, type: 3}
   projectileSpeed: 16
   projectileLaunchDelay: 0.04
   projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
