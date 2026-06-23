@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_Demonbane_BlindSpot
   m_EditorClassIdentifier: 
   rewardId: upgrade_demonbane_blind_spot
-  rewardTitle: Angle mort
-  rewardDescription: Demonbane peut désormais viser les ennemis en parfaite diagonale.
+  rewardTitle: Blind Spot
+  rewardDescription: Demonbane can now target enemies in perfect diagonals.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 7bc93bc40cb14ca7a2d7791da8c45211, type: 2}
   upgradeKey: 42

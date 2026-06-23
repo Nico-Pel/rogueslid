@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -27,6 +28,11 @@ public class HeartRipperAbility : AbilityDefinition
     public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         return TryGetLineInfo(character, targetCell, out _, out _);
+    }
+
+    public override bool ShouldAutoUseWhenOnlyOneValidTarget(Character character, CharacterAbilityRuntime runtime)
+    {
+        return true;
     }
 
     public override bool TryGetAutomaticTargetCell(Character character, CharacterAbilityRuntime runtime, out Vector2Int targetCell)
@@ -87,39 +93,78 @@ public class HeartRipperAbility : AbilityDefinition
         }
 
         int healAmountPerKill = 2 + character.GetUpgradeStacks(AbilityUpgradeKey.HeartRipperRevigoratingHeart);
-        int totalHeal = 0;
-
+        Enemy middleEnemy = null;
         if (character.GetUpgradeStacks(AbilityUpgradeKey.HeartRipperDemonicHand) > 0 && distance == 2)
         {
             Vector2Int middleCell = character.GridPosition + direction;
-            if (character.Board.TryGetEnemy(middleCell, out Enemy middleEnemy) && middleEnemy != null)
+            if (character.Board.TryGetEnemy(middleCell, out Enemy foundMiddleEnemy) && foundMiddleEnemy != null)
             {
-                character.DealDamageToEnemy(middleEnemy, damage, true, true, DamageSoundType.Sword, this);
-                if (middleEnemy.CurrentHealth <= 0)
-                {
-                    totalHeal += healAmountPerKill;
-                }
+                middleEnemy = foundMiddleEnemy;
             }
         }
 
-        character.DealDamageToEnemy(primaryTarget, damage, true, true, DamageSoundType.Sword, this);
-        if (primaryTarget.CurrentHealth <= 0)
+        character.StartCoroutine(ResolveHeartRipperSequence(character, primaryTarget, middleEnemy, damage, healAmountPerKill));
+        return true;
+    }
+
+    private IEnumerator ResolveHeartRipperSequence(
+        Character character,
+        Enemy primaryTarget,
+        Enemy middleEnemy,
+        int damage,
+        int healAmountPerKill)
+    {
+        if (character == null || primaryTarget == null)
+        {
+            yield break;
+        }
+
+        character.BeginActionLock();
+
+        float damageDelay = GetDamageApplyDelay(character.GridPosition, primaryTarget.GridPosition);
+        if (damageDelay > 0f)
+        {
+            yield return new WaitForSeconds(damageDelay);
+        }
+
+        int totalHeal = 0;
+
+        if (middleEnemy != null && middleEnemy.CurrentHealth > 0)
+        {
+            character.DealDamageToEnemy(middleEnemy, damage, true, true, DamageSoundType.Sword, this);
+            if (middleEnemy.CurrentHealth <= 0)
+            {
+                totalHeal += healAmountPerKill;
+            }
+        }
+
+        if (primaryTarget != null && primaryTarget.CurrentHealth > 0)
+        {
+            character.DealDamageToEnemy(primaryTarget, damage, true, true, DamageSoundType.Sword, this);
+        }
+
+        if (primaryTarget != null && primaryTarget.CurrentHealth <= 0)
         {
             totalHeal += healAmountPerKill;
         }
 
         if (totalHeal > 0)
         {
-            character.Heal(totalHeal);
+            int previousHealth = character.CurrentHealth;
+            character.Heal(totalHeal, null, false);
+            if (character.CurrentHealth > previousHealth)
+            {
+                character.PlayHealProcFx();
+            }
         }
 
-        if (primaryTarget.CurrentHealth > 0)
+        if (primaryTarget != null && primaryTarget.CurrentHealth > 0)
         {
             character.TakeDamage(2, null, false, DamageSoundType.Default);
         }
 
         PlayConfiguredFx(character, new[] { primaryTarget });
-        return true;
+        character.EndActionLock();
     }
 
     private bool TryGetLineInfo(Character character, Vector2Int targetCell, out Vector2Int direction, out int distance)

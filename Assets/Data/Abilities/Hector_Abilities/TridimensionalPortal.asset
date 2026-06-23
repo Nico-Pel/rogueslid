@@ -55,6 +55,18 @@ MonoBehaviour:
     fxPrefab: {fileID: 6162089470693167633, guid: a414e8de8fe8c4e729cb24e96a0a526e, type: 3}
     positionOffset: {x: 0, y: 0, z: 0}
     destroyAfterSeconds: 1
+  portalImpactDepartureFx:
+    fxPrefab: {fileID: 1149387533155343904, guid: 76164fcd57e6c4f588d4644185489811, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 1
+  portalImpactArrivalFx:
+    fxPrefab: {fileID: 1149387533155343904, guid: 76164fcd57e6c4f588d4644185489811, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 1
+  portalDistortionSpawnFx:
+    fxPrefab: {fileID: 1149387533155343904, guid: 76164fcd57e6c4f588d4644185489811, type: 3}
+    positionOffset: {x: 0, y: 0, z: 0}
+    destroyAfterSeconds: 1
   disappearDuration: 0.25
   reappearDuration: 0.25
   vanishedScaleMultiplier: 0.1

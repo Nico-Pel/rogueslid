@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Reward_HeartRipper
   m_EditorClassIdentifier: 
   rewardId: reward_heart_ripper
-  rewardTitle: Arrache-Coeur
+  rewardTitle: Heart Ripper
   rewardDescription: A brutal melee strike that heals Hector on kills and wounds him if the main target survives.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 80bd0606b395414dbdf0905fd004a211, type: 2}

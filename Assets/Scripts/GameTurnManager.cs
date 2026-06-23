@@ -30,6 +30,7 @@ public class GameTurnManager : MonoBehaviour
     private bool isPointerTracking;
     private bool hasStarted;
     private bool hasPlayerActedThisTurn;
+    private bool hasPlayerMovedThisTurn;
     private bool isArenaTransitionRunning;
     private bool isRewardMenuOpen;
     private bool isLoseMenuOpen;
@@ -139,8 +140,7 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
-        StopEndTurnUnlockTimer();
-        SetCanEndTurn(true);
+        SetCanEndTurn(hasPlayerMovedThisTurn);
     }
 
     public void RestartForNewBoard()
@@ -188,7 +188,9 @@ public class GameTurnManager : MonoBehaviour
 
         if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
         {
-            bool canAutoUseSingleTarget = ability.Definition != null && ability.Definition.Category == AbilityCategory.BasicAttack;
+            bool canAutoUseSingleTarget = ability.Definition != null
+                && (ability.Definition.Category == AbilityCategory.BasicAttack
+                    || ability.Definition.ShouldAutoUseWhenOnlyOneValidTarget(character, ability));
             if (canAutoUseSingleTarget && TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell))
             {
                 bool singleTargetUsed = character.TryUseAbility(abilityIndex, singleTargetCell);
@@ -650,6 +652,7 @@ public class GameTurnManager : MonoBehaviour
         }
 
         hasPlayerActedThisTurn = false;
+        hasPlayerMovedThisTurn = false;
         SetCanEndTurn(false);
         StartEndTurnUnlockTimer();
         TurnChanged?.Invoke(CurrentTurn);
@@ -830,6 +833,7 @@ public class GameTurnManager : MonoBehaviour
         if (trackedCharacter != null)
         {
             trackedCharacter.Died += HandleTrackedCharacterDied;
+            trackedCharacter.Moved += HandleTrackedCharacterMoved;
         }
     }
 
@@ -838,6 +842,7 @@ public class GameTurnManager : MonoBehaviour
         if (trackedCharacter != null)
         {
             trackedCharacter.Died -= HandleTrackedCharacterDied;
+            trackedCharacter.Moved -= HandleTrackedCharacterMoved;
             trackedCharacter = null;
         }
     }
@@ -881,6 +886,18 @@ public class GameTurnManager : MonoBehaviour
         loseMenuCoroutine = StartCoroutine(ShowLoseMenuAfterDelay(characterName, losePortrait));
     }
 
+    private void HandleTrackedCharacterMoved(Character character, Vector2Int previousCell, Vector2Int currentCell)
+    {
+        if (character == null || CurrentTurn != TurnSide.Player || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen || isLoseMenuOpen)
+        {
+            return;
+        }
+
+        hasPlayerMovedThisTurn = true;
+        StopEndTurnUnlockTimer();
+        SetCanEndTurn(true);
+    }
+
     private IEnumerator ShowLoseMenuAfterDelay(string characterName, Sprite losePortrait)
     {
         if (loseMenuDelay > 0f)
@@ -922,8 +939,6 @@ public class GameTurnManager : MonoBehaviour
         }
 
         hasPlayerActedThisTurn = true;
-        StopEndTurnUnlockTimer();
-        SetCanEndTurn(true);
     }
 
     private void StartEndTurnUnlockTimer()
@@ -931,7 +946,6 @@ public class GameTurnManager : MonoBehaviour
         StopEndTurnUnlockTimer();
         if (endTurnLockDuration <= 0f)
         {
-            SetCanEndTurn(true);
             return;
         }
 
@@ -953,11 +967,7 @@ public class GameTurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(endTurnLockDuration);
         endTurnUnlockCoroutine = null;
-
-        if (CurrentTurn == TurnSide.Player && !hasPlayerActedThisTurn)
-        {
-            SetCanEndTurn(true);
-        }
+        SetCanEndTurn(CurrentTurn == TurnSide.Player && hasPlayerMovedThisTurn);
     }
 
     private void SetCanEndTurn(bool value)
@@ -1069,8 +1079,7 @@ public class GameTurnManager : MonoBehaviour
             yield return new WaitUntil(() => !isRewardMenuOpen);
         }
 
-        bool shouldAllowEndTurn = CurrentTurn == TurnSide.Player
-            && (hasPlayerActedThisTurn || endTurnLockDuration <= 0f || endTurnUnlockCoroutine == null);
+        bool shouldAllowEndTurn = CurrentTurn == TurnSide.Player && hasPlayerMovedThisTurn;
         SetCanEndTurn(shouldAllowEndTurn);
         soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
         debugRewardSequenceCoroutine = null;

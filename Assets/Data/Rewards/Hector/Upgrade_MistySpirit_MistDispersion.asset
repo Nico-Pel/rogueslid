@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_MistySpirit_MistDispersion
   m_EditorClassIdentifier: 
   rewardId: upgrade_misty_spirit_mist_dispersion
-  rewardTitle: Dispersion des brumes
+  rewardTitle: Mist Dispersion
   rewardDescription: Increases Misty Mind range by 1. Max 2 stacks.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: e72095304fe2454aad9f7d0e41d33211, type: 2}

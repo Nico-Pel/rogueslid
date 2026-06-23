@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Upgrade_MistySpirit_BrokenHeart
   m_EditorClassIdentifier: 
   rewardId: upgrade_misty_spirit_broken_heart
-  rewardTitle: Coeur brise
+  rewardTitle: Broken Heart
   rewardDescription: An enemy affected by Misty Mind takes 1 damage after attacking an ally.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: e72095304fe2454aad9f7d0e41d33211, type: 2}

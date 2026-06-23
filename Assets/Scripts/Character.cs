@@ -106,8 +106,12 @@ public class Character : MonoBehaviour
     private readonly HashSet<Enemy> frostCharmedEnemiesThisTurn = new HashSet<Enemy>();
     private int nextAttackBonusDamage;
     private int samuraiMaskBonusDamage;
+    private int bonusDamageUntilEndOfTurn;
+    private int bonusDamageUntilNextMovement;
     private GameObject nextAttackBonusAuraPrefab;
     private GameObject activeNextAttackBonusAuraInstance;
+    private GameObject temporaryDamageAuraPrefab;
+    private GameObject activeTemporaryDamageAuraInstance;
     private Enemy markedEnemy;
     private LichSkullObject markedLichSkull;
     private DeathMarkAbility deathMarkAbility;
@@ -147,6 +151,7 @@ public class Character : MonoBehaviour
     public event Action<Character> MovementPointsChanged;
     public event Action<Character> AbilitiesChanged;
     public event Action<Character, ItemRewardKey, bool, float> ItemActivationChanged;
+    public event Action<Character, Vector2Int, Vector2Int> Moved;
     public event Action<Character> Died;
     public IReadOnlyList<CharacterAbilityRuntime> Abilities => abilities;
     public PlayerRunRewardState RunRewardState => runRewardState;
@@ -311,6 +316,7 @@ public class Character : MonoBehaviour
         NotifyMovementPointsChanged();
         Board.NotifyCharacterTraversedPath(this, startCell, destination);
         NotifyAbilitiesCharacterMoved(startCell, destination, true);
+        NotifyMoved(startCell, destination);
         ApplyTraversalEffects();
         ConsumeSingleStepModifiers();
         AnimateToGrid();
@@ -414,6 +420,7 @@ public class Character : MonoBehaviour
         gridPosition = targetCell;
         Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
         NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
+        NotifyMoved(startCell, targetCell);
         AnimateToGrid(animationDuration);
         return true;
     }
@@ -442,6 +449,7 @@ public class Character : MonoBehaviour
         gridPosition = targetCell;
         Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
         NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
+        NotifyMoved(startCell, targetCell);
         SnapToGrid();
         SetDashingAnimation(false);
         return true;
@@ -625,7 +633,7 @@ public class Character : MonoBehaviour
         return finalDamage;
     }
 
-    public void Heal(int amount, ItemRewardKey? sourceItemKey = null)
+    public void Heal(int amount, ItemRewardKey? sourceItemKey = null, bool playHealFx = true)
     {
         if (amount <= 0 || currentHealth <= 0)
         {
@@ -639,8 +647,11 @@ public class Character : MonoBehaviour
         SyncRunStateHealth();
         if (currentHealth > previousHealth)
         {
-            // SoundManager.Instance?.PlayHeal(transform.position);
-            PlayProcFx(CharacterProcFxKey.Heal);
+            if (playHealFx)
+            {
+                PlayHealProcFx();
+            }
+
             if (sourceItemKey.HasValue)
             {
                 TriggerItemActivationPulse(sourceItemKey.Value);
@@ -1736,6 +1747,16 @@ public class Character : MonoBehaviour
         MovementPointsChanged?.Invoke(this);
     }
 
+    private void NotifyMoved(Vector2Int previousCell, Vector2Int currentCell)
+    {
+        if (previousCell == currentCell)
+        {
+            return;
+        }
+
+        Moved?.Invoke(this, previousCell, currentCell);
+    }
+
     private void NotifyAbilitiesChanged()
     {
         RefreshBasicAttackVisuals();
@@ -2289,6 +2310,11 @@ public class Character : MonoBehaviour
     public void PlayExecuteProcFx(Transform targetAnchor = null)
     {
         PlayProcFx(CharacterProcFxKey.Execute, targetAnchor);
+    }
+
+    public void PlayHealProcFx(Transform targetAnchor = null)
+    {
+        PlayProcFx(CharacterProcFxKey.Heal, targetAnchor);
     }
 
     private CharacterProcFxConfig FindProcFxConfig(CharacterProcFxKey key)

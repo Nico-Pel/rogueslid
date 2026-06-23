@@ -60,6 +60,15 @@ public class Enemy : MonoBehaviour
     [SerializeField] private GameObject bleedingFxPrefab;
     [Min(0f)]
     [SerializeField] private float bleedingDamageRandomDelayMax = 0.33f;
+    [SerializeField] private GameObject frozenFxPrefab;
+    [SerializeField] private GameObject frozenImpactFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float frozenImpactFxLifetime = 2f;
+    [SerializeField] private Color bleedingRimGlowColor = Color.red;
+    [Min(0f)]
+    [SerializeField] private float bleedingRimGlowIntensity = 1f;
+    [Min(0.25f)]
+    [SerializeField] private float bleedingRimGlowPower = 2.5f;
     [SerializeField] private GameObject mistyConfusionFxPrefab;
     [Min(0f)]
     [SerializeField] private float mistyConfusionFxMaxDuration = 2f;
@@ -115,6 +124,8 @@ public class Enemy : MonoBehaviour
     private Tween fearBodyWiggleTween;
     private Tween impactTween;
     private RendererBlinkFeedback blinkFeedback;
+    private Renderer[] statusRenderers;
+    private readonly Dictionary<Renderer, MaterialPropertyBlock> statusPropertyBlocks = new Dictionary<Renderer, MaterialPropertyBlock>();
     private bool isDying;
     private GameObject activeDeathMarkFxInstance;
     private Vector3 defaultCanvasLocalPosition;
@@ -130,6 +141,8 @@ public class Enemy : MonoBehaviour
     private bool mistyConfusionParanoia;
     private bool mistyConfusionBrokenHeart;
     private GameObject activeMistyConfusionFxInstance;
+    private GameObject activeFrozenFxInstance;
+    private bool isBleedingRimGlowApplied;
     private Coroutine mistyConfusionFxTimeoutCoroutine;
     private AnimatorOverrideController enemyAnimatorOverrideController;
     private DragoonRiderEnemyData dragoonRiderData;
@@ -165,6 +178,9 @@ public class Enemy : MonoBehaviour
     public string EnemySpecialInfo => enemyData != null ? enemyData.SpecialInfo : "The goblin is a classic enemy.";
 
     private int pendingMobilityPenalty;
+    private static readonly int RimGlowColorId = Shader.PropertyToID("_RimGlowColor");
+    private static readonly int RimGlowIntensityId = Shader.PropertyToID("_RimGlowIntensity");
+    private static readonly int RimGlowPowerId = Shader.PropertyToID("_RimGlowPower");
 
     private void OnValidate()
     {
@@ -241,6 +257,7 @@ public class Enemy : MonoBehaviour
         statusPotencies.Clear();
         forceModifierFromStatuses = 0;
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
+        CacheStatusRenderers();
         CacheBody();
         CacheCanvas();
         CacheAnimator();
@@ -253,6 +270,7 @@ public class Enemy : MonoBehaviour
         combatTurnCount = 0;
         linkedSummoner = null;
         isInFearState = false;
+        RefreshStatusVisuals();
         RefreshFlyingAnimationState();
         PlayBodySpawnTween();
     }
@@ -3282,6 +3300,13 @@ public class Enemy : MonoBehaviour
             PlayBleedingFx();
         }
 
+        if (statusType == CombatStatusType.Frozen && !alreadyHadStatus)
+        {
+            PlayFrozenImpactFx();
+        }
+
+        RefreshStatusVisuals();
+
         if (!statusDurations.ContainsKey(statusType))
         {
             statusDurations[statusType] = durationInTurns;
@@ -3366,6 +3391,8 @@ public class Enemy : MonoBehaviour
             statusDurations.Remove(statusType);
             statusPotencies.Remove(statusType);
         }
+
+        RefreshStatusVisuals();
     }
 
     private void PlayBleedingFx()
@@ -3378,6 +3405,117 @@ public class Enemy : MonoBehaviour
         Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
         GameObject spawnedFx = Instantiate(bleedingFxPrefab, anchor.position, bleedingFxPrefab.transform.rotation);
         spawnedFx.transform.localScale = bleedingFxPrefab.transform.localScale;
+    }
+
+    private void CacheStatusRenderers()
+    {
+        if (statusRenderers != null && statusRenderers.Length > 0)
+        {
+            return;
+        }
+
+        statusRenderers = GetComponentsInChildren<Renderer>(true);
+        statusPropertyBlocks.Clear();
+        for (int index = 0; index < statusRenderers.Length; index++)
+        {
+            Renderer renderer = statusRenderers[index];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            statusPropertyBlocks[renderer] = new MaterialPropertyBlock();
+        }
+    }
+
+    private void RefreshStatusVisuals()
+    {
+        RefreshFrozenFx();
+        RefreshBleedingRimGlow();
+    }
+
+    private void RefreshBleedingRimGlow()
+    {
+        bool hasBleeding = HasStatusEffect(CombatStatusType.Bleeding);
+        if (hasBleeding == isBleedingRimGlowApplied)
+        {
+            return;
+        }
+
+        CacheStatusRenderers();
+        if (statusRenderers == null || statusRenderers.Length == 0)
+        {
+            return;
+        }
+
+        float rimIntensity = hasBleeding ? bleedingRimGlowIntensity : 0f;
+        Color rimColor = hasBleeding ? bleedingRimGlowColor : Color.white;
+        float rimPower = Mathf.Max(0.25f, bleedingRimGlowPower);
+
+        for (int index = 0; index < statusRenderers.Length; index++)
+        {
+            Renderer renderer = statusRenderers[index];
+            if (renderer == null || !statusPropertyBlocks.TryGetValue(renderer, out MaterialPropertyBlock block))
+            {
+                continue;
+            }
+
+            renderer.GetPropertyBlock(block);
+            block.SetColor(RimGlowColorId, rimColor);
+            block.SetFloat(RimGlowIntensityId, rimIntensity);
+            block.SetFloat(RimGlowPowerId, rimPower);
+            renderer.SetPropertyBlock(block);
+        }
+
+        isBleedingRimGlowApplied = hasBleeding;
+    }
+
+    private void RefreshFrozenFx()
+    {
+        bool hasFrozen = HasStatusEffect(CombatStatusType.Frozen);
+        if (!hasFrozen)
+        {
+            ClearFrozenFx();
+            return;
+        }
+
+        if (activeFrozenFxInstance != null || frozenFxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        activeFrozenFxInstance = Instantiate(frozenFxPrefab, anchor);
+        activeFrozenFxInstance.transform.localPosition = Vector3.zero;
+        activeFrozenFxInstance.transform.localRotation = frozenFxPrefab.transform.localRotation;
+        activeFrozenFxInstance.transform.localScale = frozenFxPrefab.transform.localScale;
+    }
+
+    private void ClearFrozenFx()
+    {
+        if (activeFrozenFxInstance == null)
+        {
+            return;
+        }
+
+        Destroy(activeFrozenFxInstance);
+        activeFrozenFxInstance = null;
+    }
+
+    private void PlayFrozenImpactFx()
+    {
+        if (frozenImpactFxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        GameObject spawnedFx = Instantiate(frozenImpactFxPrefab, anchor.position, frozenImpactFxPrefab.transform.rotation, anchor);
+        spawnedFx.transform.localScale = frozenImpactFxPrefab.transform.localScale;
+        if (frozenImpactFxLifetime > 0f)
+        {
+            Destroy(spawnedFx, frozenImpactFxLifetime);
+        }
     }
 
     private IEnumerator ResolveMistyConfusionTurn()

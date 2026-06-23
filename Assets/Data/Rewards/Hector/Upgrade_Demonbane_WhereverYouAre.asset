@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_Demonbane_WhereverYouAre
   m_EditorClassIdentifier: 
   rewardId: upgrade_demonbane_wherever_you_are
-  rewardTitle: Ou que tu sois
-  rewardDescription: Si Demonbane ne touche rien, l'ennemi le plus affaibli sans saignement reçoit saignement.
+  rewardTitle: Wherever You Are
+  rewardDescription: If Demonbane hits nothing, the weakest enemy without bleeding gains bleeding.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 7bc93bc40cb14ca7a2d7791da8c45211, type: 2}
   upgradeKey: 44

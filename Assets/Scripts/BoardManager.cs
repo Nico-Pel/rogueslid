@@ -30,9 +30,11 @@ public class BoardCell
     public BoardOccupantKind OccupantKind = BoardOccupantKind.None;
     public GameObject Occupant;
     public GameObject StaticObstacle;
+    public bool StaticObstacleBlocksMovement;
+    public bool StopsCharacterSlide;
     public BoardHazard Hazard;
 
-    public bool HasBlockingTerrain => !Walkable || Type == BoardCellType.Rock || StaticObstacle != null;
+    public bool HasBlockingTerrain => !Walkable || Type == BoardCellType.Rock || (StaticObstacle != null && StaticObstacleBlocksMovement);
     public bool HasVisibleHazardForEnemies => Hazard != null && Hazard.IsVisibleToEnemies;
 
     public void SetOccupant(GameObject occupant, BoardOccupantKind occupantKind)
@@ -52,8 +54,19 @@ public class BoardCell
     public void SetStaticObstacle(GameObject obstacle, BoardCellType cellType = BoardCellType.Rock)
     {
         StaticObstacle = obstacle;
+        StaticObstacleBlocksMovement = true;
+        StopsCharacterSlide = false;
         Type = cellType;
         Walkable = false;
+    }
+
+    public void SetTraversalStopSurface(GameObject obstacle)
+    {
+        StaticObstacle = obstacle;
+        StaticObstacleBlocksMovement = false;
+        StopsCharacterSlide = true;
+        Type = BoardCellType.Classic;
+        Walkable = true;
     }
 
     public void SetHazard(BoardHazard hazard)
@@ -132,10 +145,10 @@ public class BoardManager : MonoBehaviour
     private readonly List<SkullObject> activeSkullObjects = new List<SkullObject>();
     private readonly Dictionary<Enemy, HashSet<Enemy>> linkedSummonsByOwner = new Dictionary<Enemy, HashSet<Enemy>>();
     private readonly Dictionary<Enemy, Enemy> summonOwnerByMinion = new Dictionary<Enemy, Enemy>();
+    private readonly HashSet<EnemyPoolDefinition> encounteredEnemyPools = new HashSet<EnemyPoolDefinition>();
     private EnemyPoolDefinition currentSelectedEnemyPool;
     private bool isResolvingSkullsForVictory;
     private static readonly int ColorShaderProperty = Shader.PropertyToID("_Color");
-
     public int Width => BoardWidth;
     public int Height => BoardHeight;
     public BoardCell[,] Cells => cells;
@@ -280,6 +293,7 @@ public class BoardManager : MonoBehaviour
         linkedSummonsByOwner.Clear();
         summonOwnerByMinion.Clear();
         isResolvingSkullsForVictory = false;
+        encounteredEnemyPools.Clear();
         runRewardState = new PlayerRunRewardState();
         ApplyCurrentBiomeVisuals();
     }
@@ -402,6 +416,11 @@ public class BoardManager : MonoBehaviour
             }
 
             lastFreeCell = next;
+            if (cell.StopsCharacterSlide)
+            {
+                break;
+            }
+
             next += direction;
         }
 
@@ -875,6 +894,8 @@ public class BoardManager : MonoBehaviour
         }
 
         cell.StaticObstacle = null;
+        cell.StaticObstacleBlocksMovement = false;
+        cell.StopsCharacterSlide = false;
         cell.Type = BoardCellType.Classic;
         cell.Walkable = true;
     }
@@ -1155,7 +1176,11 @@ public class BoardManager : MonoBehaviour
                     Walkable = true,
                     IsOccupied = false,
                     OccupantKind = BoardOccupantKind.None,
-                    Occupant = null
+                    Occupant = null,
+                    StaticObstacle = null,
+                    StaticObstacleBlocksMovement = false,
+                    StopsCharacterSlide = false,
+                    Hazard = null
                 };
             }
         }
@@ -1228,6 +1253,14 @@ public class BoardManager : MonoBehaviour
         GameObject obstacle = InstantiateFromList(GetObstaclePrefabsForCurrentBiome(), $"Obstacle_{cell.GridPosition.x}_{cell.GridPosition.y}", obstaclesRoot, cell.WorldPosition);
         if (obstacle == null)
         {
+            return;
+        }
+
+        StonePlatformObstacle stonePlatform = obstacle.GetComponent<StonePlatformObstacle>();
+        if (stonePlatform != null)
+        {
+            stonePlatform.ApplySpawnPresentation();
+            cell.SetTraversalStopSurface(obstacle);
             return;
         }
 
@@ -1423,7 +1456,53 @@ public class BoardManager : MonoBehaviour
             return null;
         }
 
-        return eligiblePools[UnityEngine.Random.Range(0, eligiblePools.Count)];
+        List<EnemyPoolDefinition> availablePools = GetAvailableEnemyPools(eligiblePools);
+        if (availablePools.Count == 0)
+        {
+            ResetEncounteredEnemyPools(eligiblePools);
+            availablePools.AddRange(eligiblePools);
+        }
+
+        EnemyPoolDefinition selectedPool = availablePools[UnityEngine.Random.Range(0, availablePools.Count)];
+        encounteredEnemyPools.Add(selectedPool);
+        return selectedPool;
+    }
+
+    private List<EnemyPoolDefinition> GetAvailableEnemyPools(List<EnemyPoolDefinition> eligiblePools)
+    {
+        List<EnemyPoolDefinition> availablePools = new List<EnemyPoolDefinition>();
+        if (eligiblePools == null)
+        {
+            return availablePools;
+        }
+
+        for (int index = 0; index < eligiblePools.Count; index++)
+        {
+            EnemyPoolDefinition pool = eligiblePools[index];
+            if (pool != null && !encounteredEnemyPools.Contains(pool))
+            {
+                availablePools.Add(pool);
+            }
+        }
+
+        return availablePools;
+    }
+
+    private void ResetEncounteredEnemyPools(List<EnemyPoolDefinition> poolsToReset)
+    {
+        if (poolsToReset == null || poolsToReset.Count == 0)
+        {
+            return;
+        }
+
+        for (int index = 0; index < poolsToReset.Count; index++)
+        {
+            EnemyPoolDefinition pool = poolsToReset[index];
+            if (pool != null)
+            {
+                encounteredEnemyPools.Remove(pool);
+            }
+        }
     }
 
     private static List<GameObject> ExtractValidEnemyPrefabs(EnemyPoolDefinition poolDefinition)

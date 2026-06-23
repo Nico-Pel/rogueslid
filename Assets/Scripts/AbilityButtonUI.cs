@@ -202,7 +202,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         if (cooldownCountLabel != null)
         {
-            cooldownCountLabel.text = isOnCooldown ? $"-{runtime.RemainingCooldown}" : string.Empty;
+            cooldownCountLabel.text = isOnCooldown ? runtime.RemainingCooldown.ToString() : string.Empty;
         }
     }
 

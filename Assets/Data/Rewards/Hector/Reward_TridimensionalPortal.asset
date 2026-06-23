@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Reward_TridimensionalPortal
   m_EditorClassIdentifier: 
   rewardId: reward_tridimensional_portal
-  rewardTitle: Portail tridimensionnel
+  rewardTitle: Three-dimensional Portal
   rewardDescription: Hector places a portal nearby, then reuses it to instantly return
     to that location.
   artwork: {fileID: 1889169128, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}

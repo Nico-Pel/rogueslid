@@ -161,12 +161,22 @@ public abstract class AbilityDefinition : ScriptableObject
         return false;
     }
 
+    public virtual bool ShouldAutoUseWhenOnlyOneValidTarget(Character character, CharacterAbilityRuntime runtime)
+    {
+        return false;
+    }
+
     public virtual bool AllowsUnitTraversal(Character character, CharacterAbilityRuntime runtime)
     {
         return false;
     }
 
     public virtual bool LimitsNextSlideToOneCell(Character character, CharacterAbilityRuntime runtime)
+    {
+        return false;
+    }
+
+    public virtual bool PreventsSlideMovementPointConsumption(Character character, CharacterAbilityRuntime runtime)
     {
         return false;
     }

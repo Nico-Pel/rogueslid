@@ -156,6 +156,12 @@ MonoBehaviour:
   fearFeedbackDelay: 0.25
   bleedingFxPrefab: {fileID: 1350399091613688021, guid: 9f6f4b3ae632d4c8ca926d87bee5c5a0, type: 3}
   bleedingDamageRandomDelayMax: 0.33
+  frozenFxPrefab: {fileID: 3814935834660799232, guid: 558e8a41f623a441197d37a744e15675, type: 3}
+  frozenImpactFxPrefab: {fileID: 6036324850068858145, guid: 7af48c84f5dc24117af7dd3d0f7e8de8, type: 3}
+  frozenImpactFxLifetime: 2
+  bleedingRimGlowColor: {r: 1, g: 0, b: 0, a: 1}
+  bleedingRimGlowIntensity: 1
+  bleedingRimGlowPower: 2.5
   mistyConfusionFxPrefab: {fileID: 2802341358885575091, guid: 1f8e43011d3444e9ea2321d090620d36, type: 3}
   mistyConfusionFxMaxDuration: 2
   ignoreObstaclesForMovement: 0
@@ -330,9 +336,41 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2214103335909512221, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2214103335909512221, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2214103335909512221, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2214103335909512221, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3180959039046186446, guid: a8b396741d686455bad446080254f092, type: 3}
       propertyPath: m_Name
       value: CanvasUnit
+      objectReference: {fileID: 0}
+    - target: {fileID: 7616729050634844191, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7616729050634844191, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7616729050634844191, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7616729050634844191, guid: a8b396741d686455bad446080254f092, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

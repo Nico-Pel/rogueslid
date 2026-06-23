@@ -12,6 +12,9 @@ Shader "RTSLords/Simple Toon Outline"
         _BlueMinBrightness ("Blue Min Brightness", Range(0, 2)) = 0.9
         _FlashColor ("Flash Color", Color) = (1,1,1,1)
         _FlashAmount ("Flash Amount", Range(0, 1)) = 0
+        _RimGlowColor ("Rim Glow Color", Color) = (1,1,1,1)
+        _RimGlowIntensity ("Rim Glow Intensity", Range(0, 2)) = 0
+        _RimGlowPower ("Rim Glow Power", Range(0.25, 8)) = 3
         _ToonSteps ("Toon Steps", Range(2, 6)) = 3
         _ShadowStrength ("Shadow Strength", Range(0.2, 1)) = 0.55
         _OutlineColor ("Outline Color", Color) = (0.08,0.08,0.08,1)
@@ -81,12 +84,16 @@ Shader "RTSLords/Simple Toon Outline"
         half _BlueMinBrightness;
         fixed4 _FlashColor;
         half _FlashAmount;
+        fixed4 _RimGlowColor;
+        half _RimGlowIntensity;
+        half _RimGlowPower;
         half _ToonSteps;
         half _ShadowStrength;
 
         struct Input
         {
             float2 uv_MainTex;
+            float3 viewDir;
         };
 
         void surf(Input IN, inout SurfaceOutput o)
@@ -104,6 +111,8 @@ Shader "RTSLords/Simple Toon Outline"
             c.rgb = lerp(c.rgb, _FlashColor.rgb, saturate(_FlashAmount));
 
             o.Albedo = c.rgb;
+            half rim = pow(saturate(1.0h - dot(normalize(IN.viewDir), o.Normal)), max(_RimGlowPower, 0.25h));
+            o.Emission = _RimGlowColor.rgb * (_RimGlowIntensity * rim);
             o.Alpha = c.a;
         }
 

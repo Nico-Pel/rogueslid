@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Upgrade_Demonbane_LastChance
   m_EditorClassIdentifier: 
   rewardId: upgrade_demonbane_last_chance
-  rewardTitle: Derniere chance
-  rewardDescription: Demonbane inflige 1 dégât supplémentaire si Hector n'a plus de mobilité. Max 2 stacks.
+  rewardTitle: Last Chance
+  rewardDescription: Demonbane deals 1 extra damage if Hector has no mobility left. Max 2 stacks.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 7bc93bc40cb14ca7a2d7791da8c45211, type: 2}
   upgradeKey: 45
