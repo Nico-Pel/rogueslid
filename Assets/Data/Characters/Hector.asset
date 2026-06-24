@@ -32,6 +32,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7fb8d3191f5f43db9c35c29ec66c4211, type: 2}
   - {fileID: 11400000, guid: d3e10f1d3815476382d1915338cf0211, type: 2}
   - {fileID: 11400000, guid: 21318e21923d435783585b85d988894d, type: 2}
+  - {fileID: 11400000, guid: 2ac1f4e9bf4d48a0a12c31d5f77b3d11, type: 2}
+  - {fileID: 11400000, guid: 7b5a6d3c15ee47d0a81fd0f43b0f8d12, type: 2}
+  - {fileID: 11400000, guid: c31e6a419a8d4f1cb4d10e5fd76a7013, type: 2}
   uiColors:
   - key: 0
     color: {r: 0.29803923, g: 0.08235294, b: 0.08627451, a: 1}

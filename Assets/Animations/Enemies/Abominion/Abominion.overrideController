@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!221 &22100000
+AnimatorOverrideController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Abominion
+  m_Controller: {fileID: 9100000, guid: 4ac03df3cef6640ef8abd98099e94f55, type: 2}
+  m_Clips:
+  - m_OriginalClip: {fileID: 7400000, guid: 25de0fe0fb0e84ec99a7d91fffc367a6, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: ae21341b283a64d9fa0ae914d24ffb0c, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: afe404a97b69e460286581b9ccb45983, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: e606fc00a88f344dbaec567e005078ee, type: 2}

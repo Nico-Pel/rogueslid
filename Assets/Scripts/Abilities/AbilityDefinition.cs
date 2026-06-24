@@ -176,6 +176,11 @@ public abstract class AbilityDefinition : ScriptableObject
         return false;
     }
 
+    public virtual bool ConsumeSingleStepModifierAfterMovement(Character character, CharacterAbilityRuntime runtime)
+    {
+        return true;
+    }
+
     public virtual bool PreventsSlideMovementPointConsumption(Character character, CharacterAbilityRuntime runtime)
     {
         return false;

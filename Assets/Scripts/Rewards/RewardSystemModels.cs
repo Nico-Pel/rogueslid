@@ -84,7 +84,19 @@ public enum AbilityUpgradeKey
     SomersaultJumpHeroicCascade,
     SomersaultJumpDoubleJump,
     SomersaultJumpSmallJump,
-    TridimensionalPortalMultidimensionalPortals
+    TridimensionalPortalMultidimensionalPortals,
+    SacredCrossbowLightBolt,
+    SacredCrossbowSacredRay,
+    SacredCrossbowLightBurst,
+    SacredCrossbowSacredDemolition,
+    RainOfBoltsIronBolts,
+    RainOfBoltsCloudySky,
+    RainOfBoltsLuckyHunter,
+    RainOfBoltsLostBolt,
+    WolfStepAlphaWolf,
+    WolfStepHungryWolf,
+    WolfStepQuickSteps,
+    WolfStepWolfCharge
 }
 
 public enum ItemRewardKey

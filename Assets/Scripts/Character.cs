@@ -280,7 +280,8 @@ public class Character : MonoBehaviour
 
     public bool TrySlide(Vector2Int direction)
     {
-        if (Board == null || remainingMovementPoints <= 0 || IsBusy || direction == Vector2Int.zero)
+        bool consumesMovementPoint = ShouldConsumeMovementPointForSlide();
+        if (Board == null || (remainingMovementPoints <= 0 && consumesMovementPoint) || IsBusy || direction == Vector2Int.zero)
         {
             return false;
         }
@@ -306,16 +307,21 @@ public class Character : MonoBehaviour
             return false;
         }
 
+        ConsumeTemporaryBonusDamageOnMovement();
+
         if (orientTowardsDashDirection)
         {
             FaceDashDirection(direction);
         }
 
         gridPosition = destination;
-        remainingMovementPoints--;
-        NotifyMovementPointsChanged();
+        if (consumesMovementPoint)
+        {
+            remainingMovementPoints--;
+            NotifyMovementPointsChanged();
+        }
         Board.NotifyCharacterTraversedPath(this, startCell, destination);
-        NotifyAbilitiesCharacterMoved(startCell, destination, true);
+        NotifyAbilitiesCharacterMoved(startCell, destination, consumesMovementPoint);
         NotifyMoved(startCell, destination);
         ApplyTraversalEffects();
         ConsumeSingleStepModifiers();
@@ -417,6 +423,8 @@ public class Character : MonoBehaviour
             return false;
         }
 
+        ConsumeTemporaryBonusDamageOnMovement();
+
         gridPosition = targetCell;
         Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
         NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
@@ -443,6 +451,7 @@ public class Character : MonoBehaviour
             return false;
         }
 
+        ConsumeTemporaryBonusDamageOnMovement();
         moveTween?.Kill();
         moveTween = null;
         IsMoving = false;
@@ -732,6 +741,9 @@ public class Character : MonoBehaviour
             case DemonbaneAbility:
                 weaponDamage = 4;
                 break;
+            case SacredCrossbowAbility:
+                weaponDamage = 5;
+                break;
             case WhisperfangAbility:
                 weaponDamage = 1;
                 break;
@@ -868,6 +880,7 @@ public class Character : MonoBehaviour
         isFirstPlayerTurnOfArena = false;
         ClearDeathMark();
         ClearNextAttackBonusDamage();
+        ClearBonusDamageUntilEndOfTurn();
         samuraiMaskBonusDamage = 0;
         RecalculateItemDrivenStats();
     }
@@ -916,6 +929,60 @@ public class Character : MonoBehaviour
         }
 
         RefreshNextAttackBonusAura();
+        RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    public void AddBonusDamageUntilEndOfTurn(
+        int amount,
+        GameObject boostFxPrefab = null,
+        GameObject auraFxPrefab = null,
+        float boostFxDuration = 1f)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        bonusDamageUntilEndOfTurn += amount;
+        if (auraFxPrefab != null)
+        {
+            temporaryDamageAuraPrefab = auraFxPrefab;
+        }
+
+        if (boostFxPrefab != null)
+        {
+            PlayFeedbackFx(boostFxPrefab, destroyAfterSeconds: boostFxDuration);
+        }
+
+        RefreshTemporaryDamageAura();
+        RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    public void AddBonusDamageUntilNextMovement(
+        int amount,
+        GameObject boostFxPrefab = null,
+        GameObject auraFxPrefab = null,
+        float boostFxDuration = 1f)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        bonusDamageUntilNextMovement += amount;
+        if (auraFxPrefab != null)
+        {
+            temporaryDamageAuraPrefab = auraFxPrefab;
+        }
+
+        if (boostFxPrefab != null)
+        {
+            PlayFeedbackFx(boostFxPrefab, destroyAfterSeconds: boostFxDuration);
+        }
+
+        RefreshTemporaryDamageAura();
         RecalculateItemDrivenStats();
         NotifyAbilitiesChanged();
     }
@@ -1426,6 +1493,7 @@ public class Character : MonoBehaviour
         activeTrailColorOwner = null;
         activeTrailReplacementOwner = null;
         ClearActiveReplacementTrailInstance();
+        ClearTemporaryDamageAura();
         if (defaultTrailObject != null)
         {
             defaultTrailObject.SetActive(true);
@@ -1518,7 +1586,9 @@ public class Character : MonoBehaviour
         for (int index = 0; index < abilities.Count; index++)
         {
             CharacterAbilityRuntime runtime = abilities[index];
-            if (runtime.Definition == null || !runtime.Definition.LimitsNextSlideToOneCell(this, runtime))
+            if (runtime.Definition == null
+                || !runtime.Definition.LimitsNextSlideToOneCell(this, runtime)
+                || !runtime.Definition.ConsumeSingleStepModifierAfterMovement(this, runtime))
             {
                 continue;
             }
@@ -2344,7 +2414,7 @@ public class Character : MonoBehaviour
         int remainingEnemies = GetRemainingEnemyCount();
 
         int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
-        int dynamicBonusDamage = nextAttackBonusDamage + samuraiMaskBonusDamage;
+        int dynamicBonusDamage = nextAttackBonusDamage + samuraiMaskBonusDamage + bonusDamageUntilEndOfTurn + bonusDamageUntilNextMovement;
         int dynamicResistance = 0;
         int dynamicMovementPoints = 0;
 
@@ -2414,6 +2484,28 @@ public class Character : MonoBehaviour
         ClearNextAttackBonusAura();
     }
 
+    private void ClearBonusDamageUntilEndOfTurn()
+    {
+        bonusDamageUntilEndOfTurn = 0;
+        RefreshTemporaryDamageAura();
+    }
+
+    private void ClearBonusDamageUntilNextMovement(bool refreshStats = true)
+    {
+        if (bonusDamageUntilNextMovement <= 0)
+        {
+            return;
+        }
+
+        bonusDamageUntilNextMovement = 0;
+        RefreshTemporaryDamageAura();
+        if (refreshStats)
+        {
+            RecalculateItemDrivenStats();
+            NotifyAbilitiesChanged();
+        }
+    }
+
     private void RefreshNextAttackBonusAura()
     {
         if (nextAttackBonusDamage <= 0 || nextAttackBonusAuraPrefab == null)
@@ -2444,6 +2536,60 @@ public class Character : MonoBehaviour
             Destroy(activeNextAttackBonusAuraInstance);
             activeNextAttackBonusAuraInstance = null;
         }
+    }
+
+    private void RefreshTemporaryDamageAura()
+    {
+        if ((bonusDamageUntilEndOfTurn + bonusDamageUntilNextMovement) <= 0 || temporaryDamageAuraPrefab == null)
+        {
+            ClearTemporaryDamageAura();
+            return;
+        }
+
+        if (activeTemporaryDamageAuraInstance != null
+            && activeTemporaryDamageAuraInstance.name.StartsWith(temporaryDamageAuraPrefab.name, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ClearTemporaryDamageAura();
+        Quaternion defaultFxRotation = temporaryDamageAuraPrefab.transform.rotation;
+        Vector3 defaultFxScale = temporaryDamageAuraPrefab.transform.localScale;
+        activeTemporaryDamageAuraInstance = Instantiate(temporaryDamageAuraPrefab, transform.position, defaultFxRotation);
+        activeTemporaryDamageAuraInstance.transform.SetParent(transform, true);
+        activeTemporaryDamageAuraInstance.transform.rotation = defaultFxRotation;
+        activeTemporaryDamageAuraInstance.transform.localScale = defaultFxScale;
+    }
+
+    private void ClearTemporaryDamageAura()
+    {
+        if (activeTemporaryDamageAuraInstance != null)
+        {
+            Destroy(activeTemporaryDamageAuraInstance);
+            activeTemporaryDamageAuraInstance = null;
+        }
+    }
+
+    private void ConsumeTemporaryBonusDamageOnMovement()
+    {
+        if (bonusDamageUntilNextMovement > 0)
+        {
+            ClearBonusDamageUntilNextMovement();
+        }
+    }
+
+    private bool ShouldConsumeMovementPointForSlide()
+    {
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            if (runtime?.Definition != null && runtime.Definition.PreventsSlideMovementPointConsumption(this, runtime))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void ClearDeathMark()

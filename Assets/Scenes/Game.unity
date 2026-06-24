@@ -15055,10 +15055,10 @@ MonoBehaviour:
   optionalObstacleChance: 0.33
   allowMirrorOnYAxis: 1
   mirrorOnYAxisChance: 0.5
-  playerCharacterPrefab: {fileID: 7052028393415067872, guid: 26fb24543a2914fab9420f7bc1422663, type: 3}
-  useForcedDatas: 0
+  playerCharacterPrefab: {fileID: 7052028393415067872, guid: 307fa2897e7c9410dbef01b61d9d6007, type: 3}
+  useForcedDatas: 1
   forcedBiome: {fileID: 11400000, guid: 3311f6257ca04d4d9e32d1320efe15da, type: 2}
-  forcedEnemyPoolDefinition: {fileID: 11400000, guid: 74638361c3ac4f4c91c3b9b6f4e6165b, type: 2}
+  forcedEnemyPoolDefinition: {fileID: 11400000, guid: de918da9dc1f044a392fc3ffde3f7cfa, type: 2}
   cheatRewardsCount: 19
   itemRewardDefinitions:
   - {fileID: 11400000, guid: c2030000000000000000000000000001, type: 2}

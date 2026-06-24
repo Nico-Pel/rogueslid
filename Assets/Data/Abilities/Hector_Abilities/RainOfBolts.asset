@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d57ea4c1f3472e92ac6f4bd3e9a512, type: 3}
+  m_Name: RainOfBolts
+  m_EditorClassIdentifier: 
+  abilityName: Rain of Bolts
+  icon: {fileID: -767586726, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  category: 2
+  attackAnimationClip: {fileID: 7400000, guid: bc7bd89b1afec43898786e8805565fbc, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: bc5e198d9c87480786fba42ce6d1e125, type: 2}
+  - {fileID: 11400000, guid: cd6f2abecaf34fdc92f0bc47ed28f126, type: 2}
+  - {fileID: 11400000, guid: de703bcfd1844d32b3b12d65f8a0d127, type: 2}
+  - {fileID: 11400000, guid: ef814cdf03b14fa7a1c3d85b47be3128, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 2
+  range: 10
+  baseRadius: 3
+  initialDelay: 0.4
+  projectilePrefab: {fileID: 4669369967587303769, guid: 8b93cc05c0db74f3f9682ac9c13e103d, type: 3}
+  projectileTravelSpeed: 12
+  minimumTravelDuration: 0.18
+  projectileJumpPower: 0.85
+  projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
+  projectileImpactOffset: {x: 0, y: 0.2, z: 0}
+  emptyImpactScale: 0.1
+  emptyImpactScaleDuration: 0.2
+  luckyHunterBoostFxPrefab: {fileID: 4623002585508310345, guid: a66daf307f4864f2183ba9b16b78556e, type: 3}
+  luckyHunterAuraFxPrefab: {fileID: 4623002585508310345, guid: 6c2f66f9a3f2b4aefb027b6ff8fd569f, type: 3}
+  luckyHunterBoostFxDuration: 1

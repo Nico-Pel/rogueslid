@@ -193,6 +193,51 @@ public static class HectorAbilityUtils
             playArrowShotSound));
     }
 
+    public static float EstimateLinearProjectileTravelDelay(
+        Character character,
+        Vector3 targetPosition,
+        float projectileSpeed,
+        Vector3 spawnOffset,
+        float launchDelay = 0f)
+    {
+        if (character == null)
+        {
+            return Mathf.Max(0f, launchDelay);
+        }
+
+        Vector3 startPosition = character.transform.position + spawnOffset;
+        float travelDuration = Mathf.Max(0.05f, Vector3.Distance(startPosition, targetPosition) / Mathf.Max(0.01f, projectileSpeed));
+        return Mathf.Max(0f, launchDelay) + travelDuration;
+    }
+
+    public static void TryPlayArcProjectile(
+        Character character,
+        GameObject projectilePrefab,
+        Vector3 targetPosition,
+        float travelDuration,
+        float jumpPower,
+        Vector3 spawnOffset,
+        float launchDelay = 0f,
+        Func<GameObject, bool> onImpact = null,
+        bool playArrowShotSound = true)
+    {
+        if (character == null || projectilePrefab == null)
+        {
+            return;
+        }
+
+        character.StartCoroutine(PlayArcProjectileRoutine(
+            character,
+            projectilePrefab,
+            targetPosition,
+            travelDuration,
+            jumpPower,
+            spawnOffset,
+            launchDelay,
+            onImpact,
+            playArrowShotSound));
+    }
+
     private static IEnumerator PlayLinearProjectileRoutine(
         Character character,
         GameObject projectilePrefab,
@@ -234,5 +279,52 @@ public static class HectorAbilityUtils
 
         onImpact?.Invoke();
         UnityEngine.Object.Destroy(projectile);
+    }
+
+    private static IEnumerator PlayArcProjectileRoutine(
+        Character character,
+        GameObject projectilePrefab,
+        Vector3 targetPosition,
+        float travelDuration,
+        float jumpPower,
+        Vector3 spawnOffset,
+        float launchDelay,
+        Func<GameObject, bool> onImpact,
+        bool playArrowShotSound)
+    {
+        if (character == null || projectilePrefab == null)
+        {
+            yield break;
+        }
+
+        if (launchDelay > 0f)
+        {
+            yield return new WaitForSeconds(launchDelay);
+        }
+
+        Vector3 startPosition = character.transform.position + spawnOffset;
+        if (playArrowShotSound)
+        {
+            SoundManager.Instance?.PlayArrowShot(startPosition);
+        }
+
+        GameObject projectile = UnityEngine.Object.Instantiate(projectilePrefab, startPosition, Quaternion.identity);
+        projectile.transform.localScale = projectilePrefab.transform.localScale;
+
+        Vector3 travelDirection = targetPosition - startPosition;
+        if (travelDirection.sqrMagnitude > 0.0001f)
+        {
+            projectile.transform.rotation = Quaternion.LookRotation(travelDirection.normalized, Vector3.up);
+        }
+
+        float duration = Mathf.Max(0.05f, travelDuration);
+        Tween jumpTween = projectile.transform.DOJump(targetPosition, Mathf.Max(0.01f, jumpPower), 1, duration).SetEase(Ease.Linear);
+        yield return jumpTween.WaitForCompletion();
+
+        bool shouldAutoDestroy = onImpact == null || onImpact(projectile);
+        if (projectile != null && shouldAutoDestroy)
+        {
+            UnityEngine.Object.Destroy(projectile);
+        }
     }
 }

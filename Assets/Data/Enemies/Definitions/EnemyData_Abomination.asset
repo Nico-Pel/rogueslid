@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f961b7511061d47efb4c1a0faa5f8b6f, type: 3}
+  m_Name: EnemyData_Abomination
+  m_EditorClassIdentifier: 
+  enemyName: Abomination
+  specialInfo: The goblin is a classic enemy.
+  portrait: {fileID: 21300000, guid: b907bc2b1138d481f94b316075156b9a, type: 3}
+  maxHealth: 10
+  force: 3
+  resistance: 0
+  mobility: 3
+  attackPattern: 0
+  attackRange: 1
+  damageSoundType: 1
+  directVision: 1
+  requireAlignedShot: 0
+  allowPerfectDiagonalShot: 0
+  hasMaxRange: 1
+  ignoreObstacles: 0
+  attackAlways: 0
+  flee: 0
+  maxFleeTurns: 2
+  attackFirst: 0
+  fleeAfterAttacking: 0
+  fleeThresholdPercent: 0
+  fearFxPrefab: {fileID: 0}
+  fearBodyWiggleStrength: 0
+  ignoreObstaclesForMovement: 0
+  canEndTurnOnObstacle: 0
+  advanceTowardsCharacterWhenAlreadyInRange: 0
+  attackDamageDelay: 0.2
+  multiplyAttackDamageDelayByDistance: 0
+  lookAtTargetWhenAttacking: 1
+  optionalActionType: 0
+  optionalHealAmount: 4
+  moveDuration: 0.16
+  projectileTravelHeight: 0.5
+  projectileTravelSpeed: 10
+  useFlyAnimationOnObstacle: 0
+  immuneToFire: 0
+  showAttack: 1
+  attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  showHealth: 1
+  showResistance: 0
+  showMobility: 1
+  showRegen: 0
+  regenPerTurn: 0
+  showSpecial: 0
+  specialStatSprite: {fileID: 0}
+  specialStatValue: 

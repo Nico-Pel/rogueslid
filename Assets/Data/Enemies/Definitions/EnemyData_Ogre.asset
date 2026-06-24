@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enemyName: Ogre
   specialInfo: Slow, sturdy, and devastating up close.
-  portrait: {fileID: 21300000, guid: e0ac4663c5ff245bc9e2eea5f552e21a, type: 3}
+  portrait: {fileID: 21300000, guid: 6bf58b72737bd40bfbf4cc636efdda95, type: 3}
   maxHealth: 22
   force: 5
   resistance: 0
@@ -31,7 +31,10 @@ MonoBehaviour:
   flee: 0
   maxFleeTurns: 2
   attackFirst: 0
+  fleeAfterAttacking: 0
   fleeThresholdPercent: 0
+  fearFxPrefab: {fileID: 0}
+  fearBodyWiggleStrength: 0
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0

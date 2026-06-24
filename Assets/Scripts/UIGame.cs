@@ -2918,6 +2918,16 @@ public class UIGame : MonoBehaviour
                 return $"Increase Royal Dagger damage by {2 * stacks}.";
             case AbilityUpgradeKey.RoyalDaggerRoyalBlessing:
                 return $"Pandora recovers {2 * stacks} health when she kills an enemy with Royal Dagger.";
+            case AbilityUpgradeKey.SacredCrossbowLightBolt:
+                return $"Sacred Crossbow gains +{stacks} damage for each target it has already pierced.";
+            case AbilityUpgradeKey.RainOfBoltsIronBolts:
+                return $"Increase Rain of Bolts damage by {stacks}.";
+            case AbilityUpgradeKey.RainOfBoltsCloudySky:
+                return $"Increase Rain of Bolts radius by {stacks}.";
+            case AbilityUpgradeKey.RainOfBoltsLostBolt:
+                return $"Add {2 * stacks} extra random bolts outside Rain of Bolts' initial area.";
+            case AbilityUpgradeKey.WolfStepQuickSteps:
+                return $"Wolf Step grants {2 + stacks} movement-free steps.";
             default:
                 return upgradeDefinition.RewardDescription.Replace("(Stackable).", string.Empty).Replace("(Cumulable).", string.Empty).Trim();
         }

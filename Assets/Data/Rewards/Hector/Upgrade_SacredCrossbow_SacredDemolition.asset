@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6f433c87d304e2b86d08a3347f75003, type: 3}
+  m_Name: Upgrade_SacredCrossbow_SacredDemolition
+  m_EditorClassIdentifier: 
+  rewardId: upgrade_sacred_crossbow_sacred_demolition
+  rewardTitle: Sacred Demolition
+  rewardDescription: When Sacred Crossbow pierces a blocking obstacle, enemies around it take damage. This also works on barrels unless Light Burst is unlocked.
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: 9dbe4a6a1c6e4ff5b8c24f64d7b90a01, type: 2}
+  upgradeKey: 70
+  stackable: 0
+  maxStacks: 0
