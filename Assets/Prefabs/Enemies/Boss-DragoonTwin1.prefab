@@ -1494,7 +1494,7 @@ PrefabInstance:
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: projectilePrefab
       value: 
-      objectReference: {fileID: 147436, guid: 3b671081e44be1c4aa4355e8ba6e8a5e, type: 3}
+      objectReference: {fileID: 2886722342013579573, guid: c33ac634d013c4ccb9d9f2bb19856924, type: 3}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackDamageDelay
       value: 0.2

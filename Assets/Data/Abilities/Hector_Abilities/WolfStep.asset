@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: WolfStep
   m_EditorClassIdentifier: 
   abilityName: Wolf Step
-  icon: {fileID: -306928396, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  icon: {fileID: 1607689151, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   category: 1
-  attackAnimationClip: {fileID: 7400000, guid: 18dad6e93cbaa44d1a072d99662470e8, type: 2}
+  attackAnimationClip: {fileID: 7400000, guid: f8bd8d0c56d5b43bb9dd1b688791662e, type: 2}
   linkedUpgradeRewards:
   - {fileID: 11400000, guid: f0915de024c04eb79fc2516a86d1f129, type: 2}
   - {fileID: 11400000, guid: 0a26ef1135d94c14b1c3627b97e2a130, type: 2}

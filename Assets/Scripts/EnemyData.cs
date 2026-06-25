@@ -1,5 +1,18 @@
 using UnityEngine;
 
+public enum EnemySpecialBehavior
+{
+    None,
+    SnakePoisonOpener,
+    WolfPounce,
+    BoarCharge,
+    GiantWormTunnelBoss,
+    TrollShockwaveBoss,
+    RagnarWarboss,
+    RagnarOgreMinion,
+    DragoonTwinBoss
+}
+
 [CreateAssetMenu(fileName = "EnemyData", menuName = "RogueSliders/Enemies/Enemy Data")]
 public class EnemyData : ScriptableObject
 {
@@ -56,8 +69,39 @@ public class EnemyData : ScriptableObject
     [SerializeField] private float projectileTravelHeight = 0.5f;
     [Min(0f)]
     [SerializeField] private float projectileTravelSpeed = 10f;
+    [Min(0f)]
+    [SerializeField] private float projectileSpawnDelay;
     [SerializeField] private bool useFlyAnimationOnObstacle;
     [SerializeField] private bool immuneToFire;
+
+    [Header("Special Behaviour")]
+    [SerializeField] private EnemySpecialBehavior specialBehavior;
+    [Min(0)]
+    [SerializeField] private int specialDamage = 1;
+    [Min(0f)]
+    [SerializeField] private float specialWindupDuration = 0.35f;
+    [Min(0f)]
+    [SerializeField] private float specialStartDelay = 0f;
+    [Min(0f)]
+    [SerializeField] private float specialJumpDuration = 0.35f;
+    [Min(0f)]
+    [SerializeField] private float specialJumpPower = 0.75f;
+    [Min(0f)]
+    [SerializeField] private float specialRecoveryDelay = 0.25f;
+    [Min(0)]
+    [SerializeField] private int specialMinimumDistance = 3;
+    [Min(1)]
+    [SerializeField] private int specialLandingDistance = 2;
+    [Min(0f)]
+    [SerializeField] private float specialImpactShakeRatio = 0.2f;
+    [Min(0f)]
+    [SerializeField] private float specialPerDistanceDelay = 0.05f;
+    [Min(0f)]
+    [SerializeField] private float specialBumpHeight = 0.12f;
+    [Min(0f)]
+    [SerializeField] private float specialBumpDurationPerDistance = 0.08f;
+    [SerializeField] private GameObject specialSelfBuffFxPrefab;
+    [SerializeField] private GameObject specialCompanionPrefab;
 
     [Header("Displayed Stats")]
     [SerializeField] private bool showAttack = true;
@@ -106,8 +150,24 @@ public class EnemyData : ScriptableObject
     public float MoveDuration => Mathf.Max(0f, moveDuration);
     public float ProjectileTravelHeight => Mathf.Max(0f, projectileTravelHeight);
     public float ProjectileTravelSpeed => Mathf.Max(0f, projectileTravelSpeed);
+    public float ProjectileSpawnDelay => Mathf.Max(0f, projectileSpawnDelay);
     public bool UseFlyAnimationOnObstacle => useFlyAnimationOnObstacle;
     public bool ImmuneToFire => immuneToFire;
+    public EnemySpecialBehavior SpecialBehavior => specialBehavior;
+    public int SpecialDamage => Mathf.Max(0, specialDamage);
+    public float SpecialWindupDuration => Mathf.Max(0f, specialWindupDuration);
+    public float SpecialStartDelay => Mathf.Max(0f, specialStartDelay);
+    public float SpecialJumpDuration => Mathf.Max(0f, specialJumpDuration);
+    public float SpecialJumpPower => Mathf.Max(0f, specialJumpPower);
+    public float SpecialRecoveryDelay => Mathf.Max(0f, specialRecoveryDelay);
+    public int SpecialMinimumDistance => Mathf.Max(0, specialMinimumDistance);
+    public int SpecialLandingDistance => Mathf.Max(1, specialLandingDistance);
+    public float SpecialImpactShakeRatio => Mathf.Max(0f, specialImpactShakeRatio);
+    public float SpecialPerDistanceDelay => Mathf.Max(0f, specialPerDistanceDelay);
+    public float SpecialBumpHeight => Mathf.Max(0f, specialBumpHeight);
+    public float SpecialBumpDurationPerDistance => Mathf.Max(0f, specialBumpDurationPerDistance);
+    public GameObject SpecialSelfBuffFxPrefab => specialSelfBuffFxPrefab;
+    public GameObject SpecialCompanionPrefab => specialCompanionPrefab;
     public bool ShowAttack => showAttack;
     public Sprite AttackSprite => attackSprite;
     public bool ShowHealth => showHealth;

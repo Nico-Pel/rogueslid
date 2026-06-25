@@ -43,37 +43,28 @@ MonoBehaviour:
   - {fileID: 1115597412672182893, guid: 46733ea7a4f90408fa2dc24a9d5136f4, type: 3}
   enemyPoolsByArenaCount:
   - pools:
-    - {fileID: 11400000, guid: 4eee32db599e45ed9642a665f59ffe73, type: 2}
-    - {fileID: 11400000, guid: b32754482b904ad8868655acbc7123df, type: 2}
+    - {fileID: 11400000, guid: 1c13d2bd0c41544f49283967364bd47c, type: 2}
+    - {fileID: 11400000, guid: 7ce05f00db4314d48b97fde4bf077565, type: 2}
+    - {fileID: 11400000, guid: 5a5381e0b21f0476ab987e159b288daf, type: 2}
+    - {fileID: 11400000, guid: 75461dcea53de48559585d7f58c17e2c, type: 2}
+    - {fileID: 11400000, guid: 5cbd53225b8034815a058fbcc7e1fc0c, type: 2}
     minArenaCount: 1
-    maxArenaCount: 1
-  - pools:
-    - {fileID: 11400000, guid: d0fe480256104e8395eb8127c94e94be, type: 2}
-    - {fileID: 11400000, guid: bf05ef2fcdc34a61950d13208e0ea994, type: 2}
-    - {fileID: 11400000, guid: 959ff7254cd8445a8432fad8f5ee5398, type: 2}
-    - {fileID: 11400000, guid: 74638361c3ac4f4c91c3b9b6f4e6165b, type: 2}
-    minArenaCount: 2
     maxArenaCount: 4
   - pools:
-    - {fileID: 11400000, guid: dd91250aba2734d1a9fd8284e0eed864, type: 2}
-    - {fileID: 11400000, guid: 4b28585239e5f47bba6f06bf1b018da6, type: 2}
-    - {fileID: 11400000, guid: e52505bb079634583a7a486ecba83ebb, type: 2}
-    - {fileID: 11400000, guid: 7e3cea25a8d6740389cf9ce26ad9b6e5, type: 2}
-    - {fileID: 11400000, guid: 95a490c0c2adb49b19316b0083cec10f, type: 2}
-    - {fileID: 11400000, guid: 34a560534c7ac40b5801937a6dd89278, type: 2}
+    - {fileID: 11400000, guid: 62b99f26c1a15480bb7587beb37585a2, type: 2}
+    - {fileID: 11400000, guid: e4e90e6d9bfac4372ad1bf38727738cb, type: 2}
+    - {fileID: 11400000, guid: 7cc888505298b4b9daf27127f2ebe106, type: 2}
+    - {fileID: 11400000, guid: 36dd74dccb3e54c5885f1fbcdf0d198a, type: 2}
     minArenaCount: 5
     maxArenaCount: 6
   - pools:
-    - {fileID: 11400000, guid: 29bd9bb23feca493aa7dac5529f45bec, type: 2}
-    - {fileID: 11400000, guid: a518e54b82328454fada50bf06c4fd7f, type: 2}
-    - {fileID: 11400000, guid: 75a3a377769d740eab00cd947472f05b, type: 2}
-    - {fileID: 11400000, guid: 4ec4de59d11c346d2a3a2034e5d1ed9b, type: 2}
-    - {fileID: 11400000, guid: f31344e0514574d888f54f099a376a37, type: 2}
-    - {fileID: 11400000, guid: ecdcb2a9a31e7431f857ef8c907ea960, type: 2}
+    - {fileID: 11400000, guid: dbd12999adb444d0ba5cd271ccd97819, type: 2}
+    - {fileID: 11400000, guid: 195fc8369db37428db2a2c6c0e17191f, type: 2}
+    - {fileID: 11400000, guid: 12ecf5d5f5dc64af1b517f32d32e2649, type: 2}
     minArenaCount: 7
     maxArenaCount: 9
   - pools:
-    - {fileID: 11400000, guid: de918da9dc1f044a392fc3ffde3f7cfa, type: 2}
+    - {fileID: 11400000, guid: 18030c22df28a4b71aec5ebcb9628366, type: 2}
     minArenaCount: 10
     maxArenaCount: 10
   spawnableEnemies:

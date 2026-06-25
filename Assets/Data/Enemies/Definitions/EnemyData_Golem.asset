@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: EnemyData_Golem
   m_EditorClassIdentifier: 
   enemyName: Golem
-  specialInfo: The goblin is a classic enemy.
+  specialInfo: The golem has very high damage resistance.
   portrait: {fileID: 21300000, guid: d3e23654a62ae45a1b6857387e4620e0, type: 3}
-  maxHealth: 22
-  force: 3
-  resistance: 0
-  mobility: 4
+  maxHealth: 15
+  force: 5
+  resistance: 10
+  mobility: 3
   attackPattern: 0
   attackRange: 1
-  damageSoundType: 1
+  damageSoundType: 0
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0

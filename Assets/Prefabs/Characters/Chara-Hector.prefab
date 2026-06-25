@@ -1606,7 +1606,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: basicAttackVisuals.Array.size
-      value: 3
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: startingAbilities.Array.data[1]
@@ -1631,7 +1631,7 @@ PrefabInstance:
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: basicAttackVisuals.Array.data[3].basicAttackAbility
       value: 
-      objectReference: {fileID: 11400000, guid: 21ebb8d225ab94d4198d6f11a0dfde9d, type: 2}
+      objectReference: {fileID: 11400000, guid: 9dbe4a6a1c6e4ff5b8c24f64d7b90a01, type: 2}
     - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: basicAttackVisuals.Array.data[0].visualRoots.Array.size
       value: 1
@@ -1660,6 +1660,10 @@ PrefabInstance:
       propertyPath: basicAttackVisuals.Array.data[2].visualRoots.Array.data[0]
       value: 
       objectReference: {fileID: 5028522738681968897}
+    - target: {fileID: -1757522292166093524, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
+      propertyPath: basicAttackVisuals.Array.data[3].visualRoots.Array.data[0]
+      value: 
+      objectReference: {fileID: 3425897589641304949}
     - target: {fileID: 1654653390129865545, guid: 6dd54fdc908584cb69f6a999f5c1bd59, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

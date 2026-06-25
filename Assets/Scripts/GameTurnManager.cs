@@ -140,7 +140,8 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
-        SetCanEndTurn(hasPlayerMovedThisTurn);
+        StopEndTurnUnlockTimer();
+        SetCanEndTurn(true);
     }
 
     public void RestartForNewBoard()
@@ -677,7 +678,7 @@ public class GameTurnManager : MonoBehaviour
         {
             isRewardMenuOpen = false;
             uiGame?.HideYesNoPrompt();
-            BeginPlayerTurn();
+            combatStartSequenceCoroutine = StartCoroutine(BeginPlayerTurnAfterCombatStartActions());
             return;
         }
 
@@ -742,10 +743,25 @@ public class GameTurnManager : MonoBehaviour
         }
 
         activeCombatStartPrompt = null;
-        combatStartSequenceCoroutine = null;
         isRewardMenuOpen = false;
         uiGame?.HideYesNoPrompt();
+        yield return BeginPlayerTurnAfterCombatStartActions();
+        combatStartSequenceCoroutine = null;
+    }
+
+    private IEnumerator BeginPlayerTurnAfterCombatStartActions()
+    {
+        Character currentCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (board != null && currentCharacter != null && board.HasCombatStartEnemyActionsReady())
+        {
+            isEnemyTurnRunning = true;
+            SetCanEndTurn(false);
+            yield return board.ResolveCombatStartEnemyActions(currentCharacter);
+            isEnemyTurnRunning = false;
+        }
+
         BeginPlayerTurn();
+        combatStartSequenceCoroutine = null;
     }
 
     private void HandleCombatStartPromptAccepted()
@@ -967,7 +983,7 @@ public class GameTurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(endTurnLockDuration);
         endTurnUnlockCoroutine = null;
-        SetCanEndTurn(CurrentTurn == TurnSide.Player && hasPlayerMovedThisTurn);
+        SetCanEndTurn(CurrentTurn == TurnSide.Player);
     }
 
     private void SetCanEndTurn(bool value)
@@ -1079,7 +1095,7 @@ public class GameTurnManager : MonoBehaviour
             yield return new WaitUntil(() => !isRewardMenuOpen);
         }
 
-        bool shouldAllowEndTurn = CurrentTurn == TurnSide.Player && hasPlayerMovedThisTurn;
+        bool shouldAllowEndTurn = CurrentTurn == TurnSide.Player;
         SetCanEndTurn(shouldAllowEndTurn);
         soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
         debugRewardSequenceCoroutine = null;

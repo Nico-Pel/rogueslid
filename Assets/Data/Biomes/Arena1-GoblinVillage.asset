@@ -74,6 +74,8 @@ MonoBehaviour:
     maxArenaCount: 9
   - pools:
     - {fileID: 11400000, guid: de918da9dc1f044a392fc3ffde3f7cfa, type: 2}
+    - {fileID: 11400000, guid: 6cad2db59924b404391a02e1aec9901d, type: 2}
+    - {fileID: 11400000, guid: cdaa13038e7ba49878bcce198383c374, type: 2}
     minArenaCount: 10
     maxArenaCount: 10
   spawnableEnemies:

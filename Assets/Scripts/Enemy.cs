@@ -29,6 +29,13 @@ public class Enemy : MonoBehaviour
         public bool IsValid => Path != null && Path.Count > 0;
     }
 
+    private enum GiantWormAttackMode
+    {
+        None,
+        Adjacent,
+        Ranged
+    }
+
     [Header("Data")]
     [SerializeField] private EnemyData enemyData;
 
@@ -78,6 +85,7 @@ public class Enemy : MonoBehaviour
     [ReadOnly] [SerializeField] private float attackDamageDelay = 0.2f;
     [ReadOnly] [SerializeField] private bool multiplyAttackDamageDelayByDistance;
     [ReadOnly] [SerializeField] private bool lookAtTargetWhenAttacking;
+    [ReadOnly] [SerializeField] private int regenPerTurn;
     [ReadOnly] [SerializeField] private EnemyOptionalActionType optionalActionType;
     [ReadOnly] [SerializeField] private int optionalHealAmount = 4;
 
@@ -97,6 +105,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private Transform projectileSpawnPos;
     [ReadOnly] [SerializeField] private float projectileTravelHeight = 0.5f;
     [ReadOnly] [SerializeField] private float projectileTravelSpeed = 10f;
+    [ReadOnly] [SerializeField] private float projectileSpawnDelay;
 
     [Header("Animation")]
     [SerializeField] private Transform enemyBody;
@@ -117,6 +126,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private Vector3 optionalActionTargetFxOffset;
     [SerializeField] private float optionalActionTargetFxDelay;
     [SerializeField] private float optionalActionFxLifetime = 1f;
+    [SerializeField] private GameObject wormHolePrefab;
+    [SerializeField] private GameObject selfPowerUpFxPrefab;
 
     private Tween moveTween;
     private Tween bodySpawnScaleTween;
@@ -153,12 +164,35 @@ public class Enemy : MonoBehaviour
     private Enemy linkedSummoner;
     private bool isInFearState;
     private Coroutine pendingFearFeedbackCoroutine;
+    private EnemySpecialBehavior specialBehavior;
+    private int specialDamage;
+    private float specialWindupDuration;
+    private float specialStartDelay;
+    private float specialJumpDuration;
+    private float specialJumpPower;
+    private float specialRecoveryDelay;
+    private int specialMinimumDistance;
+    private int specialLandingDistance;
+    private float specialImpactShakeRatio;
+    private float specialPerDistanceDelay;
+    private float specialBumpHeight;
+    private float specialBumpDurationPerDistance;
+    private bool combatStartActionUsed;
+    private readonly Dictionary<Vector2Int, GameObject> wormTunnelInstances = new Dictionary<Vector2Int, GameObject>();
+    private bool lockWormRootPosition;
+    private Vector2Int lockedWormRootCell;
+    private readonly List<Vector2Int> extraOccupiedCells = new List<Vector2Int>();
+    private int trollAttackBonusDamage;
+    private int mobilityBonusFromSpecials;
+    private bool hasFlyingAnimationOverride;
+    private bool flyingAnimationOverrideValue;
+    private bool dragoonTwinAttackSuppressed;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
     public int Force => force;
-    public int EffectiveForce => Mathf.Max(0, force + forceModifierFromStatuses);
-    public int Mobility => mobility;
+    public int EffectiveForce => Mathf.Max(0, force + forceModifierFromStatuses + trollAttackBonusDamage);
+    public int Mobility => Mathf.Max(0, mobility + mobilityBonusFromSpecials);
     public int CurrentHealth => currentHealth;
     public int Resistance => resistance;
     public bool IsImmuneToFire => enemyData != null && enemyData.ImmuneToFire;
@@ -176,6 +210,8 @@ public class Enemy : MonoBehaviour
         : GetFallbackDisplayName();
     public Sprite EnemyPortrait => enemyData != null ? enemyData.Portrait : null;
     public string EnemySpecialInfo => enemyData != null ? enemyData.SpecialInfo : "The goblin is a classic enemy.";
+    public EnemySpecialBehavior SpecialBehavior => specialBehavior;
+    public GameObject SpecialCompanionPrefab => enemyData != null ? enemyData.SpecialCompanionPrefab : null;
 
     private int pendingMobilityPenalty;
     private static readonly int RimGlowColorId = Shader.PropertyToID("_RimGlowColor");
@@ -221,13 +257,33 @@ public class Enemy : MonoBehaviour
         attackDamageDelay = enemyData.AttackDamageDelay;
         multiplyAttackDamageDelayByDistance = enemyData.MultiplyAttackDamageDelayByDistance;
         lookAtTargetWhenAttacking = enemyData.LookAtTargetWhenAttacking;
+        regenPerTurn = enemyData.RegenPerTurn;
         optionalActionType = enemyData.OptionalActionType;
         optionalHealAmount = enemyData.OptionalHealAmount;
         mobility = enemyData.Mobility;
         moveDuration = enemyData.MoveDuration;
         projectileTravelHeight = enemyData.ProjectileTravelHeight;
         projectileTravelSpeed = enemyData.ProjectileTravelSpeed;
+        projectileSpawnDelay = enemyData.ProjectileSpawnDelay;
         useFlyAnimationOnObstacle = enemyData.UseFlyAnimationOnObstacle;
+        specialBehavior = enemyData.SpecialBehavior;
+        specialDamage = enemyData.SpecialDamage;
+        specialWindupDuration = enemyData.SpecialWindupDuration;
+        specialStartDelay = enemyData.SpecialStartDelay;
+        specialJumpDuration = enemyData.SpecialJumpDuration;
+        specialJumpPower = enemyData.SpecialJumpPower;
+        specialRecoveryDelay = enemyData.SpecialRecoveryDelay;
+        specialMinimumDistance = enemyData.SpecialMinimumDistance;
+        specialLandingDistance = enemyData.SpecialLandingDistance;
+        specialImpactShakeRatio = enemyData.SpecialImpactShakeRatio;
+        specialPerDistanceDelay = enemyData.SpecialPerDistanceDelay;
+        specialBumpHeight = enemyData.SpecialBumpHeight;
+        specialBumpDurationPerDistance = enemyData.SpecialBumpDurationPerDistance;
+        if (enemyData.SpecialSelfBuffFxPrefab != null)
+        {
+            selfPowerUpFxPrefab = enemyData.SpecialSelfBuffFxPrefab;
+        }
+
         dragoonRiderData = enemyData as DragoonRiderEnemyData;
         lichData = enemyData as LichEnemyData;
         if (dragoonRiderData != null && dragoonRiderData.AttackSourceClip != null)
@@ -270,6 +326,26 @@ public class Enemy : MonoBehaviour
         combatTurnCount = 0;
         linkedSummoner = null;
         isInFearState = false;
+        combatStartActionUsed = false;
+        trollAttackBonusDamage = 0;
+        mobilityBonusFromSpecials = 0;
+        dragoonTwinAttackSuppressed = false;
+        hasFlyingAnimationOverride = false;
+        flyingAnimationOverrideValue = false;
+        ReleaseExtraOccupiedCells();
+        ClearWormTunnels();
+        if (specialBehavior == EnemySpecialBehavior.GiantWormTunnelBoss)
+        {
+            EnsureWormTunnelAt(gridPosition);
+        }
+        else if (specialBehavior == EnemySpecialBehavior.TrollShockwaveBoss)
+        {
+            ClaimTrollOccupiedCells();
+        }
+        else if (specialBehavior == EnemySpecialBehavior.DragoonTwinBoss)
+        {
+            SetFlyingOverride(true);
+        }
         RefreshStatusVisuals();
         RefreshFlyingAnimationState();
         PlayBodySpawnTween();
@@ -278,6 +354,57 @@ public class Enemy : MonoBehaviour
     public void SetLinkedSummoner(Enemy summoner)
     {
         linkedSummoner = summoner;
+    }
+
+    public void HandleLinkedSummonEliminated(Enemy summon)
+    {
+        if (summon == null || isDying || currentHealth <= 0)
+        {
+            return;
+        }
+
+        if (specialBehavior == EnemySpecialBehavior.RagnarWarboss
+            && summon.SpecialBehavior == EnemySpecialBehavior.RagnarOgreMinion)
+        {
+            mobilityBonusFromSpecials++;
+            StartCoroutine(PlayRagnarOgreDeathBuffFeedback());
+        }
+    }
+
+    public bool HasCombatStartActionReady()
+    {
+        return specialBehavior == EnemySpecialBehavior.SnakePoisonOpener
+            && !combatStartActionUsed
+            && currentHealth > 0
+            && !isDying;
+    }
+
+    public IEnumerator ExecuteCombatStartAction(Character target)
+    {
+        if (!HasCombatStartActionReady() || target == null)
+        {
+            yield break;
+        }
+
+        combatStartActionUsed = true;
+        if (specialStartDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialStartDelay);
+        }
+
+        FaceTargetForAttack(target);
+        TriggerOptionalActionAnimation();
+        if (projectilePrefab != null)
+        {
+            yield return FireJumpProjectileAt(target, specialJumpDuration, specialJumpPower);
+        }
+        else if (specialWindupDuration > 0f)
+        {
+            yield return new WaitForSeconds(specialWindupDuration);
+        }
+
+        target.ApplyPoisoned();
+        yield return new WaitForSeconds(0.08f);
     }
 
     public void SetDeathMarkActive(bool isActive)
@@ -291,7 +418,7 @@ public class Enemy : MonoBehaviour
         ClearDeathMarkFx();
     }
 
-    public int TakeDamage(int incomingDamage, DamageSoundType hitSoundType = DamageSoundType.Default)
+    public int TakeDamage(int incomingDamage, DamageSoundType hitSoundType = DamageSoundType.Default, bool wasAbilityDamage = false)
     {
         if (isDying)
         {
@@ -311,6 +438,12 @@ public class Enemy : MonoBehaviour
         if (!wasEligibleForFear && isNowEligibleForFear)
         {
             ScheduleFearFeedback();
+        }
+
+        if (wasAbilityDamage && finalDamage > 0 && specialBehavior == EnemySpecialBehavior.DragoonTwinBoss)
+        {
+            dragoonTwinAttackSuppressed = true;
+            SetFlyingOverride(false);
         }
 
         if (currentHealth <= 0)
@@ -443,12 +576,43 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
-        int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
+        int effectiveMobility = Mathf.Max(0, Mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
         yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
         {
+            yield break;
+        }
+
+        if (specialBehavior == EnemySpecialBehavior.GiantWormTunnelBoss)
+        {
+            yield return ExecuteGiantWormTurn(target);
+            yield return PerformEndOfTurnRegen();
+            yield break;
+        }
+
+        if (specialBehavior == EnemySpecialBehavior.TrollShockwaveBoss)
+        {
+            yield return ExecuteTrollShockwaveTurn(target);
+            yield return PerformEndOfTurnRegen();
+            yield break;
+        }
+
+        if (specialBehavior == EnemySpecialBehavior.DragoonTwinBoss)
+        {
+            yield return ExecuteDragoonTwinTurn(target);
+            yield return PerformEndOfTurnRegen();
+            yield break;
+        }
+
+        if (specialBehavior == EnemySpecialBehavior.WolfPounce)
+        {
+            yield return TryExecuteWolfPounce(target);
+        }
+        else if (specialBehavior == EnemySpecialBehavior.BoarCharge && CanExecuteBoarCharge(target))
+        {
+            yield return ExecuteBoarCharge(target);
             yield break;
         }
 
@@ -476,6 +640,7 @@ public class Enemy : MonoBehaviour
                 if (fleeAfterAttacking)
                 {
                     yield return ExecutePostAttackFlee(target, effectiveMobility);
+                    yield return PerformEndOfTurnRegen();
                     yield break;
                 }
             }
@@ -509,6 +674,12 @@ public class Enemy : MonoBehaviour
             }
 
             yield return WaitForMovementStepResolution();
+
+            if (specialBehavior == EnemySpecialBehavior.BoarCharge && CanExecuteBoarCharge(target))
+            {
+                yield return ExecuteBoarCharge(target);
+                yield break;
+            }
         }
 
         if (!attackFirst)
@@ -519,6 +690,7 @@ public class Enemy : MonoBehaviour
                 if (fleeAfterAttacking)
                 {
                     yield return ExecutePostAttackFlee(target, effectiveMobility);
+                    yield return PerformEndOfTurnRegen();
                     yield break;
                 }
             }
@@ -536,6 +708,8 @@ public class Enemy : MonoBehaviour
         {
             consecutiveFleeTurns = 0;
         }
+
+        yield return PerformEndOfTurnRegen();
     }
 
     private IEnumerator ExecuteLichTurn(Character target)
@@ -545,7 +719,7 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
-        int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
+        int effectiveMobility = Mathf.Max(0, Mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
         yield return ProcessStartOfTurnStatusEffects();
@@ -666,6 +840,23 @@ public class Enemy : MonoBehaviour
 
             yield return WaitForMovementStepResolution();
         }
+    }
+
+    private IEnumerator PerformEndOfTurnRegen()
+    {
+        if (regenPerTurn <= 0 || isDying || currentHealth <= 0)
+        {
+            yield break;
+        }
+
+        int healedAmount = Heal(regenPerTurn);
+        if (healedAmount <= 0)
+        {
+            yield break;
+        }
+
+        SoundManager.Instance?.PlayHeal(EffectAnchor.position);
+        yield return new WaitForSeconds(0.08f);
     }
 
     public void BeginMovementInterrupt()
@@ -994,11 +1185,22 @@ public class Enemy : MonoBehaviour
             StopCoroutine(pendingFearFeedbackCoroutine);
             pendingFearFeedbackCoroutine = null;
         }
+        lockWormRootPosition = false;
         IsMoving = false;
         SetFlyingAnimation(false);
         RefreshCanvasHeight(false);
         ClearMistyConfusion();
         ClearDeathMarkFx();
+    }
+
+    private void LateUpdate()
+    {
+        if (!lockWormRootPosition || specialBehavior != EnemySpecialBehavior.GiantWormTunnelBoss || Board == null)
+        {
+            return;
+        }
+
+        transform.position = Board.GridToWorldPosition(lockedWormRootCell) + Vector3.up * spawnHeight;
     }
 
     private void CacheHpBar()
@@ -2243,6 +2445,15 @@ public class Enemy : MonoBehaviour
             return;
         }
 
+        if (hasFlyingAnimationOverride)
+        {
+            SetFlyingAnimation(flyingAnimationOverrideValue);
+            bool shouldRaiseCanvas = flyingAnimationOverrideValue
+                && specialBehavior != EnemySpecialBehavior.DragoonTwinBoss;
+            RefreshCanvasHeight(shouldRaiseCanvas);
+            return;
+        }
+
         bool isOnObstacle = currentCell.HasBlockingTerrain;
         SetFlyingAnimation(useFlyAnimationOnObstacle && isOnObstacle);
         RefreshCanvasHeight(isOnObstacle);
@@ -2258,6 +2469,15 @@ public class Enemy : MonoBehaviour
 
         enemyAnimator.speed = 1f;
         enemyAnimator.SetBool(flyingBoolParameter, isFlying);
+    }
+
+    private void SetFlyingOverride(bool isFlying)
+    {
+        hasFlyingAnimationOverride = true;
+        flyingAnimationOverrideValue = isFlying;
+        SetFlyingAnimation(isFlying);
+        bool shouldRaiseCanvas = isFlying && specialBehavior != EnemySpecialBehavior.DragoonTwinBoss;
+        RefreshCanvasHeight(shouldRaiseCanvas);
     }
 
     private void ClearAnimationTriggers()
@@ -2458,7 +2678,7 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
-        int effectiveMobility = Mathf.Max(0, mobility - pendingMobilityPenalty);
+        int effectiveMobility = Mathf.Max(0, Mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
 
         yield return ProcessStartOfTurnStatusEffects();
@@ -3250,9 +3470,14 @@ public class Enemy : MonoBehaviour
 
     private IEnumerator FireProjectileAt(Character target, Transform launchAnchor = null, bool playArrowShotSound = true)
     {
-        if (target == null)
+        if (target == null || projectilePrefab == null)
         {
             yield break;
+        }
+
+        if (projectileSpawnDelay > 0f)
+        {
+            yield return new WaitForSeconds(projectileSpawnDelay);
         }
 
         Transform resolvedLaunchAnchor = launchAnchor != null ? launchAnchor : projectileSpawnPos;
@@ -3278,6 +3503,1064 @@ public class Enemy : MonoBehaviour
         yield return projectileTween.WaitForCompletion();
 
         Destroy(projectile);
+    }
+
+    private IEnumerator FireJumpProjectileAt(Character target, float duration, float jumpPower)
+    {
+        if (target == null || projectilePrefab == null)
+        {
+            if (specialWindupDuration > 0f)
+            {
+                yield return new WaitForSeconds(specialWindupDuration);
+            }
+
+            yield break;
+        }
+
+        if (specialWindupDuration > 0f)
+        {
+            yield return new WaitForSeconds(specialWindupDuration);
+        }
+
+        Transform resolvedLaunchAnchor = projectileSpawnPos != null ? projectileSpawnPos : EffectAnchor;
+        Vector3 launchPosition = resolvedLaunchAnchor != null
+            ? resolvedLaunchAnchor.position
+            : transform.position + Vector3.up * 0.5f;
+        SoundManager.Instance?.PlayArrowShot(launchPosition);
+
+        Vector3 targetPosition = target.transform.position + Vector3.up * projectileTravelHeight;
+        GameObject projectile = Instantiate(projectilePrefab, launchPosition, Quaternion.identity);
+        projectile.transform.localScale = projectilePrefab.transform.localScale;
+
+        Vector3 direction = targetPosition - launchPosition;
+        if (direction.sqrMagnitude > 0.0001f)
+        {
+            projectile.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        }
+
+        Tween jumpTween = projectile.transform.DOJump(
+            targetPosition,
+            Mathf.Max(0.01f, jumpPower),
+            1,
+            Mathf.Max(0.01f, duration));
+        yield return jumpTween.WaitForCompletion();
+
+        Destroy(projectile);
+    }
+
+    private IEnumerator TryExecuteWolfPounce(Character target)
+    {
+        if (target == null || Board == null)
+        {
+            yield break;
+        }
+
+        int currentPathDistance = GetPathDistanceForCurrentMovementRules(gridPosition, target.GridPosition, true);
+        if (currentPathDistance <= 2 || currentPathDistance == int.MaxValue)
+        {
+            yield break;
+        }
+
+        if (!TryFindBestWolfPounceDestination(target, out Vector2Int destination))
+        {
+            yield break;
+        }
+
+        FaceMovementDirection(destination - gridPosition);
+        TriggerOptionalActionAnimation();
+        if (specialWindupDuration > 0f)
+        {
+            yield return new WaitForSeconds(specialWindupDuration);
+        }
+
+        yield return JumpToCell(destination, specialJumpDuration, specialJumpPower);
+        if (specialRecoveryDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialRecoveryDelay);
+        }
+    }
+
+    private bool TryFindBestWolfPounceDestination(Character target, out Vector2Int destination)
+    {
+        destination = gridPosition;
+        if (target == null || Board == null)
+        {
+            return false;
+        }
+
+        int currentPathDistance = GetPathDistanceForCurrentMovementRules(gridPosition, target.GridPosition, true);
+        bool found = false;
+        int bestDistanceToTarget = int.MaxValue;
+        int bestManhattanDistanceToTarget = int.MaxValue;
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (candidateCell == gridPosition)
+                {
+                    continue;
+                }
+
+                if (!Board.TryGetCell(candidateCell, out BoardCell cell) || !CanEndMovementOnCell(cell))
+                {
+                    continue;
+                }
+
+                int jumpDistanceFromWolf = Board.GetManhattanDistance(gridPosition, candidateCell);
+                if (jumpDistanceFromWolf != specialLandingDistance)
+                {
+                    continue;
+                }
+
+                int candidateDistanceToTarget = GetPathDistanceForCurrentMovementRules(candidateCell, target.GridPosition, true);
+                if (candidateDistanceToTarget == int.MaxValue || candidateDistanceToTarget >= currentPathDistance)
+                {
+                    continue;
+                }
+
+                int candidateManhattanDistanceToTarget = Board.GetManhattanDistance(candidateCell, target.GridPosition);
+
+                if (!found
+                    || candidateDistanceToTarget < bestDistanceToTarget
+                    || (candidateDistanceToTarget == bestDistanceToTarget
+                        && candidateManhattanDistanceToTarget < bestManhattanDistanceToTarget))
+                {
+                    found = true;
+                    destination = candidateCell;
+                    bestDistanceToTarget = candidateDistanceToTarget;
+                    bestManhattanDistanceToTarget = candidateManhattanDistanceToTarget;
+                }
+            }
+        }
+
+        return found;
+    }
+
+    private bool CanExecuteBoarCharge(Character target)
+    {
+        if (target == null || Board == null)
+        {
+            return false;
+        }
+
+        Vector2Int delta = target.GridPosition - gridPosition;
+        if (!(delta.x == 0 || delta.y == 0))
+        {
+            return false;
+        }
+
+        int distance = Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+        if (distance < Mathf.Max(3, specialMinimumDistance))
+        {
+            return false;
+        }
+
+        Vector2Int direction = new Vector2Int(Mathf.Clamp(delta.x, -1, 1), Mathf.Clamp(delta.y, -1, 1));
+        Vector2Int destination = target.GridPosition - direction;
+        if (!Board.TryGetCell(destination, out BoardCell destinationCell) || !CanEndMovementOnCell(destinationCell))
+        {
+            return false;
+        }
+
+        Vector2Int scan = gridPosition + direction;
+        while (scan != target.GridPosition)
+        {
+            if (!Board.TryGetCell(scan, out BoardCell cell))
+            {
+                return false;
+            }
+
+            if (scan == destination)
+            {
+                if (!CanEndMovementOnCell(cell))
+                {
+                    return false;
+                }
+            }
+            else if (cell.HasBlockingTerrain || cell.IsOccupied)
+            {
+                return false;
+            }
+
+            scan += direction;
+        }
+
+        return true;
+    }
+
+    private IEnumerator ExecuteBoarCharge(Character target)
+    {
+        if (target == null || Board == null)
+        {
+            yield break;
+        }
+
+        Vector2Int delta = target.GridPosition - gridPosition;
+        Vector2Int direction = new Vector2Int(Mathf.Clamp(delta.x, -1, 1), Mathf.Clamp(delta.y, -1, 1));
+        Vector2Int destination = target.GridPosition - direction;
+
+        FaceTargetForAttack(target);
+        TriggerOptionalActionAnimation();
+        if (specialWindupDuration > 0f)
+        {
+            yield return new WaitForSeconds(specialWindupDuration);
+        }
+
+        yield return ChargeToCellAndImpact(target, destination, Mathf.Max(0.01f, specialJumpDuration));
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator ExecuteGiantWormTurn(Character target)
+    {
+        if (Board == null || target == null)
+        {
+            yield break;
+        }
+
+        Vector2Int previousTunnelCell = gridPosition;
+        EnsureWormTunnelAt(previousTunnelCell);
+        if (!TrySelectGiantWormDestination(target, previousTunnelCell, out Vector2Int destination, out GiantWormAttackMode attackMode, out bool createTunnelAtDestination))
+        {
+            yield break;
+        }
+
+        TriggerOptionalActionAnimation();
+        if (specialStartDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialStartDelay);
+        }
+
+        if (specialWindupDuration > 0f)
+        {
+            yield return new WaitForSeconds(specialWindupDuration);
+        }
+
+        RemoveWormOccupancyFromCurrentCell();
+
+        if (createTunnelAtDestination)
+        {
+            EnsureWormTunnelAt(destination);
+        }
+
+        if (destination == previousTunnelCell)
+        {
+            yield break;
+        }
+
+        PlaceWormAtCell(destination);
+        yield return null;
+        TriggerOptionalSecondaryActionAnimation();
+        StartWormPositionLock(destination);
+        FaceMovementDirection(target.GridPosition - destination);
+
+        if (specialRecoveryDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialRecoveryDelay);
+        }
+
+        StopWormPositionLock();
+
+        if (attackMode == GiantWormAttackMode.Adjacent && IsRadiallyAdjacentToTarget(target))
+        {
+            yield return PerformGiantWormAdjacentAttack(target);
+        }
+        else if (attackMode == GiantWormAttackMode.Ranged && CanGiantWormShootTarget(target))
+        {
+            yield return PerformGiantWormRangedAttack(target);
+        }
+    }
+
+    private IEnumerator ExecuteTrollShockwaveTurn(Character target)
+    {
+        if (Board == null || target == null)
+        {
+            yield break;
+        }
+
+        TriggerAttackAnimation();
+        if (specialStartDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialStartDelay);
+        }
+
+        if (specialImpactShakeRatio > 0f)
+        {
+            cam.Instance?.Shake(specialImpactShakeRatio);
+        }
+
+        StartCoroutine(ApplyTrollShockwaveToBarrels());
+
+        int distanceFromTroll = GetChebyshevDistance(gridPosition, target.GridPosition);
+        float impactDelay = Mathf.Max(0f, attackDamageDelay) + (Mathf.Max(0, distanceFromTroll) * Mathf.Max(0f, specialPerDistanceDelay));
+        if (impactDelay > 0f)
+        {
+            yield return new WaitForSeconds(impactDelay);
+        }
+
+        int trollDamage = Mathf.Max(1, EffectiveForce);
+        target.TakeDamage(trollDamage, this, false, damageSoundType);
+        if (target.CurrentHealth <= 0)
+        {
+            IncreaseTrollForce();
+            yield return new WaitForSeconds(0.08f);
+            yield break;
+        }
+
+        yield return KnockCharacterAwayFromTroll(target, distanceFromTroll);
+        IncreaseTrollForce();
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator KnockCharacterAwayFromTroll(Character target, int distanceFromTroll)
+    {
+        if (target == null || Board == null)
+        {
+            yield break;
+        }
+
+        float bumpDuration = Mathf.Max(0.01f, Mathf.Max(0f, specialJumpDuration) + (Mathf.Max(1, distanceFromTroll) * Mathf.Max(0f, specialBumpDurationPerDistance)));
+        Vector2Int? destination = null;
+        if (TryFindBestTrollKnockbackCell(target, out Vector2Int resolvedDestination))
+        {
+            destination = resolvedDestination;
+        }
+
+        yield return target.PlayImpactBumpAndRelocate(
+            transform.position,
+            destination,
+            bumpDuration,
+            specialBumpHeight);
+    }
+
+    private IEnumerator ExecuteDragoonTwinTurn(Character target)
+    {
+        if (Board == null || target == null)
+        {
+            yield break;
+        }
+
+        bool canAttack = !dragoonTwinAttackSuppressed;
+        SetFlyingOverride(true);
+
+        if (canAttack)
+        {
+            yield return PerformDragoonTwinRangedAttack(target);
+        }
+
+        yield return PerformDragoonTwinSpecialMove(target);
+        dragoonTwinAttackSuppressed = false;
+    }
+
+    private IEnumerator PerformDragoonTwinRangedAttack(Character target)
+    {
+        if (target == null)
+        {
+            yield break;
+        }
+
+        FaceTargetForAttack(target);
+        TriggerOptionalSecondaryActionAnimation();
+        if (specialStartDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialStartDelay);
+        }
+
+        yield return FireFracturingJumpProjectileAt(target);
+        target.TakeDamage(Mathf.Max(1, EffectiveForce), this, true, damageSoundType);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator PerformDragoonTwinSpecialMove(Character target)
+    {
+        if (!TryGetDragoonTwinDestination(target, out Vector2Int destination))
+        {
+            yield break;
+        }
+
+        yield return JumpToCell(destination, Mathf.Max(0.01f, specialJumpDuration), Mathf.Max(0.01f, specialJumpPower));
+        SetFlyingOverride(true);
+    }
+
+    private bool TryGetDragoonTwinDestination(Character target, out Vector2Int destination)
+    {
+        destination = gridPosition;
+        if (Board == null)
+        {
+            return false;
+        }
+
+        Enemy otherTwin = FindOtherDragoonTwin();
+        List<Vector2Int> preferredCells = new List<Vector2Int>();
+        List<Vector2Int> fallbackCells = new List<Vector2Int>();
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (candidateCell == gridPosition || !Board.TryGetCell(candidateCell, out BoardCell cell) || !cell.Walkable || cell.IsOccupied)
+                {
+                    continue;
+                }
+
+                fallbackCells.Add(candidateCell);
+                bool farEnoughFromCharacter = target == null || Board.GetManhattanDistance(candidateCell, target.GridPosition) >= 3;
+                bool farEnoughFromTwin = otherTwin == null || Board.GetManhattanDistance(candidateCell, otherTwin.GridPosition) >= 3;
+                if (farEnoughFromCharacter && farEnoughFromTwin)
+                {
+                    preferredCells.Add(candidateCell);
+                }
+            }
+        }
+
+        List<Vector2Int> candidatePool = preferredCells.Count > 0 ? preferredCells : fallbackCells;
+        if (candidatePool.Count == 0)
+        {
+            return false;
+        }
+
+        destination = candidatePool[UnityEngine.Random.Range(0, candidatePool.Count)];
+        return true;
+    }
+
+    private Enemy FindOtherDragoonTwin()
+    {
+        if (Board == null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<Enemy> enemies = Board.SpawnedEnemies;
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy candidate = enemies[index];
+            if (candidate == null || candidate == this || candidate.CurrentHealth <= 0 || candidate.SpecialBehavior != EnemySpecialBehavior.DragoonTwinBoss)
+            {
+                continue;
+            }
+
+            return candidate;
+        }
+
+        return null;
+    }
+
+    private IEnumerator FireFracturingJumpProjectileAt(Character target)
+    {
+        if (target == null || projectilePrefab == null)
+        {
+            yield break;
+        }
+
+        Transform resolvedLaunchAnchor = projectileSpawnPos != null ? projectileSpawnPos : EffectAnchor;
+        Vector3 launchPosition = resolvedLaunchAnchor != null
+            ? resolvedLaunchAnchor.position
+            : transform.position + Vector3.up * 0.5f;
+        SoundManager.Instance?.PlayArrowShot(launchPosition);
+
+        Vector3 targetPosition = target.transform.position + Vector3.up * projectileTravelHeight;
+        GameObject projectile = Instantiate(projectilePrefab, launchPosition, projectilePrefab.transform.rotation);
+        projectile.transform.localScale = projectilePrefab.transform.localScale;
+
+        float travelDuration = Mathf.Max(0.2f, Vector3.Distance(launchPosition, targetPosition) / Mathf.Max(0.01f, projectileTravelSpeed));
+        Tween jumpTween = projectile.transform.DOJump(
+            targetPosition,
+            Mathf.Max(0.01f, specialJumpPower),
+            1,
+            travelDuration);
+        yield return jumpTween.WaitForCompletion();
+
+        FractureProjectileInstance(projectile);
+    }
+
+    private void FractureProjectileInstance(GameObject projectile)
+    {
+        if (projectile == null)
+        {
+            return;
+        }
+
+        RockBoulderProjectile configuredProjectile = projectile.GetComponent<RockBoulderProjectile>();
+        if (configuredProjectile != null)
+        {
+            configuredProjectile.Fracture(Board);
+            return;
+        }
+
+        Transform fracturesRoot = projectile.transform.Find("Fractures");
+        if (fracturesRoot == null)
+        {
+            Destroy(projectile);
+            return;
+        }
+
+        fracturesRoot.SetParent(Board != null ? Board.transform : null, true);
+        fracturesRoot.gameObject.SetActive(true);
+        List<Rigidbody> rigidbodies = new List<Rigidbody>(fracturesRoot.GetComponentsInChildren<Rigidbody>(true));
+        for (int index = 0; index < rigidbodies.Count; index++)
+        {
+            Rigidbody body = rigidbodies[index];
+            if (body == null)
+            {
+                continue;
+            }
+
+            body.isKinematic = false;
+            body.velocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            Vector3 direction = (body.worldCenterOfMass - projectile.transform.position);
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                direction = UnityEngine.Random.onUnitSphere;
+            }
+
+            Vector3 force = (direction.normalized * 3.5f) + (Vector3.up * 1.25f);
+            body.AddForce(force, ForceMode.Impulse);
+        }
+
+        BarrelFractureCleanup cleanup = fracturesRoot.gameObject.GetComponent<BarrelFractureCleanup>();
+        if (cleanup == null)
+        {
+            cleanup = fracturesRoot.gameObject.AddComponent<BarrelFractureCleanup>();
+        }
+
+        cleanup.Begin(rigidbodies, 0.4f, new Vector2(1f, 1.5f), 0.25f, 0.1f);
+        Destroy(projectile);
+    }
+
+    private IEnumerator ApplyTrollShockwaveToBarrels()
+    {
+        if (Board == null)
+        {
+            yield break;
+        }
+
+        List<(BarrelObstacle barrel, float delay)> delayedBarrels = new List<(BarrelObstacle, float)>();
+        HashSet<BarrelObstacle> uniqueBarrels = new HashSet<BarrelObstacle>();
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (!Board.TryGetBarrel(cellPosition, out BarrelObstacle barrel) || barrel == null || !uniqueBarrels.Add(barrel))
+                {
+                    continue;
+                }
+
+                int distance = GetChebyshevDistance(gridPosition, cellPosition);
+                float delay = Mathf.Max(0f, attackDamageDelay) + (Mathf.Max(0, distance) * Mathf.Max(0f, specialPerDistanceDelay));
+                delayedBarrels.Add((barrel, delay));
+            }
+        }
+
+        if (delayedBarrels.Count == 0)
+        {
+            yield break;
+        }
+
+        delayedBarrels.Sort((left, right) => left.delay.CompareTo(right.delay));
+        float elapsedDelay = 0f;
+        for (int index = 0; index < delayedBarrels.Count; index++)
+        {
+            (BarrelObstacle barrel, float delay) = delayedBarrels[index];
+            float waitDuration = Mathf.Max(0f, delay - elapsedDelay);
+            if (waitDuration > 0f)
+            {
+                yield return new WaitForSeconds(waitDuration);
+                elapsedDelay += waitDuration;
+            }
+
+            if (barrel != null && !barrel.IsDestroyed)
+            {
+                barrel.TakeHit();
+            }
+        }
+    }
+
+    private bool TryFindBestTrollKnockbackCell(Character target, out Vector2Int destination)
+    {
+        destination = target != null ? target.GridPosition : gridPosition;
+        if (Board == null || target == null)
+        {
+            return false;
+        }
+
+        int currentDistance = GetChebyshevDistance(gridPosition, target.GridPosition);
+        int bestDistance = currentDistance;
+        List<Vector2Int> bestCells = new List<Vector2Int>();
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (!Board.TryGetCell(candidateCell, out BoardCell cell) || !cell.Walkable || cell.IsOccupied)
+                {
+                    continue;
+                }
+
+                int candidateDistance = GetChebyshevDistance(gridPosition, candidateCell);
+                if (candidateDistance <= currentDistance)
+                {
+                    continue;
+                }
+
+                if (candidateDistance > bestDistance)
+                {
+                    bestDistance = candidateDistance;
+                    bestCells.Clear();
+                    bestCells.Add(candidateCell);
+                }
+                else if (candidateDistance == bestDistance)
+                {
+                    bestCells.Add(candidateCell);
+                }
+            }
+        }
+
+        if (bestCells.Count == 0)
+        {
+            return false;
+        }
+
+        destination = bestCells[UnityEngine.Random.Range(0, bestCells.Count)];
+        return true;
+    }
+
+    private void ClaimTrollOccupiedCells()
+    {
+        if (Board == null)
+        {
+            return;
+        }
+
+        ReleaseExtraOccupiedCells();
+        for (int offsetX = -1; offsetX <= 1; offsetX++)
+        {
+            for (int offsetY = -1; offsetY <= 1; offsetY++)
+            {
+                Vector2Int occupiedCell = gridPosition + new Vector2Int(offsetX, offsetY);
+                if (occupiedCell == gridPosition || !Board.TryGetCell(occupiedCell, out BoardCell cell))
+                {
+                    continue;
+                }
+
+                if (cell.IsOccupied && cell.Occupant != gameObject)
+                {
+                    continue;
+                }
+
+                cell.SetOccupant(gameObject, BoardOccupantKind.Enemy);
+                extraOccupiedCells.Add(occupiedCell);
+            }
+        }
+    }
+
+    private void ReleaseExtraOccupiedCells()
+    {
+        if (Board == null || extraOccupiedCells.Count == 0)
+        {
+            extraOccupiedCells.Clear();
+            return;
+        }
+
+        for (int index = 0; index < extraOccupiedCells.Count; index++)
+        {
+            Vector2Int occupiedCell = extraOccupiedCells[index];
+            if (!Board.TryGetCell(occupiedCell, out BoardCell cell))
+            {
+                continue;
+            }
+
+            if (cell.Occupant == gameObject)
+            {
+                cell.ClearOccupant();
+            }
+        }
+
+        extraOccupiedCells.Clear();
+    }
+
+    private static int GetChebyshevDistance(Vector2Int a, Vector2Int b)
+    {
+        return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
+    }
+
+    private void IncreaseTrollForce()
+    {
+        if (specialBehavior != EnemySpecialBehavior.TrollShockwaveBoss)
+        {
+            return;
+        }
+
+        trollAttackBonusDamage++;
+        PlaySelfBuffFeedback();
+    }
+
+    private IEnumerator PlayRagnarOgreDeathBuffFeedback()
+    {
+        yield return new WaitForSeconds(0.5f);
+        if (this == null || !isActiveAndEnabled || isDying || currentHealth <= 0)
+        {
+            yield break;
+        }
+
+        PlaySelfBuffFeedback();
+    }
+
+    private void PlaySelfBuffFeedback()
+    {
+        SoundManager.Instance?.PlayPowerUp(transform.position);
+        if (selfPowerUpFxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        GameObject fxInstance = Instantiate(selfPowerUpFxPrefab, anchor.position, selfPowerUpFxPrefab.transform.rotation);
+        fxInstance.transform.localScale = selfPowerUpFxPrefab.transform.localScale;
+        if (optionalActionFxLifetime > 0f)
+        {
+            Destroy(fxInstance, optionalActionFxLifetime);
+        }
+    }
+
+    private bool TrySelectGiantWormDestination(
+        Character target,
+        Vector2Int previousTunnelCell,
+        out Vector2Int destination,
+        out GiantWormAttackMode attackMode,
+        out bool createTunnelAtDestination)
+    {
+        destination = gridPosition;
+        attackMode = GiantWormAttackMode.None;
+        createTunnelAtDestination = false;
+
+        if (Board == null || target == null)
+        {
+            return false;
+        }
+
+        List<Vector2Int> adjacentTunnelCandidates = new List<Vector2Int>();
+        List<Vector2Int> rangedTunnelCandidates = new List<Vector2Int>();
+        foreach (KeyValuePair<Vector2Int, GameObject> entry in wormTunnelInstances)
+        {
+            Vector2Int candidateCell = entry.Key;
+            if (candidateCell == previousTunnelCell || !IsCellValidForWormEmergence(candidateCell))
+            {
+                continue;
+            }
+
+            if (IsRadiallyAdjacent(candidateCell, target.GridPosition))
+            {
+                adjacentTunnelCandidates.Add(candidateCell);
+                continue;
+            }
+
+            if (Board.HasLineOfSight(candidateCell, target.GridPosition))
+            {
+                rangedTunnelCandidates.Add(candidateCell);
+            }
+        }
+
+        if (adjacentTunnelCandidates.Count > 0)
+        {
+            destination = adjacentTunnelCandidates[UnityEngine.Random.Range(0, adjacentTunnelCandidates.Count)];
+            attackMode = GiantWormAttackMode.Adjacent;
+            return true;
+        }
+
+        if (rangedTunnelCandidates.Count > 0)
+        {
+            destination = rangedTunnelCandidates[UnityEngine.Random.Range(0, rangedTunnelCandidates.Count)];
+            attackMode = GiantWormAttackMode.Ranged;
+            return true;
+        }
+
+        List<Vector2Int> hiddenFreeCells = new List<Vector2Int>();
+        List<Vector2Int> fallbackFreeCells = new List<Vector2Int>();
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (candidateCell == previousTunnelCell || wormTunnelInstances.ContainsKey(candidateCell) || !IsCellValidForWormEmergence(candidateCell))
+                {
+                    continue;
+                }
+
+                fallbackFreeCells.Add(candidateCell);
+                if (!Board.HasLineOfSight(candidateCell, target.GridPosition))
+                {
+                    hiddenFreeCells.Add(candidateCell);
+                }
+            }
+        }
+
+        List<Vector2Int> preferredPool = hiddenFreeCells.Count > 0 ? hiddenFreeCells : fallbackFreeCells;
+        if (preferredPool.Count == 0)
+        {
+            return false;
+        }
+
+        destination = preferredPool[UnityEngine.Random.Range(0, preferredPool.Count)];
+        attackMode = GiantWormAttackMode.None;
+        createTunnelAtDestination = true;
+        return true;
+    }
+
+    private bool IsCellValidForWormEmergence(Vector2Int candidateCell)
+    {
+        if (Board == null || !Board.TryGetCell(candidateCell, out BoardCell cell))
+        {
+            return false;
+        }
+
+        return cell.Walkable && !cell.IsOccupied;
+    }
+
+    private bool IsRadiallyAdjacent(Vector2Int origin, Vector2Int targetCell)
+    {
+        int deltaX = Mathf.Abs(origin.x - targetCell.x);
+        int deltaY = Mathf.Abs(origin.y - targetCell.y);
+        return (deltaX > 0 || deltaY > 0) && deltaX <= 1 && deltaY <= 1;
+    }
+
+    private bool IsRadiallyAdjacentToTarget(Character target)
+    {
+        return target != null && IsRadiallyAdjacent(gridPosition, target.GridPosition);
+    }
+
+    private bool CanGiantWormShootTarget(Character target)
+    {
+        return target != null && Board != null && Board.HasLineOfSight(gridPosition, target.GridPosition);
+    }
+
+    private IEnumerator PerformGiantWormAdjacentAttack(Character target)
+    {
+        if (target == null)
+        {
+            yield break;
+        }
+
+        FaceTargetForAttack(target);
+        TriggerAttackAnimation();
+        yield return ApplyDamageToTarget(target, false);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator PerformGiantWormRangedAttack(Character target)
+    {
+        if (target == null)
+        {
+            yield break;
+        }
+
+        FaceTargetForAttack(target);
+        TriggerAttackAnimation();
+        if (projectilePrefab != null)
+        {
+            yield return FireProjectileAt(target);
+        }
+
+        yield return ApplyDamageToTarget(target, projectilePrefab != null);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private void RemoveWormOccupancyFromCurrentCell()
+    {
+        if (Board == null || !Board.TryGetCell(gridPosition, out BoardCell cell))
+        {
+            return;
+        }
+
+        if (cell.Occupant == gameObject)
+        {
+            cell.ClearOccupant();
+        }
+    }
+
+    private void PlaceWormAtCell(Vector2Int targetCell)
+    {
+        if (Board == null || !Board.TryGetCell(targetCell, out BoardCell cell))
+        {
+            return;
+        }
+
+        moveTween?.Kill();
+        impactTween?.Kill();
+        IsMoving = false;
+        cell.SetOccupant(gameObject, BoardOccupantKind.Enemy);
+        gridPosition = targetCell;
+        transform.position = Board.GridToWorldPosition(targetCell) + Vector3.up * spawnHeight;
+        RefreshFlyingAnimationState();
+    }
+
+    private void StartWormPositionLock(Vector2Int targetCell)
+    {
+        lockedWormRootCell = targetCell;
+        lockWormRootPosition = true;
+        PlaceWormAtCell(targetCell);
+    }
+
+    private void StopWormPositionLock()
+    {
+        lockWormRootPosition = false;
+    }
+
+    private void EnsureWormTunnelAt(Vector2Int cellPosition)
+    {
+        if (wormHolePrefab == null || Board == null || wormTunnelInstances.ContainsKey(cellPosition))
+        {
+            return;
+        }
+
+        Vector3 worldPosition = Board.GridToWorldPosition(cellPosition);
+        Quaternion rotation = Quaternion.Euler(0f, UnityEngine.Random.Range(0, 4) * 90f, 0f);
+        Transform tunnelParent = Board.ObstaclesRoot != null ? Board.ObstaclesRoot : Board.transform;
+        GameObject tunnelInstance = Instantiate(wormHolePrefab, worldPosition, rotation, tunnelParent);
+        tunnelInstance.transform.localScale = wormHolePrefab.transform.localScale;
+        tunnelInstance.transform.DOScale(wormHolePrefab.transform.localScale, 0.2f).From(wormHolePrefab.transform.localScale * 0.1f).SetEase(Ease.OutBack);
+        wormTunnelInstances[cellPosition] = tunnelInstance;
+    }
+
+    private void ClearWormTunnels()
+    {
+        if (wormTunnelInstances.Count == 0)
+        {
+            return;
+        }
+
+        foreach (GameObject tunnelInstance in wormTunnelInstances.Values)
+        {
+            if (tunnelInstance != null)
+            {
+                Destroy(tunnelInstance);
+            }
+        }
+
+        wormTunnelInstances.Clear();
+    }
+
+    private IEnumerator JumpToCell(Vector2Int targetCell, float duration, float jumpPower)
+    {
+        if (Board == null || targetCell == gridPosition)
+        {
+            yield break;
+        }
+
+        Vector2Int startGridPosition = gridPosition;
+        if (!Board.MoveOccupant(gridPosition, targetCell, BoardOccupantKind.Enemy))
+        {
+            yield break;
+        }
+
+        gridPosition = targetCell;
+        Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
+        FaceMovementDirection(targetCell - startGridPosition);
+
+        moveTween?.Kill();
+        IsMoving = true;
+        moveTween = transform.DOJump(targetPosition, Mathf.Max(0.01f, jumpPower), 1, Mathf.Max(0.01f, duration))
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
+                IsMoving = false;
+                moveTween = null;
+                transform.position = targetPosition;
+                RefreshFlyingAnimationState();
+                Board.NotifyEnemyEnteredCell(this);
+            });
+        yield return moveTween.WaitForCompletion();
+    }
+
+    private IEnumerator ChargeToCell(Vector2Int targetCell, float duration)
+    {
+        if (Board == null || targetCell == gridPosition)
+        {
+            yield break;
+        }
+
+        Vector2Int startGridPosition = gridPosition;
+        if (!Board.MoveOccupant(gridPosition, targetCell, BoardOccupantKind.Enemy))
+        {
+            yield break;
+        }
+
+        gridPosition = targetCell;
+        Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
+        FaceMovementDirection(targetCell - startGridPosition);
+
+        moveTween?.Kill();
+        IsMoving = true;
+        moveTween = transform.DOMove(targetPosition, Mathf.Max(0.01f, duration))
+            .SetEase(Ease.OutBack)
+            .OnComplete(() =>
+            {
+                IsMoving = false;
+                moveTween = null;
+                transform.position = targetPosition;
+                RefreshFlyingAnimationState();
+                Board.NotifyEnemyEnteredCell(this);
+            });
+        yield return moveTween.WaitForCompletion();
+    }
+
+    private IEnumerator ChargeToCellAndImpact(Character target, Vector2Int targetCell, float duration)
+    {
+        if (Board == null || targetCell == gridPosition)
+        {
+            yield break;
+        }
+
+        Vector2Int startGridPosition = gridPosition;
+        if (!Board.MoveOccupant(gridPosition, targetCell, BoardOccupantKind.Enemy))
+        {
+            yield break;
+        }
+
+        gridPosition = targetCell;
+        Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
+        FaceMovementDirection(targetCell - startGridPosition);
+
+        moveTween?.Kill();
+        IsMoving = true;
+        bool damageApplied = false;
+        float impactLeadTime = 0.2f;
+        float impactDelay = Mathf.Max(0f, duration - impactLeadTime);
+        if (target != null)
+        {
+            DOVirtual.DelayedCall(impactDelay, () =>
+            {
+                if (damageApplied || target == null)
+                {
+                    return;
+                }
+
+                damageApplied = true;
+                target.TakeDamage(Mathf.Max(1, specialDamage), this, false, damageSoundType);
+            });
+        }
+
+        moveTween = transform.DOMove(targetPosition, duration)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() =>
+            {
+                IsMoving = false;
+                moveTween = null;
+                transform.position = targetPosition;
+                RefreshFlyingAnimationState();
+                Board.NotifyEnemyEnteredCell(this);
+                if (!damageApplied && target != null)
+                {
+                    damageApplied = true;
+                    target.TakeDamage(Mathf.Max(1, specialDamage), this, false, damageSoundType);
+                }
+            });
+        yield return moveTween.WaitForCompletion();
     }
 
     public void ApplyStatusEffect(CombatStatusType statusType, int durationInTurns = -1, int potency = 1, bool stackPotency = false)
@@ -3777,6 +5060,7 @@ public class Enemy : MonoBehaviour
             Board?.SpawnSkeletonSkull(this);
         }
 
+        ReleaseExtraOccupiedCells();
         if (Board != null)
         {
             Board.RemoveEnemy(this);

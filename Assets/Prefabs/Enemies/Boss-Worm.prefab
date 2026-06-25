@@ -151,11 +151,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: force
-      value: 5
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: mobility
-      value: 2
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: enemyBody
@@ -167,7 +167,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 35b96901b7a714790b24f2f3ed5e3cad, type: 2}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: maxHealth
-      value: 22
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: enemyCanvas
@@ -183,16 +183,24 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: currentHealth
-      value: 22
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: enemyAnimator
       value: 
       objectReference: {fileID: 5681262637295621332}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: wormHolePrefab
+      value: 
+      objectReference: {fileID: 1363178094931593463, guid: 1cd2df05a68d248aca2a9ebcbeeeb9a4, type: 3}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: deathMarkAnchor
       value: 
       objectReference: {fileID: 8044795361831501133}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: projectilePrefab
+      value: 
+      objectReference: {fileID: 122746, guid: 2600ac3c92a32344aac7a38b64dc2f5c, type: 3}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackDamageDelay
       value: 0.4
@@ -241,6 +249,10 @@ PrefabInstance:
     - target: {fileID: 1363178094931593463, guid: 1cd2df05a68d248aca2a9ebcbeeeb9a4, type: 3}
       propertyPath: m_Name
       value: WormHole
+      objectReference: {fileID: 0}
+    - target: {fileID: 1363178094931593463, guid: 1cd2df05a68d248aca2a9ebcbeeeb9a4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6915889912387367120, guid: 1cd2df05a68d248aca2a9ebcbeeeb9a4, type: 3}
       propertyPath: m_LocalPosition.x
@@ -508,7 +520,7 @@ Animator:
   m_GameObject: {fileID: 4232652627237792994}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 22100000, guid: ef1d53748c2574d88bf8c27bbb70dca9, type: 2}
+  m_Controller: {fileID: 9100000, guid: fa521ac35d33e4a41a605e300e960ea1, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

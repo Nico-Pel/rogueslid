@@ -12,16 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f961b7511061d47efb4c1a0faa5f8b6f, type: 3}
   m_Name: EnemyData_Bearowl
   m_EditorClassIdentifier: 
-  enemyName: Boar
-  specialInfo: The goblin is a classic enemy.
+  enemyName: Bearowl
+  specialInfo: The Bearowl heals itself by 5 health points each turn.
   portrait: {fileID: 21300000, guid: 9c616e3ddb48248afa64283823e3b855, type: 3}
-  maxHealth: 22
-  force: 3
+  maxHealth: 30
+  force: 4
   resistance: 0
-  mobility: 4
+  mobility: 3
   attackPattern: 0
   attackRange: 1
-  damageSoundType: 1
+  damageSoundType: 0
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0
@@ -53,8 +53,8 @@ MonoBehaviour:
   showHealth: 1
   showResistance: 0
   showMobility: 1
-  showRegen: 0
-  regenPerTurn: 0
+  showRegen: 1
+  regenPerTurn: 5
   showSpecial: 0
   specialStatSprite: {fileID: 0}
   specialStatValue: 

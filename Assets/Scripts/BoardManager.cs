@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -148,6 +149,7 @@ public class BoardManager : MonoBehaviour
     private readonly HashSet<EnemyPoolDefinition> encounteredEnemyPools = new HashSet<EnemyPoolDefinition>();
     private EnemyPoolDefinition currentSelectedEnemyPool;
     private bool isResolvingSkullsForVictory;
+    private bool combatStartEnemyActionsResolved;
     private static readonly int ColorShaderProperty = Shader.PropertyToID("_Color");
     public int Width => BoardWidth;
     public int Height => BoardHeight;
@@ -162,6 +164,7 @@ public class BoardManager : MonoBehaviour
     public float ExtraEnemySpawnDelay => Mathf.Max(0f, extraEnemySpawnDelay);
     public GameObject DefaultSpawnFxPrefab => defaultEnemySpawnFxPrefab;
     public float DefaultSpawnFxLifetime => Mathf.Max(0f, defaultEnemySpawnFxLifetime);
+    public Transform ObstaclesRoot => obstaclesRoot;
     public event Action AllEnemiesDefeated;
 
 #if UNITY_EDITOR
@@ -643,6 +646,63 @@ public class BoardManager : MonoBehaviour
 
             hazard.HandlePlayerTurnStarted();
         }
+    }
+
+    public bool HasCombatStartEnemyActionsReady()
+    {
+        if (combatStartEnemyActionsResolved)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < spawnedEnemies.Count; index++)
+        {
+            Enemy enemy = spawnedEnemies[index];
+            if (enemy != null && enemy.HasCombatStartActionReady())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public IEnumerator ResolveCombatStartEnemyActions(Character playerCharacter)
+    {
+        combatStartEnemyActionsResolved = true;
+        if (playerCharacter == null || spawnedEnemies.Count == 0)
+        {
+            yield break;
+        }
+
+        List<Enemy> actingEnemies = new List<Enemy>();
+        for (int index = 0; index < spawnedEnemies.Count; index++)
+        {
+            Enemy enemy = spawnedEnemies[index];
+            if (enemy != null && enemy.HasCombatStartActionReady())
+            {
+                actingEnemies.Add(enemy);
+            }
+        }
+
+        if (actingEnemies.Count == 0)
+        {
+            yield break;
+        }
+
+        playerCharacter.BeginActionLock();
+        for (int index = 0; index < actingEnemies.Count; index++)
+        {
+            Enemy enemy = actingEnemies[index];
+            if (enemy == null)
+            {
+                continue;
+            }
+
+            yield return enemy.ExecuteCombatStartAction(playerCharacter);
+        }
+
+        playerCharacter.EndActionLock();
     }
 
     public void NotifyEnemyEnteredCell(Enemy enemy)
@@ -1322,22 +1382,18 @@ public class BoardManager : MonoBehaviour
         for (int index = 0; index < count; index++)
         {
             Vector2Int spawnPoint = spawnCandidates[index];
-            BoardCell cell = cells[spawnPoint.x, spawnPoint.y];
             GameObject enemyPrefab = enemyPrefabsToSpawn[index];
             if (enemyPrefab == null)
             {
                 continue;
             }
 
-            GameObject enemyObject = InstantiateOrCreate(
-                enemyPrefab,
-                $"Enemy_{spawnPoint.x}_{spawnPoint.y}",
-                enemiesRoot,
-                cell.WorldPosition + Vector3.up * spawnHeight);
-            Enemy enemy = GetOrAddComponent<Enemy>(enemyObject);
-            enemy.Assign(spawnPoint, this);
-            spawnedEnemies.Add(enemy);
-            cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
+            if (!TrySpawnEnemyPrefab(enemyPrefab, spawnPoint, out Enemy enemy))
+            {
+                continue;
+            }
+
+            TrySpawnRagnarCompanions(enemy);
         }
     }
 
@@ -1355,6 +1411,7 @@ public class BoardManager : MonoBehaviour
         ClearChildren(enemiesRoot);
         ClearChildren(playersRoot);
         spawnedEnemies.Clear();
+        combatStartEnemyActionsResolved = false;
         player = null;
     }
 
@@ -1680,7 +1737,7 @@ public class BoardManager : MonoBehaviour
                 continue;
             }
 
-            if (enemyPrefab.name.StartsWith("Boss-", StringComparison.OrdinalIgnoreCase))
+            if (IsBossEnemyPrefab(enemyPrefab))
             {
                 return true;
             }
@@ -2055,6 +2112,23 @@ public class BoardManager : MonoBehaviour
         return true;
     }
 
+    public bool TrySpawnLinkedEnemy(GameObject enemyPrefab, Vector2Int spawnPoint, Enemy owner, out Enemy enemy)
+    {
+        enemy = null;
+        if (!TrySpawnEnemyPrefab(enemyPrefab, spawnPoint, out enemy))
+        {
+            return false;
+        }
+
+        if (owner != null && enemy != null)
+        {
+            enemy.SetLinkedSummoner(owner);
+            RegisterLinkedSummon(owner, enemy);
+        }
+
+        return true;
+    }
+
     private void ResolveRemainingSkullsForVictory()
     {
         if (isResolvingSkullsForVictory || activeSkullObjects.Count == 0)
@@ -2090,10 +2164,46 @@ public class BoardManager : MonoBehaviour
         }
 
         summons.Remove(summon);
+        owner.HandleLinkedSummonEliminated(summon);
         if (summons.Count == 0)
         {
             linkedSummonsByOwner.Remove(owner);
         }
+    }
+
+    private bool TrySpawnEnemyPrefab(GameObject enemyPrefab, Vector2Int spawnPoint, out Enemy enemy)
+    {
+        enemy = null;
+        if (enemyPrefab == null || !TryGetCell(spawnPoint, out BoardCell cell) || !cell.Walkable || cell.IsOccupied)
+        {
+            return false;
+        }
+
+        GameObject enemyObject = InstantiateOrCreate(
+            enemyPrefab,
+            $"Enemy_{spawnPoint.x}_{spawnPoint.y}",
+            enemiesRoot,
+            cell.WorldPosition + Vector3.up * spawnHeight);
+        enemy = GetOrAddComponent<Enemy>(enemyObject);
+        enemy.Assign(spawnPoint, this);
+        spawnedEnemies.Add(enemy);
+        cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
+        return true;
+    }
+
+    private void TrySpawnRagnarCompanions(Enemy enemy)
+    {
+        if (enemy == null
+            || enemy.SpecialBehavior != EnemySpecialBehavior.RagnarWarboss
+            || enemy.SpecialCompanionPrefab == null)
+        {
+            return;
+        }
+
+        Vector2Int leftSpawn = enemy.GridPosition + Vector2Int.left * 2;
+        Vector2Int rightSpawn = enemy.GridPosition + Vector2Int.right * 2;
+        TrySpawnLinkedEnemy(enemy.SpecialCompanionPrefab, leftSpawn, enemy, out _);
+        TrySpawnLinkedEnemy(enemy.SpecialCompanionPrefab, rightSpawn, enemy, out _);
     }
 
     private GameObject ResolveEnemyPrefabForData(EnemyData enemyData)
@@ -2150,6 +2260,22 @@ public class BoardManager : MonoBehaviour
 
         Enemy enemy = prefab.GetComponent<Enemy>();
         return enemy != null && enemy.Data == enemyData;
+    }
+
+    private static bool IsBossEnemyPrefab(GameObject enemyPrefab)
+    {
+        if (enemyPrefab == null)
+        {
+            return false;
+        }
+
+        if (enemyPrefab.name.StartsWith("Boss-", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        Enemy enemy = enemyPrefab.GetComponent<Enemy>();
+        return enemy != null && enemy.SpecialBehavior == EnemySpecialBehavior.RagnarWarboss;
     }
 
     private void AdvanceToNextBiome()

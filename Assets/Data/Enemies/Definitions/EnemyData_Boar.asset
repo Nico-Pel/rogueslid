@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: EnemyData_Boar
   m_EditorClassIdentifier: 
   enemyName: Boar
-  specialInfo: The goblin is a classic enemy.
+  specialInfo: The Boar can charge if it is aligned with its target.
   portrait: {fileID: 21300000, guid: 13e3273ed182a4c528780359b107f54d, type: 3}
-  maxHealth: 22
+  maxHealth: 28
   force: 3
   resistance: 0
   mobility: 4
   attackPattern: 0
   attackRange: 1
-  damageSoundType: 1
+  damageSoundType: 0
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0
@@ -48,6 +48,14 @@ MonoBehaviour:
   projectileTravelSpeed: 10
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
+  specialBehavior: 3
+  specialDamage: 4
+  specialWindupDuration: 1.2
+  specialJumpDuration: 0.5
+  specialJumpPower: 0.75
+  specialRecoveryDelay: 0.2
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1
@@ -55,6 +63,6 @@ MonoBehaviour:
   showMobility: 1
   showRegen: 0
   regenPerTurn: 0
-  showSpecial: 0
-  specialStatSprite: {fileID: 0}
-  specialStatValue: 
+  showSpecial: 1
+  specialStatSprite: {fileID: 2068437824, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  specialStatValue: Charge

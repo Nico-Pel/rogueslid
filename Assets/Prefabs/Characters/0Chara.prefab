@@ -88,6 +88,8 @@ MonoBehaviour:
     positionOffset: {x: 0, y: 0, z: 0}
     destroyAfterSeconds: 2
   basicAttackVisuals: []
+  fxStartPoisonPrefab: {fileID: 185086, guid: 6c4ae31fa47a6c143a4e64ca4b65fc4a, type: 3}
+  fxPoisonPrefab: {fileID: 3802418962348063953, guid: 79d5056093c1d4a2b9df11c9c5c5e753, type: 3}
 --- !u!114 &9088583848115428104
 MonoBehaviour:
   m_ObjectHideFlags: 0

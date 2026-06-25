@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SacredCrossbow
   m_EditorClassIdentifier: 
   abilityName: Sacred Crossbow
-  icon: {fileID: -1954196116, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
+  icon: {fileID: -1492617666, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: bdeda82d9ca524e368195c9a05c658d7, type: 2}
   linkedUpgradeRewards:
@@ -43,7 +43,7 @@ MonoBehaviour:
   range: 10
   secondarySplashDamage: 1
   secondarySplashRange: 1
-  projectilePrefab: {fileID: 4669369967587303769, guid: 8b93cc05c0db74f3f9682ac9c13e103d, type: 3}
+  projectilePrefab: {fileID: 4669369967587303769, guid: 64bd29a0becc1402cb54b9b639e50bad, type: 3}
   projectileSpeed: 28
   projectileLaunchDelay: 0.08
   projectileSpawnOffset: {x: 0, y: 0.2, z: 0}

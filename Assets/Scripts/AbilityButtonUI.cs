@@ -129,7 +129,9 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character) && hasAnyValidTarget;
         bool isTargetingThis = hasAbility && gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex;
         bool isOnCooldown = hasAbility && runtime.RemainingCooldown > 0;
-        bool showUsageCount = hasAbility && !isOnCooldown && !string.IsNullOrEmpty(counterText);
+        bool showActiveCounter = hasAbility && runtime.IsActive && !string.IsNullOrEmpty(counterText);
+        bool showUsageCount = hasAbility && !string.IsNullOrEmpty(counterText) && (!isOnCooldown || showActiveCounter);
+        bool showCooldown = isOnCooldown && !showActiveCounter;
 
         if (button != null)
         {
@@ -197,12 +199,12 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         if (cooldownRoot != null)
         {
-            cooldownRoot.SetActive(isOnCooldown);
+            cooldownRoot.SetActive(showCooldown);
         }
 
         if (cooldownCountLabel != null)
         {
-            cooldownCountLabel.text = isOnCooldown ? runtime.RemainingCooldown.ToString() : string.Empty;
+            cooldownCountLabel.text = showCooldown ? runtime.RemainingCooldown.ToString() : string.Empty;
         }
     }
 

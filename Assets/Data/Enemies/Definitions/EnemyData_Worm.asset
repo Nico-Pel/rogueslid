@@ -13,12 +13,13 @@ MonoBehaviour:
   m_Name: EnemyData_Worm
   m_EditorClassIdentifier: 
   enemyName: Giant Worm
-  specialInfo: Slow, sturdy, and devastating up close.
+  specialInfo: Burrows between tunnels, ambushes nearby prey, and creates new tunnels
+    when needed.
   portrait: {fileID: 21300000, guid: 6e6ce43d7562645dd83d2da2d459a817, type: 3}
-  maxHealth: 22
-  force: 5
+  maxHealth: 60
+  force: 4
   resistance: 0
-  mobility: 2
+  mobility: 0
   attackPattern: 0
   attackRange: 1
   damageSoundType: 0
@@ -38,16 +39,26 @@ MonoBehaviour:
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
-  attackDamageDelay: 0.4
+  attackDamageDelay: 0.01
   multiplyAttackDamageDelayByDistance: 0
   lookAtTargetWhenAttacking: 1
   optionalActionType: 0
   optionalHealAmount: 4
   moveDuration: 0.16
   projectileTravelHeight: 0.5
-  projectileTravelSpeed: 10
+  projectileTravelSpeed: 12
+  projectileSpawnDelay: 0.6
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
+  specialBehavior: 4
+  specialDamage: 1
+  specialWindupDuration: 2
+  specialStartDelay: 0
+  specialJumpDuration: 0.35
+  specialJumpPower: 0.75
+  specialRecoveryDelay: 1
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1

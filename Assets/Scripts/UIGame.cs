@@ -1651,6 +1651,11 @@ public class UIGame : MonoBehaviour
 
         if (toolsButton != null)
         {
+            toolsButton.gameObject.SetActive(false);
+        }
+
+        if (toolsButton != null)
+        {
             toolsButton.onClick.RemoveListener(HandleToolsButtonClicked);
             toolsButton.onClick.AddListener(HandleToolsButtonClicked);
         }

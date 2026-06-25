@@ -13,19 +13,20 @@ MonoBehaviour:
   m_Name: EnemyData_DragoonTwin2
   m_EditorClassIdentifier: 
   enemyName: Dragoon Twin
-  specialInfo: The goblin is a classic enemy.
+  specialInfo: Attacks from the air with boulders and relocates across the arena.
+    Ability hits ground it for a turn.
   portrait: {fileID: 21300000, guid: 714c461f43a064c789513f6e4dc7e233, type: 3}
-  maxHealth: 22
-  force: 3
+  maxHealth: 40
+  force: 4
   resistance: 0
-  mobility: 4
-  attackPattern: 0
-  attackRange: 1
-  damageSoundType: 1
+  mobility: 0
+  attackPattern: 1
+  attackRange: 20
+  damageSoundType: 0
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0
-  hasMaxRange: 1
+  hasMaxRange: 0
   ignoreObstacles: 0
   attackAlways: 0
   flee: 0
@@ -45,11 +46,27 @@ MonoBehaviour:
   optionalHealAmount: 4
   moveDuration: 0.16
   projectileTravelHeight: 0.5
-  projectileTravelSpeed: 10
+  projectileTravelSpeed: 6
+  projectileSpawnDelay: 0.4
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
+  specialBehavior: 8
+  specialDamage: 1
+  specialWindupDuration: 0.35
+  specialStartDelay: 0
+  specialJumpDuration: 1
+  specialJumpPower: 2
+  specialRecoveryDelay: 0.25
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
+  specialImpactShakeRatio: 0.2
+  specialPerDistanceDelay: 0.05
+  specialBumpHeight: 0.12
+  specialBumpDurationPerDistance: 0.08
+  specialSelfBuffFxPrefab: {fileID: 0}
+  specialCompanionPrefab: {fileID: 0}
   showAttack: 1
-  attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  attackSprite: {fileID: -466392962, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1
   showResistance: 0
   showMobility: 1

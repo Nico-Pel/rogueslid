@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03f173347cc74008bfd6bc6e3e9cd19a, type: 3}
+  m_Name: Pool_DragoonTwins
+  m_EditorClassIdentifier: 
+  arenaLayoutOverride: {fileID: 2800000, guid: 6469f99135bee4a5baec845ff8ab63b1, type: 3}
+  enemyPrefabs:
+  - {fileID: 2433636361208229482, guid: c9d083ff62efc4d6ab3fc4b5d53cdc34, type: 3}
+  - {fileID: 887128160859223823, guid: 5e07c7ba1c9334c18a95ffd893e7c9ba, type: 3}

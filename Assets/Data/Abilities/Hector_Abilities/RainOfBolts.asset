@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: RainOfBolts
   m_EditorClassIdentifier: 
   abilityName: Rain of Bolts
-  icon: {fileID: -767586726, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  icon: {fileID: 637908841, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   category: 2
-  attackAnimationClip: {fileID: 7400000, guid: bc7bd89b1afec43898786e8805565fbc, type: 2}
+  attackAnimationClip: {fileID: 7400000, guid: a0abe869ac9e9449b9998acb7833e031, type: 2}
   linkedUpgradeRewards:
   - {fileID: 11400000, guid: bc5e198d9c87480786fba42ce6d1e125, type: 2}
   - {fileID: 11400000, guid: cd6f2abecaf34fdc92f0bc47ed28f126, type: 2}
@@ -42,11 +42,11 @@ MonoBehaviour:
   baseDamage: 2
   range: 10
   baseRadius: 3
-  initialDelay: 0.4
-  projectilePrefab: {fileID: 4669369967587303769, guid: 8b93cc05c0db74f3f9682ac9c13e103d, type: 3}
-  projectileTravelSpeed: 12
-  minimumTravelDuration: 0.18
-  projectileJumpPower: 0.85
+  initialDelay: 0.7
+  projectilePrefab: {fileID: 4669369967587303769, guid: bb82b5f2cbb9243d584a087c46571ac6, type: 3}
+  projectileTravelSpeed: 5
+  minimumTravelDuration: 0.36
+  projectileJumpPower: 10
   projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
   projectileImpactOffset: {x: 0, y: 0.2, z: 0}
   emptyImpactScale: 0.1

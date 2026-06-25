@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: EnemyData_Troll
   m_EditorClassIdentifier: 
   enemyName: Troll
-  specialInfo: The goblin is a classic enemy.
+  specialInfo: Slams the whole arena, and launches targets farther away each turn.
   portrait: {fileID: 21300000, guid: d323f11256daf4065bd1daaa1a55e67f, type: 3}
   maxHealth: 50
   force: 1
@@ -21,7 +21,7 @@ MonoBehaviour:
   mobility: 0
   attackPattern: 1
   attackRange: 20
-  damageSoundType: 1
+  damageSoundType: 0
   directVision: 1
   requireAlignedShot: 0
   allowPerfectDiagonalShot: 0
@@ -38,16 +38,31 @@ MonoBehaviour:
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
-  attackDamageDelay: 0.2
+  attackDamageDelay: 0
   multiplyAttackDamageDelayByDistance: 0
   lookAtTargetWhenAttacking: 1
   optionalActionType: 0
-  optionalHealAmount: 4
+  optionalHealAmount: 0
   moveDuration: 0.16
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
+  projectileSpawnDelay: 0
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
+  specialBehavior: 5
+  specialDamage: 1
+  specialWindupDuration: 0.35
+  specialStartDelay: 1
+  specialJumpDuration: 1
+  specialJumpPower: 3
+  specialRecoveryDelay: 0.25
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
+  specialImpactShakeRatio: 1
+  specialPerDistanceDelay: 0.06
+  specialBumpHeight: 3
+  specialBumpDurationPerDistance: 0.08
+  specialSelfBuffFxPrefab: {fileID: 2407364176693153571, guid: c42db3b3a0b344628a174b1cbed2d57a, type: 3}
   showAttack: 1
   attackSprite: {fileID: 2059291574, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1

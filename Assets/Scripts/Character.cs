@@ -72,6 +72,7 @@ public class Character : MonoBehaviour
     private Color[] baseColors;
     private Tween moveTween;
     private Tween bodyRotationTween;
+    private Tween impactTween;
     private int remainingMovementPoints;
     private readonly List<CharacterAbilityRuntime> abilities = new List<CharacterAbilityRuntime>();
     private readonly List<Enemy> traversedEnemiesBuffer = new List<Enemy>();
@@ -108,10 +109,14 @@ public class Character : MonoBehaviour
     private int samuraiMaskBonusDamage;
     private int bonusDamageUntilEndOfTurn;
     private int bonusDamageUntilNextMovement;
+    private bool isPoisoned;
     private GameObject nextAttackBonusAuraPrefab;
     private GameObject activeNextAttackBonusAuraInstance;
     private GameObject temporaryDamageAuraPrefab;
     private GameObject activeTemporaryDamageAuraInstance;
+    [SerializeField] private GameObject fxStartPoisonPrefab;
+    [SerializeField] private GameObject fxPoisonPrefab;
+    private GameObject activePoisonFxInstance;
     private Enemy markedEnemy;
     private LichSkullObject markedLichSkull;
     private DeathMarkAbility deathMarkAbility;
@@ -126,6 +131,7 @@ public class Character : MonoBehaviour
     public int BaseMovementPoints => movementPointsPerTurn;
     public int RemainingMovementPoints => remainingMovementPoints;
     public bool CanAct => remainingMovementPoints > 0 && !IsBusy;
+    public bool IsPoisoned => isPoisoned;
     public bool IsMoving { get; private set; }
     public bool IsBusy => IsMoving || actionLockCount > 0;
     public Player Owner { get; private set; }
@@ -191,6 +197,7 @@ public class Character : MonoBehaviour
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
         samuraiMaskBonusDamage = 0;
+        ClearPoisoned(false);
         actionLockCount = 0;
         abilityTargetsHitThisTurn.Clear();
         activeItemStates.Clear();
@@ -227,6 +234,7 @@ public class Character : MonoBehaviour
 
     public void ApplyRunRewardState(PlayerRunRewardState state)
     {
+        bool wasPoisoned = isPoisoned;
         ApplyCharacterDataDefinition();
         CacheBaseStatsIfNeeded();
         runRewardState = state;
@@ -234,6 +242,7 @@ public class Character : MonoBehaviour
         RecalculateItemDrivenStats();
         ClearNextAttackBonusDamage();
         samuraiMaskBonusDamage = 0;
+        ClearPoisoned(false);
         isFirstEnemyTurnOfArena = true;
         enemyTurnInProgress = false;
         abilityTargetsHitThisTurn.Clear();
@@ -250,6 +259,12 @@ public class Character : MonoBehaviour
         SyncRunStateHealth();
 
         ResetTurn();
+        if (wasPoisoned)
+        {
+            isPoisoned = true;
+            RefreshPoisonFx();
+        }
+
         RefreshHpBar();
         NotifyMovementPointsChanged();
         NotifyAbilitiesChanged();
@@ -435,6 +450,187 @@ public class Character : MonoBehaviour
 
     public bool TryTeleportToImmediate(Vector2Int targetCell)
     {
+        if (!TryRelocateImmediateInternal(targetCell))
+        {
+            return false;
+        }
+
+        impactTween?.Kill();
+        SnapToGrid();
+        return true;
+    }
+
+    public void PlayImpactBump(Vector3 sourceWorldPosition, float duration, float height = 0.12f)
+    {
+        if (duration <= 0f || !isActiveAndEnabled)
+        {
+            return;
+        }
+
+        Vector3 basePosition = transform.position;
+        Vector3 awayDirection = basePosition - sourceWorldPosition;
+        awayDirection.y = 0f;
+        if (awayDirection.sqrMagnitude <= 0.0001f)
+        {
+            awayDirection = -transform.forward;
+            awayDirection.y = 0f;
+        }
+
+        awayDirection = awayDirection.sqrMagnitude > 0.0001f
+            ? awayDirection.normalized
+            : Vector3.back;
+
+        Vector3 impactPeakPosition = basePosition + awayDirection * 0.18f + Vector3.up * Mathf.Max(0f, height);
+        float halfDuration = Mathf.Max(0.01f, duration * 0.5f);
+
+        impactTween?.Kill();
+        impactTween = DOTween.Sequence()
+            .Append(transform.DOMove(impactPeakPosition, halfDuration).SetEase(Ease.OutQuad))
+            .Append(transform.DOMove(basePosition, halfDuration).SetEase(Ease.InQuad))
+            .OnComplete(() =>
+            {
+                impactTween = null;
+                transform.position = basePosition;
+            })
+            .OnKill(() =>
+            {
+                impactTween = null;
+                if (this != null && isActiveAndEnabled)
+                {
+                    transform.position = basePosition;
+                }
+            });
+    }
+
+    public IEnumerator PlayImpactBumpAndRelocate(
+        Vector3 sourceWorldPosition,
+        Vector2Int? targetCell,
+        float duration,
+        float height = 0.12f)
+    {
+        if (Board == null)
+        {
+            yield break;
+        }
+
+        Vector2Int startCell = gridPosition;
+        bool relocate = targetCell.HasValue && targetCell.Value != startCell;
+        if (duration <= 0f || !isActiveAndEnabled)
+        {
+            if (relocate)
+            {
+                TryTeleportToImmediate(targetCell.Value);
+            }
+
+            yield break;
+        }
+
+        BeginActionLock();
+        try
+        {
+            moveTween?.Kill();
+            moveTween = null;
+            IsMoving = false;
+            SetDashingAnimation(false);
+
+            impactTween?.Kill();
+            impactTween = null;
+
+            Vector3 startPosition = transform.position;
+            Vector3 awayDirection = startPosition - sourceWorldPosition;
+            awayDirection.y = 0f;
+            if (awayDirection.sqrMagnitude <= 0.0001f)
+            {
+                awayDirection = -transform.forward;
+                awayDirection.y = 0f;
+            }
+
+            awayDirection = awayDirection.sqrMagnitude > 0.0001f
+                ? awayDirection.normalized
+                : Vector3.back;
+
+            Vector3 impactPeakPosition = startPosition + awayDirection * 0.18f + Vector3.up * Mathf.Max(0f, height);
+            float halfDuration = Mathf.Max(0.01f, duration * 0.5f);
+
+            bool relocationApplied = false;
+            Vector3 landingPosition = startPosition;
+            if (relocate)
+            {
+                landingPosition = Board.GridToWorldPosition(targetCell.Value) + Vector3.up * spawnHeight;
+                DetachFromCurrentGridCell();
+            }
+
+            if (relocate)
+            {
+                Sequence impactSequence = DOTween.Sequence()
+                    .Append(DOVirtual.Float(0f, 1f, Mathf.Max(0.01f, duration), progress =>
+                    {
+                        Vector3 horizontalPosition = Vector3.Lerp(startPosition, landingPosition, progress);
+                        float verticalOffset = 4f * Mathf.Max(0f, height) * progress * (1f - progress);
+                        transform.position = horizontalPosition + Vector3.up * verticalOffset;
+                    }).SetEase(Ease.Linear))
+                    .AppendCallback(() =>
+                    {
+                        relocationApplied = TryAttachToGridCellInternal(startCell, targetCell.Value);
+                        if (!relocationApplied)
+                        {
+                            transform.position = startPosition;
+                            ReattachToCurrentGridCell(startCell);
+                        }
+                    });
+
+                impactTween = impactSequence
+                    .OnComplete(() =>
+                    {
+                        impactTween = null;
+                        transform.position = relocationApplied ? landingPosition : startPosition;
+                    })
+                    .OnKill(() =>
+                    {
+                        impactTween = null;
+                        if (this != null && isActiveAndEnabled)
+                        {
+                            if (relocate && !relocationApplied)
+                            {
+                                ReattachToCurrentGridCell(startCell);
+                            }
+
+                            transform.position = relocationApplied ? landingPosition : startPosition;
+                        }
+                    });
+            }
+            else
+            {
+                Sequence impactSequence = DOTween.Sequence()
+                    .Append(transform.DOMove(impactPeakPosition, halfDuration).SetEase(Ease.OutQuad))
+                    .Append(transform.DOMove(startPosition, halfDuration).SetEase(Ease.InQuad));
+
+                impactTween = impactSequence
+                    .OnComplete(() =>
+                    {
+                        impactTween = null;
+                        transform.position = startPosition;
+                    })
+                    .OnKill(() =>
+                    {
+                        impactTween = null;
+                        if (this != null && isActiveAndEnabled)
+                        {
+                            transform.position = startPosition;
+                        }
+                    });
+            }
+
+            yield return impactTween.WaitForCompletion();
+        }
+        finally
+        {
+            EndActionLock();
+        }
+    }
+
+    private bool TryRelocateImmediateInternal(Vector2Int targetCell)
+    {
         if (Board == null || targetCell == gridPosition)
         {
             return false;
@@ -459,7 +655,65 @@ public class Character : MonoBehaviour
         Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
         NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
         NotifyMoved(startCell, targetCell);
-        SnapToGrid();
+        SetDashingAnimation(false);
+        return true;
+    }
+
+    private void DetachFromCurrentGridCell()
+    {
+        if (Board == null || !Board.TryGetCell(gridPosition, out BoardCell currentCell))
+        {
+            return;
+        }
+
+        if (currentCell.Occupant == gameObject)
+        {
+            currentCell.ClearOccupant();
+        }
+    }
+
+    private void ReattachToCurrentGridCell(Vector2Int cellPosition)
+    {
+        if (Board == null || !Board.TryGetCell(cellPosition, out BoardCell cell))
+        {
+            return;
+        }
+
+        cell.SetOccupant(gameObject, BoardOccupantKind.PlayerCharacter);
+        gridPosition = cellPosition;
+    }
+
+    private bool TryAttachToGridCellInternal(Vector2Int startCell, Vector2Int targetCell)
+    {
+        if (Board == null || targetCell == startCell)
+        {
+            return false;
+        }
+
+        if (!Board.TryGetCell(targetCell, out BoardCell targetBoardCell))
+        {
+            return false;
+        }
+
+        if (!targetBoardCell.Walkable)
+        {
+            return false;
+        }
+
+        if (targetBoardCell.IsOccupied && targetBoardCell.Occupant != gameObject)
+        {
+            return false;
+        }
+
+        ConsumeTemporaryBonusDamageOnMovement();
+        moveTween?.Kill();
+        moveTween = null;
+        IsMoving = false;
+        gridPosition = targetCell;
+        targetBoardCell.SetOccupant(gameObject, BoardOccupantKind.PlayerCharacter);
+        Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
+        NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
+        NotifyMoved(startCell, targetCell);
         SetDashingAnimation(false);
         return true;
     }
@@ -514,7 +768,7 @@ public class Character : MonoBehaviour
             totalDamage += 2;
         }
 
-        int appliedDamage = enemy.TakeDamage(totalDamage, hitSoundType);
+        int appliedDamage = enemy.TakeDamage(totalDamage, hitSoundType, isAbilityDamage);
         if (isAbilityDamage)
         {
             if (appliedDamage > 0)
@@ -525,7 +779,7 @@ public class Character : MonoBehaviour
             HandleAbilityDamageSideEffects(enemy);
             if (enemy == markedEnemy && enemy.CurrentHealth > 0)
             {
-                int bonusMarkDamage = enemy.TakeDamage(1, DamageSoundType.Default);
+                int bonusMarkDamage = enemy.TakeDamage(1, DamageSoundType.Default, false);
                 appliedDamage += bonusMarkDamage;
                 if (enemy.CurrentHealth <= 0)
                 {
@@ -598,7 +852,10 @@ public class Character : MonoBehaviour
         }
 
         currentHealth = Mathf.Max(0, currentHealth - finalDamage);
-        tookDamageDuringEnemyTurn = true;
+        if (enemyTurnInProgress)
+        {
+            tookDamageDuringEnemyTurn = true;
+        }
 
         blinkFeedback?.Blink(Color.red, 0.5f, 0.12f);
         cam.Instance?.CamShake(finalDamage);
@@ -876,6 +1133,7 @@ public class Character : MonoBehaviour
             Heal(1, ItemRewardKey.SwiftAnklet);
         }
 
+        ApplyPoisonTickAtEndOfTurn();
         CommitCurrentTurnStateForNextTurn();
         isFirstPlayerTurnOfArena = false;
         ClearDeathMark();
@@ -985,6 +1243,29 @@ public class Character : MonoBehaviour
         RefreshTemporaryDamageAura();
         RecalculateItemDrivenStats();
         NotifyAbilitiesChanged();
+    }
+
+    public void ApplyPoisoned()
+    {
+        if (isPoisoned)
+        {
+            return;
+        }
+
+        isPoisoned = true;
+        PlayFeedbackFx(fxStartPoisonPrefab, destroyAfterSeconds: 2f);
+        RefreshPoisonFx();
+    }
+
+    public void ClearPoisoned(bool playHealFx = true)
+    {
+        bool wasPoisoned = isPoisoned;
+        isPoisoned = false;
+        ClearPoisonFx();
+        if (wasPoisoned && playHealFx)
+        {
+            PlayHealProcFx();
+        }
     }
 
     public void ApplyDeathMark(Enemy enemy, DeathMarkAbility sourceAbility)
@@ -1468,6 +1749,7 @@ public class Character : MonoBehaviour
     {
         moveTween?.Kill();
         bodyRotationTween?.Kill();
+        impactTween?.Kill();
         IsMoving = false;
         actionLockCount = 0;
         ClearNextAttackBonusAura();
@@ -1494,6 +1776,7 @@ public class Character : MonoBehaviour
         activeTrailReplacementOwner = null;
         ClearActiveReplacementTrailInstance();
         ClearTemporaryDamageAura();
+        ClearPoisonFx();
         if (defaultTrailObject != null)
         {
             defaultTrailObject.SetActive(true);
@@ -2131,6 +2414,11 @@ public class Character : MonoBehaviour
             RecalculateItemDrivenStats();
         }
 
+        if (enemy != null && enemy.SpecialBehavior == EnemySpecialBehavior.SnakePoisonOpener)
+        {
+            ClearPoisoned();
+        }
+
         if (enemy != null && enemy == markedEnemy)
         {
             if (GetUpgradeStacks(AbilityUpgradeKey.DeathMarkHuntingBonus) > 0)
@@ -2568,6 +2856,49 @@ public class Character : MonoBehaviour
             Destroy(activeTemporaryDamageAuraInstance);
             activeTemporaryDamageAuraInstance = null;
         }
+    }
+
+    private void RefreshPoisonFx()
+    {
+        if (!isPoisoned || fxPoisonPrefab == null)
+        {
+            ClearPoisonFx();
+            return;
+        }
+
+        if (activePoisonFxInstance != null
+            && activePoisonFxInstance.name.StartsWith(fxPoisonPrefab.name, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ClearPoisonFx();
+        Quaternion defaultFxRotation = fxPoisonPrefab.transform.rotation;
+        Vector3 defaultFxScale = fxPoisonPrefab.transform.localScale;
+        activePoisonFxInstance = Instantiate(fxPoisonPrefab, transform.position, defaultFxRotation);
+        activePoisonFxInstance.transform.SetParent(transform, true);
+        activePoisonFxInstance.transform.rotation = defaultFxRotation;
+        activePoisonFxInstance.transform.localScale = defaultFxScale;
+    }
+
+    private void ClearPoisonFx()
+    {
+        if (activePoisonFxInstance != null)
+        {
+            Destroy(activePoisonFxInstance);
+            activePoisonFxInstance = null;
+        }
+    }
+
+    private void ApplyPoisonTickAtEndOfTurn()
+    {
+        if (!isPoisoned || currentHealth <= 0)
+        {
+            return;
+        }
+
+        PlayFeedbackFx(fxStartPoisonPrefab, destroyAfterSeconds: 2f);
+        TakeDamage(1, null, false, DamageSoundType.MagicHit);
     }
 
     private void ConsumeTemporaryBonusDamageOnMovement()

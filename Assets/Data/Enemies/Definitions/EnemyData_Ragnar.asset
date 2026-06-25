@@ -13,12 +13,13 @@ MonoBehaviour:
   m_Name: EnemyData_Ragnar
   m_EditorClassIdentifier: 
   enemyName: Ragnar-Ork
-  specialInfo: Slow, sturdy, and devastating up close.
+  specialInfo: Spawns 2 Ogres at battle start and grows more mobile whenever one
+    falls.
   portrait: {fileID: 21300000, guid: 8e91406b5a3f54cd6b0df46faf9f0e0f, type: 3}
-  maxHealth: 22
-  force: 5
+  maxHealth: 55
+  force: 3
   resistance: 0
-  mobility: 2
+  mobility: 4
   attackPattern: 0
   attackRange: 1
   damageSoundType: 0
@@ -38,7 +39,7 @@ MonoBehaviour:
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
-  attackDamageDelay: 0.4
+  attackDamageDelay: 0.8
   multiplyAttackDamageDelayByDistance: 0
   lookAtTargetWhenAttacking: 1
   optionalActionType: 0
@@ -46,8 +47,24 @@ MonoBehaviour:
   moveDuration: 0.16
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
+  projectileSpawnDelay: 0
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
+  specialBehavior: 6
+  specialDamage: 1
+  specialWindupDuration: 0.35
+  specialStartDelay: 0
+  specialJumpDuration: 0.35
+  specialJumpPower: 0.75
+  specialRecoveryDelay: 0.25
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
+  specialImpactShakeRatio: 0.2
+  specialPerDistanceDelay: 0.05
+  specialBumpHeight: 0.12
+  specialBumpDurationPerDistance: 0.08
+  specialSelfBuffFxPrefab: {fileID: 2407364176693153571, guid: 271d75a6cdedb47168ae5dbf32bbd3e0, type: 3}
+  specialCompanionPrefab: {fileID: 2433636361208229482, guid: 4b868ca59aa5d4cbebdcab7ba7b2a641, type: 3}
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1

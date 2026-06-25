@@ -147,7 +147,13 @@ public class UnitStatsMenuUI : MonoBehaviour
         EnemyData data = enemy.Data;
         BindCommon(enemy.EnemyName, enemy.EnemyPortrait, enemy.EnemySpecialInfo);
 
-        attackStat.Bind(data == null || data.ShowAttack, enemy.Force.ToString(), data != null ? data.AttackSprite : null);
+        int naturalAttack = enemy.Force;
+        int currentAttack = enemy.EffectiveForce;
+        attackStat.Bind(
+            data == null || data.ShowAttack,
+            currentAttack.ToString(),
+            data != null ? data.AttackSprite : null,
+            GetStatColor(currentAttack, naturalAttack));
         forceStat.Bind(false, string.Empty);
         hpStat.Bind(data == null || data.ShowHealth, $"{enemy.CurrentHealth}/{enemy.MaxHealth}");
         resistanceStat.Bind(data != null && data.ShowResistance, enemy.Resistance.ToString());

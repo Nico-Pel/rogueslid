@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: EnemyData_Snake
   m_EditorClassIdentifier: 
   enemyName: Snake
-  specialInfo: The goblin is a classic enemy.
+  specialInfo: The Snake releases its target from the poison when it dies.
   portrait: {fileID: 21300000, guid: 3e5a7fcb2a788469baf4f467e4f614bc, type: 3}
-  maxHealth: 10
+  maxHealth: 20
   force: 3
   resistance: 0
   mobility: 3
@@ -48,6 +48,15 @@ MonoBehaviour:
   projectileTravelSpeed: 10
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
+  specialBehavior: 1
+  specialDamage: 1
+  specialWindupDuration: 0.15
+  specialStartDelay: 0.5
+  specialJumpDuration: 0.4
+  specialJumpPower: 1
+  specialRecoveryDelay: 0.25
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1
@@ -55,6 +64,6 @@ MonoBehaviour:
   showMobility: 1
   showRegen: 0
   regenPerTurn: 0
-  showSpecial: 0
-  specialStatSprite: {fileID: 0}
-  specialStatValue: 
+  showSpecial: 1
+  specialStatSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  specialStatValue: Poison
