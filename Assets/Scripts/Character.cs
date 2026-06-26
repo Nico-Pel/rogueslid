@@ -74,6 +74,7 @@ public class Character : MonoBehaviour
     private Tween bodyRotationTween;
     private Tween impactTween;
     private int remainingMovementPoints;
+    private int wolfMovementPoints;
     private readonly List<CharacterAbilityRuntime> abilities = new List<CharacterAbilityRuntime>();
     private readonly List<Enemy> traversedEnemiesBuffer = new List<Enemy>();
     private RendererBlinkFeedback blinkFeedback;
@@ -130,6 +131,8 @@ public class Character : MonoBehaviour
     public int Resistance => resistance;
     public int BaseMovementPoints => movementPointsPerTurn;
     public int RemainingMovementPoints => remainingMovementPoints;
+    public int WolfMovementPoints => wolfMovementPoints;
+    public int ExtraMovementPointsBeyondBase => Mathf.Max(0, remainingMovementPoints - wolfMovementPoints - movementPointsPerTurn);
     public bool CanAct => remainingMovementPoints > 0 && !IsBusy;
     public bool IsPoisoned => isPoisoned;
     public bool IsMoving { get; private set; }
@@ -204,6 +207,7 @@ public class Character : MonoBehaviour
         markedEnemy = null;
         markedLichSkull = null;
         deathMarkAbility = null;
+        wolfMovementPoints = 0;
         SnapToGrid();
         ResetTurn();
         SetDashingAnimation(false);
@@ -249,6 +253,7 @@ public class Character : MonoBehaviour
         markedEnemy = null;
         markedLichSkull = null;
         deathMarkAbility = null;
+        wolfMovementPoints = 0;
 
         InitializeAbilities(runRewardState != null ? runRewardState.GetEquippedAbilities() : GetStartingAbilityDefinitions());
 
@@ -280,6 +285,7 @@ public class Character : MonoBehaviour
         tookDamageSinceLastPlayerTurn = false;
         attackedThisTurn = false;
         RecalculateItemDrivenStats();
+        wolfMovementPoints = 0;
         remainingMovementPoints = movementPointsPerTurn;
         frostCharmedEnemiesThisTurn.Clear();
         ClearNextAttackBonusDamage();
@@ -317,7 +323,8 @@ public class Character : MonoBehaviour
             return false;
         }
 
-        if (!Board.MoveOccupant(gridPosition, destination, BoardOccupantKind.PlayerCharacter))
+        bool allowLandingOnSkull = Board.CanCharacterStandOnSkullCell(destination);
+        if (!Board.MoveOccupant(gridPosition, destination, BoardOccupantKind.PlayerCharacter, allowLandingOnSkull))
         {
             return false;
         }
@@ -332,8 +339,7 @@ public class Character : MonoBehaviour
         gridPosition = destination;
         if (consumesMovementPoint)
         {
-            remainingMovementPoints--;
-            NotifyMovementPointsChanged();
+            ConsumeMovementPointInternal();
         }
         Board.NotifyCharacterTraversedPath(this, startCell, destination);
         NotifyAbilitiesCharacterMoved(startCell, destination, consumesMovementPoint);
@@ -720,13 +726,7 @@ public class Character : MonoBehaviour
 
     public void ConsumeMovementPoint()
     {
-        if (remainingMovementPoints <= 0)
-        {
-            return;
-        }
-
-        remainingMovementPoints--;
-        NotifyMovementPointsChanged();
+        ConsumeMovementPointInternal();
     }
 
     public void BeginActionLock()
@@ -940,6 +940,30 @@ public class Character : MonoBehaviour
         {
             TriggerItemActivationPulse(sourceItemKey.Value);
         }
+    }
+
+    public void GainWolfMovementPoints(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        wolfMovementPoints += amount;
+        remainingMovementPoints += amount;
+        NotifyMovementPointsChanged();
+    }
+
+    public void ClearWolfMovementPoints()
+    {
+        if (wolfMovementPoints <= 0)
+        {
+            return;
+        }
+
+        remainingMovementPoints = Mathf.Max(0, remainingMovementPoints - wolfMovementPoints);
+        wolfMovementPoints = 0;
+        NotifyMovementPointsChanged();
     }
 
     public void RefreshAbilityState()
@@ -2098,6 +2122,23 @@ public class Character : MonoBehaviour
     private void NotifyMovementPointsChanged()
     {
         MovementPointsChanged?.Invoke(this);
+    }
+
+    private bool ConsumeMovementPointInternal()
+    {
+        if (remainingMovementPoints <= 0)
+        {
+            return false;
+        }
+
+        remainingMovementPoints--;
+        if (wolfMovementPoints > 0)
+        {
+            wolfMovementPoints = Mathf.Max(0, wolfMovementPoints - 1);
+        }
+
+        NotifyMovementPointsChanged();
+        return true;
     }
 
     private void NotifyMoved(Vector2Int previousCell, Vector2Int currentCell)

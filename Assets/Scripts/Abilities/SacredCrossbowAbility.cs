@@ -29,6 +29,16 @@ public class SacredCrossbowAbility : AbilityDefinition
     [SerializeField] private float projectileLaunchDelay = 0.08f;
     [SerializeField] private Vector3 projectileSpawnOffset = new Vector3(0f, 0.2f, 0f);
     [SerializeField] private Vector3 projectileImpactOffset = new Vector3(0f, 0.2f, 0f);
+    [Header("Secondary Impact FX")]
+    [SerializeField] private GameObject lightBurstImpactFxPrefab;
+    [SerializeField] private GameObject sacredDemolitionImpactFxPrefab;
+    [Min(0f)]
+    [SerializeField] private float secondaryImpactFxDuration = 1f;
+    [Header("Sacred Ray FX")]
+    [SerializeField] private GameObject sacredRayAttractionFxPrefab;
+    [SerializeField] private GameObject sacredRaySoundParametersPrefab;
+    [Min(0f)]
+    [SerializeField] private float sacredRayAttractionFxDuration = 1f;
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
@@ -170,6 +180,7 @@ public class SacredCrossbowAbility : AbilityDefinition
         character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Default, this);
         if (triggerLightBurst)
         {
+            PlaySecondaryImpactFx(character, lightBurstImpactFxPrefab, cellPosition);
             character.DamageEnemiesAround(cellPosition, secondarySplashRange, secondarySplashDamage, true, this);
         }
     }
@@ -195,6 +206,7 @@ public class SacredCrossbowAbility : AbilityDefinition
         character.DealDamageToLichSkull(skull, damage, true, DamageSoundType.Default, this);
         if (triggerLightBurst)
         {
+            PlaySecondaryImpactFx(character, lightBurstImpactFxPrefab, cellPosition);
             character.DamageEnemiesAround(cellPosition, secondarySplashRange, secondarySplashDamage, true, this);
         }
     }
@@ -220,6 +232,7 @@ public class SacredCrossbowAbility : AbilityDefinition
         barrel.TakeHit();
         if (triggerLightBurst || triggerDemolition)
         {
+            PlaySecondaryImpactFx(character, triggerLightBurst ? lightBurstImpactFxPrefab : sacredDemolitionImpactFxPrefab, cellPosition);
             character?.DamageEnemiesAround(cellPosition, secondarySplashRange, secondarySplashDamage, true, this);
         }
     }
@@ -231,7 +244,20 @@ public class SacredCrossbowAbility : AbilityDefinition
             yield return new WaitForSeconds(delay);
         }
 
+        PlaySecondaryImpactFx(character, sacredDemolitionImpactFxPrefab, cellPosition);
         character?.DamageEnemiesAround(cellPosition, secondarySplashRange, secondarySplashDamage, true, this);
+    }
+
+    private void PlaySecondaryImpactFx(Character character, GameObject fxPrefab, Vector2Int cellPosition)
+    {
+        if (character == null || character.Board == null || fxPrefab == null)
+        {
+            return;
+        }
+
+        Vector3 worldPosition = character.Board.GridToWorldPosition(cellPosition);
+        Vector3 offset = worldPosition - character.transform.position;
+        character.PlayFeedbackFx(fxPrefab, positionOffset: offset, destroyAfterSeconds: secondaryImpactFxDuration);
     }
 
     private List<Vector2Int> BuildLineCells(BoardManager board, Vector2Int origin, Vector2Int direction, int maxRange)
@@ -309,6 +335,15 @@ public class SacredCrossbowAbility : AbilityDefinition
             return left.TieBreaker.CompareTo(right.TieBreaker);
         });
 
+        if (winners.Count > 0)
+        {
+            PlaySacredRaySound(character);
+            for (int index = 0; index < winners.Count; index++)
+            {
+                PlaySacredRayAttractionFx(character, winners[index].Destination);
+            }
+        }
+
         for (int index = 0; index < winners.Count; index++)
         {
             PullCandidate winner = winners[index];
@@ -344,9 +379,8 @@ public class SacredCrossbowAbility : AbilityDefinition
                 continue;
             }
 
-            int adjacencyDistance = Mathf.Max(
-                Mathf.Abs(candidateCell.x - enemy.GridPosition.x),
-                Mathf.Abs(candidateCell.y - enemy.GridPosition.y));
+            int adjacencyDistance = Mathf.Abs(candidateCell.x - enemy.GridPosition.x)
+                + Mathf.Abs(candidateCell.y - enemy.GridPosition.y);
             if (adjacencyDistance != 1)
             {
                 continue;
@@ -386,6 +420,38 @@ public class SacredCrossbowAbility : AbilityDefinition
         }
 
         return contender.TieBreaker < currentBest.TieBreaker;
+    }
+
+    private void PlaySacredRayAttractionFx(Character character, Vector2Int cellPosition)
+    {
+        if (character == null || character.Board == null || sacredRayAttractionFxPrefab == null)
+        {
+            return;
+        }
+
+        Vector3 worldPosition = character.Board.GridToWorldPosition(cellPosition);
+        Vector3 offset = worldPosition - character.transform.position;
+        character.PlayFeedbackFx(sacredRayAttractionFxPrefab, positionOffset: offset, destroyAfterSeconds: sacredRayAttractionFxDuration);
+    }
+
+    private void PlaySacredRaySound(Character character)
+    {
+        if (character == null || sacredRaySoundParametersPrefab == null)
+        {
+            return;
+        }
+
+        GameObject soundObject = Object.Instantiate(
+            sacredRaySoundParametersPrefab,
+            character.transform.position,
+            sacredRaySoundParametersPrefab.transform.rotation);
+        soundObject.transform.localScale = sacredRaySoundParametersPrefab.transform.localScale;
+
+        SoundParameters soundParameters = soundObject.GetComponent<SoundParameters>();
+        if (soundParameters != null)
+        {
+            soundParameters.PlaySound(character.transform.position);
+        }
     }
 
     private bool CanTargetCell(Character character, Vector2Int targetCell)

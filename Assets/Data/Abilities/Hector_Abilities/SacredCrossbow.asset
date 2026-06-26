@@ -48,3 +48,9 @@ MonoBehaviour:
   projectileLaunchDelay: 0.08
   projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
   projectileImpactOffset: {x: 0, y: 0.2, z: 0}
+  lightBurstImpactFxPrefab: {fileID: 4623002585508310345, guid: 2481fe006e4834df38c83724b941ac53, type: 3}
+  sacredDemolitionImpactFxPrefab: {fileID: 4623002585508310345, guid: 2481fe006e4834df38c83724b941ac53, type: 3}
+  secondaryImpactFxDuration: 1
+  sacredRayAttractionFxPrefab: {fileID: 3546907494164934999, guid: 36e1d1d92b4c54fcea93023d84620123, type: 3}
+  sacredRaySoundParametersPrefab: {fileID: 3546907494164934999, guid: 7e33ecf61c2fc431bb7558daeb97ffb3, type: 3}
+  sacredRayAttractionFxDuration: 1

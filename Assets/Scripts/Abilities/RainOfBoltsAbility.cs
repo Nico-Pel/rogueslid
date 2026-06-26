@@ -21,6 +21,11 @@ public class RainOfBoltsAbility : AbilityDefinition
     [SerializeField] private float minimumTravelDuration = 0.18f;
     [Min(0.01f)]
     [SerializeField] private float projectileJumpPower = 0.85f;
+    [SerializeField] private AnimationCurve projectileTravelProgressCurve = new AnimationCurve(
+        new Keyframe(0f, 0f, 2.2f, 2.2f),
+        new Keyframe(0.35f, 0.46f, 0.45f, 0.45f),
+        new Keyframe(0.62f, 0.6f, 1.4f, 1.4f),
+        new Keyframe(1f, 1f, 3f, 3f));
     [SerializeField] private Vector3 projectileSpawnOffset = new Vector3(0f, 0.2f, 0f);
     [SerializeField] private Vector3 projectileImpactOffset = new Vector3(0f, 0.2f, 0f);
     [Min(0f)]
@@ -97,25 +102,16 @@ public class RainOfBoltsAbility : AbilityDefinition
             maxTravelDuration = Mathf.Max(maxTravelDuration, travelDuration);
 
             bool playArrowShotSound = index == 0;
-            HectorAbilityUtils.TryPlayArcProjectile(
+            character.StartCoroutine(PlayRainBoltProjectileRoutine(
                 character,
-                projectilePrefab,
+                cellPosition,
                 targetPosition,
                 travelDuration,
-                projectileJumpPower,
-                projectileSpawnOffset,
-                0f,
-                projectile =>
+                playArrowShotSound,
+                () =>
                 {
-                    bool didHit = ResolveProjectileImpact(character, cellPosition, projectile);
-                    if (didHit)
-                    {
-                        hitCount++;
-                    }
-
-                    return didHit;
-                },
-                playArrowShotSound);
+                    hitCount++;
+                }));
         }
 
         PlayConfiguredFx(character);
@@ -165,6 +161,56 @@ public class RainOfBoltsAbility : AbilityDefinition
         return false;
     }
 
+    private IEnumerator PlayRainBoltProjectileRoutine(
+        Character character,
+        Vector2Int cellPosition,
+        Vector3 targetPosition,
+        float travelDuration,
+        bool playArrowShotSound,
+        System.Action onSuccessfulHit)
+    {
+        if (character == null || projectilePrefab == null)
+        {
+            yield break;
+        }
+
+        Vector3 startPosition = character.transform.position + projectileSpawnOffset;
+        if (playArrowShotSound)
+        {
+            SoundManager.Instance?.PlayArrowShot(startPosition);
+        }
+
+        GameObject projectile = Instantiate(projectilePrefab, startPosition, Quaternion.identity);
+        projectile.transform.localScale = projectilePrefab.transform.localScale;
+
+        float duration = Mathf.Max(0.05f, travelDuration);
+        AnimationCurve progressCurve = GetValidatedProjectileTravelCurve();
+        float elapsed = 0f;
+        while (elapsed < duration && projectile != null)
+        {
+            float normalizedTime = Mathf.Clamp01(elapsed / duration);
+            ApplyRainBoltProjectilePose(projectile.transform, startPosition, targetPosition, normalizedTime, progressCurve);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (projectile != null)
+        {
+            ApplyRainBoltProjectilePose(projectile.transform, startPosition, targetPosition, 1f, progressCurve);
+        }
+
+        bool didHit = ResolveProjectileImpact(character, cellPosition, projectile);
+        if (didHit)
+        {
+            onSuccessfulHit?.Invoke();
+        }
+
+        if (projectile != null && didHit)
+        {
+            Destroy(projectile);
+        }
+    }
+
     private List<Vector2Int> GetPrimaryTargetCells(Character character, Vector2Int centerCell)
     {
         List<Vector2Int> cells = new List<Vector2Int>();
@@ -178,7 +224,7 @@ public class RainOfBoltsAbility : AbilityDefinition
         {
             for (int offsetY = -radius; offsetY <= radius; offsetY++)
             {
-                if (Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)) > radius)
+                if ((offsetX * offsetX) + (offsetY * offsetY) > (radius * radius))
                 {
                     continue;
                 }
@@ -282,5 +328,53 @@ public class RainOfBoltsAbility : AbilityDefinition
 
         chosenCell = availableCells[Random.Range(0, availableCells.Count)];
         return true;
+    }
+
+    private void ApplyRainBoltProjectilePose(
+        Transform projectileTransform,
+        Vector3 startPosition,
+        Vector3 targetPosition,
+        float normalizedTime,
+        AnimationCurve progressCurve)
+    {
+        if (projectileTransform == null)
+        {
+            return;
+        }
+
+        float clampedTime = Mathf.Clamp01(normalizedTime);
+        float progress = Mathf.Clamp01(progressCurve.Evaluate(clampedTime));
+        Vector3 flatPosition = Vector3.LerpUnclamped(startPosition, targetPosition, progress);
+        float arcHeight = Mathf.Max(0.01f, projectileJumpPower);
+        float arcOffset = 4f * progress * (1f - progress) * arcHeight;
+        Vector3 currentPosition = flatPosition + (Vector3.up * arcOffset);
+        projectileTransform.position = currentPosition;
+
+        const float sampleStep = 0.02f;
+        float nextTime = Mathf.Clamp01(clampedTime + sampleStep);
+        if (nextTime <= clampedTime)
+        {
+            nextTime = clampedTime;
+        }
+
+        float nextProgress = Mathf.Clamp01(progressCurve.Evaluate(nextTime));
+        Vector3 nextFlatPosition = Vector3.LerpUnclamped(startPosition, targetPosition, nextProgress);
+        float nextArcOffset = 4f * nextProgress * (1f - nextProgress) * arcHeight;
+        Vector3 nextPosition = nextFlatPosition + (Vector3.up * nextArcOffset);
+        Vector3 direction = nextPosition - currentPosition;
+        if (direction.sqrMagnitude > 0.0001f)
+        {
+            projectileTransform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        }
+    }
+
+    private AnimationCurve GetValidatedProjectileTravelCurve()
+    {
+        if (projectileTravelProgressCurve == null || projectileTravelProgressCurve.length < 2)
+        {
+            return AnimationCurve.Linear(0f, 0f, 1f, 1f);
+        }
+
+        return projectileTravelProgressCurve;
     }
 }

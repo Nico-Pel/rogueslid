@@ -1,4 +1,5 @@
 using System;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,8 +22,14 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     [SerializeField] private GameObject cooldownRoot;
     [SerializeField] private TMP_Text cooldownCountLabel;
     [SerializeField] private GameObject activeIndicator;
+    [SerializeField] private GameObject fadeIndicator;
+    [SerializeField] private Image fadeIndicatorImage;
     [SerializeField] private Color availableColor = Color.white;
     [SerializeField] private Color disabledColor = new Color(1f, 1f, 1f, 0.5f);
+    [SerializeField] private Color heartRipperExecuteFadeColor = new Color(1f, 0f, 0.02745098f, 0.6666667f);
+    [SerializeField] private float fadePulseMinAlpha = 0.1f;
+    [SerializeField] private float fadePulseMaxAlpha = 0.4f;
+    [SerializeField] private float fadePulseDuration = 0.5f;
     [SerializeField] private Sprite basicAttackTypeSprite;
     [SerializeField] private Sprite mobilityTypeSprite;
     [SerializeField] private Sprite specialPowerTypeSprite;
@@ -40,6 +47,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private bool suppressNextClick;
     private float pointerDownStartTime;
     private bool wasWaitingForReuseDelay;
+    private Tween fadePulseTween;
 
     public int AbilityIndex => abilitySlotIndex;
     public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
@@ -132,6 +140,11 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         bool showActiveCounter = hasAbility && runtime.IsActive && !string.IsNullOrEmpty(counterText);
         bool showUsageCount = hasAbility && !string.IsNullOrEmpty(counterText) && (!isOnCooldown || showActiveCounter);
         bool showCooldown = isOnCooldown && !showActiveCounter;
+        bool showHeartRipperExecuteFade = hasAbility
+            && isPlayerTurn
+            && runtime.IsUsable(character)
+            && runtime.Definition is HeartRipperAbility heartRipper
+            && heartRipper.HasExecutableHealOpportunity(character, runtime);
 
         if (button != null)
         {
@@ -154,6 +167,11 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             if (cooldownRoot != null)
             {
                 cooldownRoot.SetActive(false);
+            }
+
+            if (fadeIndicator != null)
+            {
+                SetFadeIndicatorVisible(false);
             }
 
             return;
@@ -206,6 +224,8 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         {
             cooldownCountLabel.text = showCooldown ? runtime.RemainingCooldown.ToString() : string.Empty;
         }
+
+        SetFadeIndicatorVisible(showHeartRipperExecuteFade);
     }
 
     private void HandleClicked()
@@ -255,6 +275,11 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     public void OnPointerExit(PointerEventData eventData)
     {
         isPointerDown = false;
+    }
+
+    private void OnDisable()
+    {
+        StopFadePulse();
     }
 
     public void ApplyTheme(Color backgroundColor, Color outlineColor, Color countBackgroundColor, Color typeIconColor, Color typeOutlineColor)
@@ -393,6 +418,20 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             }
         }
 
+        if (fadeIndicator == null)
+        {
+            Transform fadeTransform = transform.Find("iFade");
+            if (fadeTransform != null)
+            {
+                fadeIndicator = fadeTransform.gameObject;
+            }
+        }
+
+        if (fadeIndicatorImage == null && fadeIndicator != null)
+        {
+            fadeIndicatorImage = fadeIndicator.GetComponent<Image>();
+        }
+
         if (activeIndicator != null && activeIndicatorEffect == null)
         {
             activeIndicatorEffect = activeIndicator.GetComponent<ActiveIndicator>();
@@ -437,5 +476,56 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         {
             emptyRoot.SetActive(isEmpty);
         }
+    }
+
+    private void SetFadeIndicatorVisible(bool isVisible)
+    {
+        if (fadeIndicatorImage != null)
+        {
+            Color fadeColor = heartRipperExecuteFadeColor;
+            fadeColor.a = isVisible ? Mathf.Clamp(fadePulseMaxAlpha, 0f, 1f) : 0f;
+            fadeIndicatorImage.color = fadeColor;
+        }
+
+        if (fadeIndicator != null && fadeIndicator.activeSelf != isVisible)
+        {
+            fadeIndicator.SetActive(isVisible);
+        }
+
+        if (isVisible)
+        {
+            StartFadePulse();
+        }
+        else
+        {
+            StopFadePulse();
+        }
+    }
+
+    private void StartFadePulse()
+    {
+        if (fadeIndicatorImage == null)
+        {
+            return;
+        }
+
+        float minAlpha = Mathf.Clamp01(Mathf.Min(fadePulseMinAlpha, fadePulseMaxAlpha));
+        float maxAlpha = Mathf.Clamp01(Mathf.Max(fadePulseMinAlpha, fadePulseMaxAlpha));
+        float duration = Mathf.Max(0.01f, fadePulseDuration);
+
+        StopFadePulse();
+        Color baseColor = heartRipperExecuteFadeColor;
+        baseColor.a = minAlpha;
+        fadeIndicatorImage.color = baseColor;
+        fadePulseTween = fadeIndicatorImage
+            .DOFade(maxAlpha, duration)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetEase(Ease.InOutSine);
+    }
+
+    private void StopFadePulse()
+    {
+        fadePulseTween?.Kill();
+        fadePulseTween = null;
     }
 }

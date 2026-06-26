@@ -25,6 +25,7 @@ public class SkullObject : MonoBehaviour
 
     public Vector2Int GridPosition => gridPosition;
     public bool IsResolving => isResolving;
+    public virtual bool CanPlayerStandOn => true;
     protected BoardManager Board => board;
 
     public void Assign(BoardManager ownerBoard, Vector2Int cellPosition, SkeletonEnemyData sourceData)
@@ -193,9 +194,17 @@ public class SkullObject : MonoBehaviour
         }
 
         BeginResolution();
-        board?.ClearStaticObstacle(gridPosition, gameObject);
-        board?.ReviveSkeletonFromSkull(this, skeletonData);
-        board?.UnregisterSkullObject(this);
+        bool revived = board != null && board.ReviveSkeletonFromSkull(this, skeletonData);
+        if (!revived)
+        {
+            isResolving = false;
+            remainingTurns = 0;
+            RefreshCounter();
+            return;
+        }
+
+        board.ClearStaticObstacle(gridPosition, gameObject);
+        board.UnregisterSkullObject(this);
         Destroy(gameObject);
     }
 

@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_sacred_crossbow_sacred_demolition
   rewardTitle: Sacred Demolition
-  rewardDescription: When Sacred Crossbow pierces a blocking obstacle, enemies around it take damage. This also works on barrels unless Light Burst is unlocked.
+  rewardDescription: When Sacred Crossbow pierces a blocking obstacle, enemies around
+    it take damage.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 9dbe4a6a1c6e4ff5b8c24f64d7b90a01, type: 2}
   upgradeKey: 70

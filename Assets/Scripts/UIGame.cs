@@ -18,6 +18,8 @@ public class UIGame : MonoBehaviour
     [SerializeField] private GameObject itemIconPrefab;
     [SerializeField] private Color mobilityAvailableColor = Color.white;
     [SerializeField] private Color mobilityConsumedColor = Color.black;
+    [SerializeField] private Sprite wolfMobilitySprite;
+    [SerializeField] private Color wolfMobilityColor = new Color(1f, 0.7294118f, 0.003921569f, 1f);
     [SerializeField] private GameObject rewardsMenu;
     [SerializeField] private Button ignoreRewardsButton;
     [SerializeField] private GameObject targetCellIndicatorPrefab;
@@ -69,6 +71,7 @@ public class UIGame : MonoBehaviour
     [SerializeField] private bool disableAbilityButtonsWithoutValidTargets = false;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
+    private readonly List<bool> wolfMobilityIcons = new List<bool>();
     private readonly List<GameObject> itemIcons = new List<GameObject>();
     private readonly Dictionary<ItemRewardKey, ItemIconUI> itemIconsByKey = new Dictionary<ItemRewardKey, ItemIconUI>();
     private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
@@ -497,6 +500,7 @@ public class UIGame : MonoBehaviour
     private void HandleMovementPointsChanged(Character character)
     {
         RefreshMobilityBar();
+        RefreshAbilityButtons();
         RefreshTargetCellIndicators();
     }
 
@@ -710,17 +714,29 @@ public class UIGame : MonoBehaviour
         }
 
         mobilityIcons.Clear();
+        wolfMobilityIcons.Clear();
 
         if (observedCharacter == null || mobilityIconPrefab == null)
         {
             return;
         }
 
-        for (int index = 0; index < observedCharacter.BaseMovementPoints; index++)
+        int normalIconCount = observedCharacter.BaseMovementPoints + observedCharacter.ExtraMovementPointsBeyondBase;
+        for (int index = 0; index < normalIconCount; index++)
         {
             GameObject icon = Instantiate(mobilityIconPrefab, mobilityBar);
             icon.name = $"iMobility_{index + 1}";
             mobilityIcons.Add(icon);
+            wolfMobilityIcons.Add(false);
+        }
+
+        for (int index = 0; index < observedCharacter.WolfMovementPoints; index++)
+        {
+            GameObject icon = Instantiate(mobilityIconPrefab, mobilityBar);
+            icon.name = $"iWolfMobility_{index + 1}";
+            ConfigureMobilityIcon(icon, true);
+            mobilityIcons.Add(icon);
+            wolfMobilityIcons.Add(true);
         }
 
         RefreshMobilityBar();
@@ -733,10 +749,59 @@ public class UIGame : MonoBehaviour
             return;
         }
 
+        int desiredIconCount = observedCharacter.BaseMovementPoints
+            + observedCharacter.ExtraMovementPointsBeyondBase
+            + observedCharacter.WolfMovementPoints;
+        if (mobilityIcons.Count != desiredIconCount)
+        {
+            RebuildMobilityBar();
+            return;
+        }
+
+        int availableNormalIcons = Mathf.Clamp(
+            observedCharacter.RemainingMovementPoints - observedCharacter.WolfMovementPoints,
+            0,
+            observedCharacter.BaseMovementPoints + observedCharacter.ExtraMovementPointsBeyondBase);
+        int availableWolfIcons = Mathf.Max(0, observedCharacter.WolfMovementPoints);
+        int normalIndex = 0;
+        int wolfIndex = 0;
+
         for (int index = 0; index < mobilityIcons.Count; index++)
         {
-            bool isAvailable = index < observedCharacter.RemainingMovementPoints;
-            SetMobilityIconColor(mobilityIcons[index], isAvailable ? mobilityAvailableColor : mobilityConsumedColor);
+            bool isWolfIcon = index < wolfMobilityIcons.Count && wolfMobilityIcons[index];
+            if (isWolfIcon)
+            {
+                bool isAvailable = wolfIndex < availableWolfIcons;
+                SetMobilityIconColor(mobilityIcons[index], isAvailable ? wolfMobilityColor : mobilityConsumedColor);
+                wolfIndex++;
+            }
+            else
+            {
+                bool isAvailable = normalIndex < availableNormalIcons;
+                SetMobilityIconColor(mobilityIcons[index], isAvailable ? mobilityAvailableColor : mobilityConsumedColor);
+                normalIndex++;
+            }
+        }
+    }
+
+    private void ConfigureMobilityIcon(GameObject icon, bool isWolfIcon)
+    {
+        if (icon == null || !isWolfIcon || wolfMobilitySprite == null)
+        {
+            return;
+        }
+
+        Image image = icon.GetComponent<Image>();
+        if (image != null)
+        {
+            image.sprite = wolfMobilitySprite;
+            return;
+        }
+
+        SpriteRenderer spriteRenderer = icon.GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.sprite = wolfMobilitySprite;
         }
     }
 

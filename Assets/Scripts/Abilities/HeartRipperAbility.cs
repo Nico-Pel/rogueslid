@@ -107,6 +107,47 @@ public class HeartRipperAbility : AbilityDefinition
         return true;
     }
 
+    public bool HasExecutableHealOpportunity(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (character == null || character.Board == null || character.CurrentHealth >= character.MaxHealth)
+        {
+            return false;
+        }
+
+        int damage = GetDamage(character);
+        IReadOnlyList<Enemy> enemies = character.Board.SpawnedEnemies;
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy primaryTarget = enemies[index];
+            if (primaryTarget == null
+                || primaryTarget.CurrentHealth <= 0
+                || !CanActivateOnCell(character, runtime, primaryTarget.GridPosition)
+                || !TryGetLineInfo(character, primaryTarget.GridPosition, out Vector2Int direction, out int distance))
+            {
+                continue;
+            }
+
+            if (primaryTarget.CurrentHealth <= damage)
+            {
+                return true;
+            }
+
+            if (character.GetUpgradeStacks(AbilityUpgradeKey.HeartRipperDemonicHand) > 0 && distance == 2)
+            {
+                Vector2Int middleCell = character.GridPosition + direction;
+                if (character.Board.TryGetEnemy(middleCell, out Enemy middleEnemy)
+                    && middleEnemy != null
+                    && middleEnemy.CurrentHealth > 0
+                    && middleEnemy.CurrentHealth <= damage)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private IEnumerator ResolveHeartRipperSequence(
         Character character,
         Enemy primaryTarget,
@@ -212,5 +253,16 @@ public class HeartRipperAbility : AbilityDefinition
         }
 
         return count;
+    }
+
+    private int GetDamage(Character character)
+    {
+        int damage = baseDamage + character.GetUpgradeStacks(AbilityUpgradeKey.HeartRipperHookedFist);
+        if (character.GetUpgradeStacks(AbilityUpgradeKey.HeartRipperDemonicDuel) > 0 && CountLivingEnemies(character.Board) == 1)
+        {
+            damage += 1;
+        }
+
+        return damage;
     }
 }

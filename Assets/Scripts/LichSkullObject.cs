@@ -13,6 +13,8 @@ public class LichSkullObject : SkullObject
     private GameObject assignedEnemyPrefab;
     private Enemy summoner;
 
+    public override bool CanPlayerStandOn => false;
+
     public int CurrentHealth => currentHealth;
     public int MaxHealth => Mathf.Max(1, maxHealth);
     public GameObject AssignedEnemyPrefab => assignedEnemyPrefab;

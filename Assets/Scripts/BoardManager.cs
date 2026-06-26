@@ -395,6 +395,11 @@ public class BoardManager : MonoBehaviour
                     continue;
                 }
 
+                if (IsPlayerStandableSkullCell(cell))
+                {
+                    lastFreeCell = next;
+                }
+
                 break;
             }
 
@@ -457,6 +462,11 @@ public class BoardManager : MonoBehaviour
         fromCell.ClearOccupant();
         toCell.SetOccupant(occupant, occupantKind);
         return true;
+    }
+
+    public bool CanCharacterStandOnSkullCell(Vector2Int gridPosition)
+    {
+        return TryGetCell(gridPosition, out BoardCell cell) && IsPlayerStandableSkullCell(cell);
     }
 
     public int GetPathDistance(Vector2Int start, Vector2Int goal, bool allowOccupiedGoal = false, bool ignoreBlockingTerrain = false)
@@ -1100,9 +1110,28 @@ public class BoardManager : MonoBehaviour
         }
 
         GameObject enemyPrefab = ResolveEnemyPrefabForData(skeletonData);
-        if (enemyPrefab == null || !TryGetCell(skullObject.GridPosition, out BoardCell cell) || cell.IsOccupied)
+        if (enemyPrefab == null || !TryGetCell(skullObject.GridPosition, out BoardCell cell))
         {
             return false;
+        }
+
+        Character controlledCharacter = player != null ? player.ControlledCharacter : null;
+        if (cell.IsOccupied)
+        {
+            if (controlledCharacter == null
+                || cell.Occupant != controlledCharacter.gameObject
+                || !TryFindCharacterRelocationForSkullRespawn(controlledCharacter.GridPosition, out Vector2Int relocationCell))
+            {
+                return false;
+            }
+
+            Vector3 skullWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
+            if (!controlledCharacter.TryTeleportToImmediate(relocationCell))
+            {
+                return false;
+            }
+
+            controlledCharacter.PlayImpactBump(skullWorldPosition, 0.24f, 0.14f);
         }
 
         Vector3 spawnWorldPosition = cell.WorldPosition + Vector3.up * spawnHeight;
@@ -1127,6 +1156,93 @@ public class BoardManager : MonoBehaviour
         cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
         player?.ControlledCharacter?.HandleEnemyCountChanged(spawnedEnemies.Count);
         return true;
+    }
+
+    private bool TryFindCharacterRelocationForSkullRespawn(Vector2Int origin, out Vector2Int relocationCell)
+    {
+        relocationCell = default;
+
+        if (TryPickFirstWalkableCell(origin, HectorAbilityUtils.OrthogonalDirections, 1, out relocationCell))
+        {
+            return true;
+        }
+
+        Vector2Int[] diagonalDirections =
+        {
+            new Vector2Int(1, 1),
+            new Vector2Int(1, -1),
+            new Vector2Int(-1, -1),
+            new Vector2Int(-1, 1)
+        };
+
+        if (TryPickFirstWalkableCell(origin, diagonalDirections, 1, out relocationCell))
+        {
+            return true;
+        }
+
+        int maxRadius = Mathf.Max(BoardWidth, BoardHeight);
+        for (int radius = 2; radius <= maxRadius; radius++)
+        {
+            List<Vector2Int> candidates = new List<Vector2Int>();
+            for (int offsetX = -radius; offsetX <= radius; offsetX++)
+            {
+                for (int offsetY = -radius; offsetY <= radius; offsetY++)
+                {
+                    if (Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)) != radius)
+                    {
+                        continue;
+                    }
+
+                    Vector2Int candidate = origin + new Vector2Int(offsetX, offsetY);
+                    if (IsCellWalkable(candidate))
+                    {
+                        candidates.Add(candidate);
+                    }
+                }
+            }
+
+            if (candidates.Count > 0)
+            {
+                relocationCell = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryPickFirstWalkableCell(Vector2Int origin, IReadOnlyList<Vector2Int> directions, int distance, out Vector2Int targetCell)
+    {
+        targetCell = default;
+        if (directions == null)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < directions.Count; index++)
+        {
+            Vector2Int candidate = origin + (directions[index] * distance);
+            if (!IsCellWalkable(candidate))
+            {
+                continue;
+            }
+
+            targetCell = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsPlayerStandableSkullCell(BoardCell cell)
+    {
+        if (cell == null || cell.StaticObstacle == null)
+        {
+            return false;
+        }
+
+        SkullObject skullObject = cell.StaticObstacle.GetComponent<SkullObject>();
+        return skullObject != null && skullObject.CanPlayerStandOn && !skullObject.IsResolving;
     }
 
     public bool ReviveEnemyFromLichSkull(LichSkullObject skullObject, GameObject enemyPrefab, Enemy summoner)

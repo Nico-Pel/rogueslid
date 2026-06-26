@@ -39,8 +39,7 @@ public class WolfStepAbility : AbilityDefinition
 
     public override bool LimitsNextSlideToOneCell(Character character, CharacterAbilityRuntime runtime)
     {
-        WolfStepState state = GetState(runtime);
-        return runtime != null && runtime.IsActive && state.RemainingSteps > 0;
+        return runtime != null && runtime.IsActive && character != null && character.WolfMovementPoints > 0;
     }
 
     public override bool ConsumeSingleStepModifierAfterMovement(Character character, CharacterAbilityRuntime runtime)
@@ -50,25 +49,14 @@ public class WolfStepAbility : AbilityDefinition
 
     public override bool PreventsSlideMovementPointConsumption(Character character, CharacterAbilityRuntime runtime)
     {
-        WolfStepState state = GetState(runtime);
-        return runtime != null && runtime.IsActive && state.RemainingSteps > 0;
+        return false;
     }
 
     public override string GetCounterText(CharacterAbilityRuntime runtime)
     {
-        if (runtime == null)
-        {
-            return string.Empty;
-        }
-
-        if (runtime.RemainingCooldown > 0)
-        {
-            return runtime.RemainingCooldown.ToString();
-        }
-
-        WolfStepState state = GetState(runtime);
-        int displayCount = runtime.IsActive ? state.RemainingSteps : state.CachedTotalStepCount;
-        return Mathf.Max(0, displayCount).ToString();
+        return runtime != null && runtime.RemainingCooldown > 0
+            ? runtime.RemainingCooldown.ToString()
+            : string.Empty;
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)
@@ -78,12 +66,14 @@ public class WolfStepAbility : AbilityDefinition
             return false;
         }
 
+        bool hadNoMovementBeforeActivation = character.RemainingMovementPoints <= 0;
         WolfStepState state = GetState(runtime);
         state.CachedTotalStepCount = GetTotalStepCount(character);
         state.RemainingSteps = state.CachedTotalStepCount;
         state.ConsumedSteps = 0;
+        character.GainWolfMovementPoints(state.RemainingSteps);
 
-        if (character.RemainingMovementPoints <= 0 && character.GetUpgradeStacks(AbilityUpgradeKey.WolfStepWolfCharge) > 0)
+        if (hadNoMovementBeforeActivation && character.GetUpgradeStacks(AbilityUpgradeKey.WolfStepWolfCharge) > 0)
         {
             character.GainMovementPoints(1);
         }
@@ -105,6 +95,7 @@ public class WolfStepAbility : AbilityDefinition
 
     public override void OnAbilityDeactivated(Character character, CharacterAbilityRuntime runtime)
     {
+        character?.ClearWolfMovementPoints();
         WolfStepState state = GetState(runtime);
         state.RemainingSteps = 0;
         state.ConsumedSteps = 0;
@@ -129,7 +120,7 @@ public class WolfStepAbility : AbilityDefinition
             return;
         }
 
-        state.RemainingSteps = Mathf.Max(0, state.RemainingSteps - 1);
+        state.RemainingSteps = character.WolfMovementPoints;
         state.ConsumedSteps++;
         if (state.ConsumedSteps == 1)
         {
