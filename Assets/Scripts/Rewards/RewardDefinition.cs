@@ -2,6 +2,9 @@ using UnityEngine;
 
 public abstract class RewardDefinition : ScriptableObject
 {
+    protected const int GlobalShopPriceIncrease = 20;
+    protected const int ConditionalShopPriceDiscount = 10;
+
     [SerializeField] private string rewardId;
     [SerializeField] private string rewardTitle;
     [TextArea(3, 6)]
@@ -48,5 +51,16 @@ public abstract class RewardDefinition : ScriptableObject
             default:
                 return RewardPresentationIconKind.BasicAttack;
         }
+    }
+
+    protected int ApplyShopPriceAdjustment(int basePrice, bool qualifiesForConditionalDiscount)
+    {
+        int adjustedPrice = Mathf.Max(0, basePrice) + GlobalShopPriceIncrease;
+        if (qualifiesForConditionalDiscount)
+        {
+            adjustedPrice -= ConditionalShopPriceDiscount;
+        }
+
+        return Mathf.Max(0, adjustedPrice);
     }
 }

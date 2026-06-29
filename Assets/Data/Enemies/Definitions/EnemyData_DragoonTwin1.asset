@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: EnemyData_DragoonTwin1
   m_EditorClassIdentifier: 
   enemyName: Dragoon Twin
-  specialInfo: Attacks from the air with boulders and relocates across the arena.
-    Ability hits ground it for a turn.
+  specialInfo: While airborne, the Dragoon Twin attacks from range wherever you are,
+    then relocates. Hitting it with an ability grounds it for 1 turn, forcing it
+    to fight in melee.
   portrait: {fileID: 21300000, guid: 528f252ee6508480689170807efbaec3, type: 3}
   maxHealth: 40
   force: 4

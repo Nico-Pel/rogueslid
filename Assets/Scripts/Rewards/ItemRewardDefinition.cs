@@ -35,7 +35,7 @@ public class ItemRewardDefinition : RewardDefinition
     public GameObject DamageFxPrefab => damageFxPrefab;
     public float DamageFxLifetime => Mathf.Max(0f, damageFxLifetime);
     public float ActivationSoundVolume => Mathf.Clamp01(activationSoundVolume);
-    public override int ShopPrice => Mathf.Max(0, shopPrice);
+    public override int ShopPrice => ApplyShopPriceAdjustment(shopPrice, showCombatStartYesNoPrompt);
 
     public override RewardOfferKind Kind => RewardOfferKind.Item;
     public override RewardPresentationIconKind IconKind => RewardPresentationIconKind.Item;

@@ -14,9 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_wolf_step_alpha_wolf
   rewardTitle: Alpha Wolf
-  rewardDescription: After each Wolf Step, Hector deals 2 damage to every enemy around him.
+  rewardDescription: After each Wolf Step, Hector deals 1 damage to every enemy around
+    him.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 5fdd86c1e7fb4c76b3cb0156de8f9c03, type: 2}
   upgradeKey: 75
   stackable: 0
   maxStacks: 0
+  shopPrice: 25

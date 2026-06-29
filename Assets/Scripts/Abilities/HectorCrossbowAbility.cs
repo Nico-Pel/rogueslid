@@ -15,6 +15,11 @@ public class HectorCrossbowAbility : AbilityDefinition
     [SerializeField] private Vector3 projectileSpawnOffset = new Vector3(0f, 0.2f, 0f);
     [SerializeField] private Vector3 projectileImpactOffset = new Vector3(0f, 0.2f, 0f);
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        return $"Deal {baseDamage} damage to an enemy in a straight line within range {range}.";
+    }
+
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)

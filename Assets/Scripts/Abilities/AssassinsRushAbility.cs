@@ -15,6 +15,12 @@ public class AssassinsRushAbility : AbilityDefinition
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int range = baseRange + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.AssassinsRushShadowPulse) : 0);
+        return $"Dash in a straight line to any free tile within range {range}.";
+    }
+
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         if (character == null || character.Board == null || targetCell == character.GridPosition)

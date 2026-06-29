@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_scholars_cape
   rewardTitle: Scholar's Cape
-  rewardDescription: Gain 1 mobility if you did not attack during your last turn.
+  rewardDescription: Gain 1 extra mobility if none of your abilities dealt damage
+    during your last turn.
   artwork: {fileID: 289992445, guid: 1e73d525c312240ef83c8996da75647e, type: 3}
   itemKey: 23

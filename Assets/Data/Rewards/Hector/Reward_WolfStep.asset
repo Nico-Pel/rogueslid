@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_wolf_step
   rewardTitle: Wolf Step
-  rewardDescription: Hector prepares a limited number of short steps that only move
-    1 cell and do not consume mobility.
+  rewardDescription: 'Activate Wolf Step to gain 2 movement-free steps. Each step moves
+    Hector by exactly 1 tile. Reusing Wolf Step replaces any unused steps.'
   artwork: {fileID: 1607689151, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   ability: {fileID: 11400000, guid: 5fdd86c1e7fb4c76b3cb0156de8f9c03, type: 2}

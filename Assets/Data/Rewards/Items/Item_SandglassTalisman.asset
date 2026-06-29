@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_sandglass_talisman
   rewardTitle: Sandglass Talisman
-  rewardDescription: The first cooldown ability you use each combat recovers 1 turn
-    of cooldown immediately.
+  rewardDescription: The first cooldown ability you use each combat immediately
+    recovers 1 turn of its own cooldown.
   artwork: {fileID: -1852845213, guid: 82815694f6d7e4eba94663ced4be4c1b, type: 3}
   itemKey: 20

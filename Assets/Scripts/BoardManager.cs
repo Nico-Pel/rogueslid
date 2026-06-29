@@ -1602,12 +1602,15 @@ public class BoardManager : MonoBehaviour
         }
 
         int sampledColumn = mirrorOnYAxis ? (BoardWidth - 1) - column : column;
-        if (row < 0 || row >= DragoonTwinsLayoutRows.Length || sampledColumn < 0 || sampledColumn >= DragoonTwinsLayoutRows[row].Length)
+        int sampledRow = (BoardHeight - 1) - row;
+        if (sampledRow < 0 || sampledRow >= DragoonTwinsLayoutRows.Length || sampledColumn < 0 || sampledColumn >= DragoonTwinsLayoutRows[sampledRow].Length)
         {
             return false;
         }
 
-        char symbol = DragoonTwinsLayoutRows[row][sampledColumn];
+        // Keep the hardcoded fallback aligned with the normal texture sampling path,
+        // which reads arena layouts from top to bottom via GetPixel(x, height - 1 - row).
+        char symbol = DragoonTwinsLayoutRows[sampledRow][sampledColumn];
         marker = symbol switch
         {
             '#' => ArenaMarker.Obstacle,

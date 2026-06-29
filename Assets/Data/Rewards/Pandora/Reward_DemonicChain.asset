@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_demonic_chain
   rewardTitle: Demonic Chain
-  rewardDescription: Strike visible enemies in straight lines, deal 4 damage, and pull them 1 tile toward Pandora.
+  rewardDescription: Hit all visible enemies in straight lines for 4 damage, then
+    pull each of them 1 tile toward Pandora.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 6a8e12f72b0a4c0abf0ec7fbc98b2102, type: 2}

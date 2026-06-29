@@ -38,6 +38,13 @@ public class RainOfBoltsAbility : AbilityDefinition
     [Min(0f)]
     [SerializeField] private float luckyHunterBoostFxDuration = 1f;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int radius = baseRadius + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.RainOfBoltsCloudySky) : 0);
+        int baseHitDamage = baseDamage + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.RainOfBoltsIronBolts) : 0);
+        return $"Call down bolts over a target area within range {range}. Each hit deals {baseHitDamage} damage, plus 1 extra damage for each other enemy hit by the same volley. Radius {radius}.";
+    }
+
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)

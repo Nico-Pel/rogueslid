@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_somersault_jump
   rewardTitle: Somersault Jump
-  rewardDescription: Hector jumps to a nearby free cell or vaults over blocked cells,
-    firing bolts in every direction when he clears an obstacle or enemy.
+  rewardDescription: Jump to a nearby free tile. If Hector vaults over an obstacle
+    or enemy, he fires bolts in all 8 directions after landing.
   artwork: {fileID: -306928396, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
   ability: {fileID: 11400000, guid: 51131711ec0c4ea0b6b6e4eed348140f, type: 2}

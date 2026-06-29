@@ -8,7 +8,7 @@ public class AbilityRewardDefinition : RewardDefinition
     [SerializeField] private int shopPrice = 30;
 
     public AbilityDefinition Ability => ability;
-    public override int ShopPrice => Mathf.Max(0, shopPrice);
+    public override int ShopPrice => ApplyShopPriceAdjustment(shopPrice, false);
     public override RewardOfferKind Kind => RewardOfferKind.AbilityUnlock;
     public override RewardPresentationIconKind IconKind => GetAbilityIconKind(ability != null ? ability.Category : AbilityCategory.BasicAttack);
     public override bool ShowPowerStroke => true;

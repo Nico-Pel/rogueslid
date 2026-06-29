@@ -35,6 +35,12 @@ public class WhisperfangAbility : AbilityDefinition
     [Min(0.1f)]
     [SerializeField] private float delayBetweenAutomaticShots = 0.1f;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int damage = baseDamage;
+        return $"Fire 1 automatic shot for {damage} damage at the best visible target in a straight line or diagonal. Moving grants 1 extra shot.";
+    }
+
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
     public override bool KeepsActiveStateBetweenTurns => false;
 
@@ -183,15 +189,12 @@ public class WhisperfangAbility : AbilityDefinition
         bool canFallbackToNeutral = allowNeutralFallbackOnFirstShot;
         bool activationUseConsumed = firstShotAlreadyConsumed;
         HashSet<Vector2Int> touchedCells = new HashSet<Vector2Int>();
+        bool hasMultiShot = character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangMultiShot) > 0;
 
         for (int shotIndex = 0; shotIndex < maxShots; shotIndex++)
         {
             List<WhisperfangTargetCandidate> candidates = GatherTargetCandidates(character, canFallbackToNeutral);
-            WhisperfangTargetCandidate candidate = SelectBestCandidate(
-                candidates,
-                touchedCells,
-                character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangMultiShot) > 0);
-            if (candidate == null)
+            if (candidates.Count <= 0)
             {
                 break;
             }
@@ -206,21 +209,80 @@ public class WhisperfangAbility : AbilityDefinition
 
             activationUseConsumed = false;
             canFallbackToNeutral = false;
-            touchedCells.Add(candidate.Cell);
             base.PlayActivationAnimation(character);
             HashSet<Enemy> shotHitEnemies = new HashSet<Enemy>();
-            FireShotAtCandidate(character, candidate, GetShotDamage(character, runtime.UsesThisTurnCount, candidate), shotHitEnemies);
+            float waveImpactDelay;
+            if (hasMultiShot)
+            {
+                waveImpactDelay = FireMultiShotWave(character, runtime.UsesThisTurnCount, candidates, shotHitEnemies);
+                for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+                {
+                    WhisperfangTargetCandidate candidate = candidates[candidateIndex];
+                    if (candidate != null)
+                    {
+                        touchedCells.Add(candidate.Cell);
+                    }
+                }
+            }
+            else
+            {
+                WhisperfangTargetCandidate candidate = SelectBestCandidate(candidates, touchedCells, false);
+                if (candidate == null)
+                {
+                    break;
+                }
+
+                touchedCells.Add(candidate.Cell);
+                int damage = GetShotDamage(character, runtime.UsesThisTurnCount, candidate);
+                FireShotAtCandidate(character, candidate, damage, shotHitEnemies);
+                waveImpactDelay = GetEstimatedImpactDelay(character, candidate);
+            }
+
             PlayConfiguredFx(character, shotHitEnemies);
             character.RefreshAbilityState();
 
             if (shotIndex < maxShots - 1)
             {
-                yield return new WaitForSeconds(Mathf.Max(minimumShotDelay, GetEstimatedImpactDelay(character, candidate)));
+                yield return new WaitForSeconds(Mathf.Max(minimumShotDelay, waveImpactDelay));
             }
         }
 
         character.EndActionLock();
         character.RefreshAbilityState();
+    }
+
+    private float FireMultiShotWave(
+        Character character,
+        int shotOrdinal,
+        List<WhisperfangTargetCandidate> candidates,
+        HashSet<Enemy> hitEnemies)
+    {
+        if (character == null || candidates == null || candidates.Count <= 0)
+        {
+            return 0f;
+        }
+
+        float longestImpactDelay = 0f;
+        WhisperfangTargetCandidate facingCandidate = SelectBestCandidate(candidates, null, false);
+        if (facingCandidate != null)
+        {
+            character.FaceTargetCell(facingCandidate.Cell);
+        }
+
+        for (int index = 0; index < candidates.Count; index++)
+        {
+            WhisperfangTargetCandidate candidate = candidates[index];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            int damage = GetShotDamage(character, shotOrdinal, candidate);
+            FireShotAtCandidate(character, candidate, damage, hitEnemies, faceTarget: false);
+            longestImpactDelay = Mathf.Max(longestImpactDelay, GetEstimatedImpactDelay(character, candidate));
+        }
+
+        return longestImpactDelay;
     }
 
     private int GetShotDamage(Character character, int shotOrdinal, WhisperfangTargetCandidate candidate)
@@ -251,14 +313,18 @@ public class WhisperfangAbility : AbilityDefinition
         return Mathf.Max(0f, projectileLaunchDelay) + travelDuration;
     }
 
-    private bool FireShotAtCandidate(Character character, WhisperfangTargetCandidate candidate, int damage, HashSet<Enemy> hitEnemies)
+    private bool FireShotAtCandidate(Character character, WhisperfangTargetCandidate candidate, int damage, HashSet<Enemy> hitEnemies, bool faceTarget = true)
     {
         if (character == null || character.Board == null || candidate == null)
         {
             return false;
         }
 
-        character.FaceTargetCell(candidate.Cell);
+        if (faceTarget)
+        {
+            character.FaceTargetCell(candidate.Cell);
+        }
+
         Vector3 impactPosition = candidate.TargetTransform != null
             ? candidate.TargetTransform.position + projectileImpactOffset
             : character.Board.GridToWorldPosition(candidate.Cell) + projectileImpactOffset;

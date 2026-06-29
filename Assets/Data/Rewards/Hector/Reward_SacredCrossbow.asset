@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_sacred_crossbow
   rewardTitle: Sacred Crossbow
-  rewardDescription: Fire a piercing holy bolt in a straight line. The bolt crosses enemies and obstacles until it reaches the edge of the arena.
+  rewardDescription: Fire a piercing bolt in a straight line to the edge of the arena.
+    It damages every enemy and obstacle in its path.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 9dbe4a6a1c6e4ff5b8c24f64d7b90a01, type: 2}

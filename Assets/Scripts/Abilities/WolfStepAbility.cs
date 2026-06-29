@@ -28,6 +28,12 @@ public class WolfStepAbility : AbilityDefinition
     public override bool KeepsActiveStateBetweenTurns => false;
     public override bool RefundUseIfDeactivatedWithoutConsumption => true;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int steps = GetTotalStepCount(character);
+        return $"Activate Wolf Step to gain {steps} movement-free steps. Each step moves Hector by exactly 1 tile. Reusing Wolf Step replaces any unused steps.";
+    }
+
     public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
         WolfStepState state = GetState(runtime);
@@ -133,7 +139,7 @@ public class WolfStepAbility : AbilityDefinition
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.WolfStepAlphaWolf) > 0)
         {
-            character.DamageEnemiesAround(character.GridPosition, 1, 2, true, this);
+            character.DamageEnemiesAround(character.GridPosition, 1, 1, true, this);
             character.PlayFeedbackFx(alphaPulseFxPrefab, destroyAfterSeconds: alphaPulseFxDuration);
         }
 

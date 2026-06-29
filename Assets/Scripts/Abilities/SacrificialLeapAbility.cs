@@ -10,6 +10,13 @@ public class SacrificialLeapAbility : AbilityDefinition
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int range = baseRange + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.SacrificialLeapSacrificialWind) : 0);
+        int executeThreshold = GetBaseDamage(character, runtime, false);
+        return $"Execute an enemy with {executeThreshold} HP or less and leap onto its tile. Range {range}.";
+    }
+
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         if (character == null || runtime == null || character.Board == null)

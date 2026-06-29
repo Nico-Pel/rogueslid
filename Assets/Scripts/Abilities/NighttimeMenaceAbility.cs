@@ -16,6 +16,12 @@ public class NighttimeMenaceAbility : AbilityDefinition
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int range = baseRange + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.NighttimeMenaceShadowArea) : 0);
+        return $"Blink to any free tile within range {range}. Nighttime Menace recovers in {CooldownTurns} turns.";
+    }
+
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         if (character == null || character.Board == null || !character.Board.IsCellWalkable(targetCell))

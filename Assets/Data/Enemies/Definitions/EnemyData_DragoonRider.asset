@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: EnemyData_DragoonRider
   m_EditorClassIdentifier: 
   enemyName: Dragoon Rider
-  specialInfo: The Dragoon Rider attacks head-on or from a distance when within sight,
-    or gradually sets the terrain ablaze.
+  specialInfo: The Dragoon Rider tries to strike in melee first, then at range. If
+    it cannot attack, it flies away and drops 2 fireballs that leave burning tiles.
   portrait: {fileID: 21300000, guid: 5c8c0f445e0d7443ea3029411791fd28, type: 3}
-  maxHealth: 45
+  maxHealth: 40
   force: 3
   resistance: 0
   mobility: 3
@@ -33,7 +33,10 @@ MonoBehaviour:
   flee: 0
   maxFleeTurns: 2
   attackFirst: 0
+  fleeAfterAttacking: 0
   fleeThresholdPercent: 0
+  fearFxPrefab: {fileID: 0}
+  fearBodyWiggleStrength: 0
   ignoreObstaclesForMovement: 0
   canEndTurnOnObstacle: 0
   advanceTowardsCharacterWhenAlreadyInRange: 0
@@ -45,8 +48,25 @@ MonoBehaviour:
   moveDuration: 0.16
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
+  projectileSpawnDelay: 0
   useFlyAnimationOnObstacle: 0
   immuneToFire: 1
+  specialBehavior: 0
+  specialDamage: 1
+  specialWindupDuration: 0.35
+  specialStartDelay: 0
+  specialJumpDuration: 0.35
+  specialJumpPower: 0.75
+  specialRecoveryDelay: 0.25
+  specialMinimumDistance: 3
+  specialLandingDistance: 2
+  specialImpactShakeRatio: 0.2
+  specialPerDistanceDelay: 0.05
+  specialBumpHeight: 0.12
+  specialBumpDurationPerDistance: 0.08
+  specialSelfBuffFxPrefab: {fileID: 0}
+  specialAlternateProjectilePrefab: {fileID: 0}
+  specialCompanionPrefab: {fileID: 0}
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1

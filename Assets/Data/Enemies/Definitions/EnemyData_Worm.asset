@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: EnemyData_Worm
   m_EditorClassIdentifier: 
   enemyName: Giant Worm
-  specialInfo: Burrows between tunnels, ambushes nearby prey, and creates new tunnels
-    when needed.
+  specialInfo: Travels between tunnels and attacks from any tunnel with line of sight
+    to your character. It also creates new tunnels when needed.
   portrait: {fileID: 21300000, guid: 6e6ce43d7562645dd83d2da2d459a817, type: 3}
   maxHealth: 60
   force: 4

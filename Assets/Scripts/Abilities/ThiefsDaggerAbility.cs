@@ -6,6 +6,13 @@ public class ThiefsDaggerAbility : AbilityDefinition
     [Min(1)]
     [SerializeField] private int baseDamage = 5;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int range = 1 + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerLightStrike) : 0);
+        int damage = baseDamage + (2 * (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.RoyalDaggerBlessedBlade) : 0));
+        return $"Strike a single enemy in a straight line within range {range} for {damage} damage.";
+    }
+
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)

@@ -14,7 +14,7 @@ public class AbilityUpgradeRewardDefinition : RewardDefinition
     public AbilityUpgradeKey UpgradeKey => upgradeKey;
     public bool Stackable => stackable;
     public int MaxStacks => maxStacks;
-    public override int ShopPrice => Mathf.Max(0, shopPrice);
+    public override int ShopPrice => ApplyShopPriceAdjustment(shopPrice, stackable);
 
     public override RewardOfferKind Kind => RewardOfferKind.AbilityUpgrade;
     public override RewardPresentationIconKind IconKind => GetAbilityIconKind(ability != null ? ability.Category : AbilityCategory.BasicAttack);

@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_ghost_steps
   rewardTitle: Ghost Steps
-  rewardDescription: While Ghost Steps is active, Pandora can pass through enemy tiles and deal damage as she goes.
+  rewardDescription: Activate or deactivate Ghost Steps at any time. While active,
+    Pandora can pass through enemies during movement, and each enemy crossed takes
+    2 damage.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 0a7d3b5a7fee6183fb139dc39bc70067, type: 2}

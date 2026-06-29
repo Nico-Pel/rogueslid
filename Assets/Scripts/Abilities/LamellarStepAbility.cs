@@ -18,6 +18,13 @@ public class LamellarStepAbility : AbilityDefinition
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
 
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int orthogonalRange = 1 + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.LamellarStepExtendedStride) : 0);
+        int damage = daggerDamage + (character != null ? character.GetUpgradeStacks(AbilityUpgradeKey.LamellarStepSharpenedBlades) : 0);
+        return $"Step onto an adjacent or diagonal tile, or up to {orthogonalRange} tiles in a straight line. Then hurl daggers along all four diagonals. Each dagger deals {damage} damage.";
+    }
+
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         if (character == null || runtime == null || character.Board == null || targetCell == character.GridPosition)

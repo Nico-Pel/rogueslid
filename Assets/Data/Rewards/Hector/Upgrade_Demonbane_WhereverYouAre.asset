@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_demonbane_wherever_you_are
   rewardTitle: Wherever You Are
-  rewardDescription: If Hector has no target, he can use Demonbane and the weakest
-    enemy without bleeding gains bleeding.
+  rewardDescription: If Demonbane has no valid target, Hector can still cast it to
+    apply Bleeding to the weakest enemy that is not already bleeding.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 7bc93bc40cb14ca7a2d7791da8c45211, type: 2}
   upgradeKey: 44

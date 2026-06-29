@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_loaded_die
   rewardTitle: Loaded Die
-  rewardDescription: You can refresh the reward choices once after each battle.
+  rewardDescription: Once after each battle, you can reroll the reward choices.
   artwork: {fileID: 1166497389, guid: 558798edc9be34311b606488d861229d, type: 3}
   itemKey: 36
   shopPrice: 15

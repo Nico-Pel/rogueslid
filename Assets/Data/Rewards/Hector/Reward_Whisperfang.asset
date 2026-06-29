@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_whisperfang
   rewardTitle: Whisperfang
-  rewardDescription: A swift ranged attack that fires in straight lines and diagonals, then recharges after each move.
+  rewardDescription: Fire 1 automatic shot at the best visible target in a straight
+    line or diagonal. Moving grants 1 extra shot.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: ee2979b98ecf4214acbdd64b0dd56211, type: 2}

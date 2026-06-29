@@ -3438,6 +3438,12 @@ public class UIGame : MonoBehaviour
             return string.Empty;
         }
 
+        string dynamicDescription = abilityDefinition.GetDisplayDescription(observedCharacter, FindObservedAbilityRuntime(abilityDefinition));
+        if (!string.IsNullOrWhiteSpace(dynamicDescription))
+        {
+            return dynamicDescription;
+        }
+
         if (observedCharacter?.Data != null)
         {
             IReadOnlyList<AbilityRewardDefinition> unlockableRewards = observedCharacter.Data.UnlockableAbilityRewards;
@@ -3452,6 +3458,26 @@ public class UIGame : MonoBehaviour
         }
 
         return abilityDefinition.Description;
+    }
+
+    private CharacterAbilityRuntime FindObservedAbilityRuntime(AbilityDefinition abilityDefinition)
+    {
+        if (abilityDefinition == null || observedCharacter == null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<CharacterAbilityRuntime> abilityRuntimes = observedCharacter.Abilities;
+        for (int index = 0; index < abilityRuntimes.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilityRuntimes[index];
+            if (runtime != null && runtime.Definition == abilityDefinition)
+            {
+                return runtime;
+            }
+        }
+
+        return null;
     }
 
     private void CollectAcquiredUpgradeOffers(AbilityDefinition abilityDefinition, List<RewardOffer> offers)

@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_cowards_scarf
   rewardTitle: Coward's Scarf
-  rewardDescription: Gain 1 mobility after using all your abilities for the turn.
+  rewardDescription: Gain 1 mobility when all your abilities have been spent for
+    the turn.
   artwork: {fileID: -347435446, guid: 558798edc9be34311b606488d861229d, type: 3}
   itemKey: 31
   shopPrice: 15

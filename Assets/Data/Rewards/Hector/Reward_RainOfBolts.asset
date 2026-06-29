@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_rain_of_bolts
   rewardTitle: Rain of Bolts
-  rewardDescription: Call down a volley of bolts over a target area. Each bolt deals 2 damage, plus 1 more for each other target hit by the volley.
+  rewardDescription: Call down bolts over a target area. Each hit deals 2 damage,
+    plus 1 extra damage for each other enemy hit by the same volley.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 3eac7f2bb5d14d1da5e2f4c98ab07b02, type: 2}

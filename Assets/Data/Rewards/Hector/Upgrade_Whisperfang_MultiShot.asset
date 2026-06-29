@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_whisperfang_multi_shot
   rewardTitle: Multi Shot
-  rewardDescription: Whisperfang prioritizes every possible target before repeating shots on the same one.
+  rewardDescription: Each Whisperfang shot also fires at every other visible target.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: ee2979b98ecf4214acbdd64b0dd56211, type: 2}
   upgradeKey: 48

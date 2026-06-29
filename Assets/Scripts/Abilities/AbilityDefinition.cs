@@ -261,6 +261,11 @@ public abstract class AbilityDefinition : ScriptableObject
         return string.Empty;
     }
 
+    public virtual string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        return Description;
+    }
+
     public int CountOwnedDistinctUpgrades(PlayerRunRewardState runRewardState)
     {
         if (runRewardState == null || linkedUpgradeRewards == null)

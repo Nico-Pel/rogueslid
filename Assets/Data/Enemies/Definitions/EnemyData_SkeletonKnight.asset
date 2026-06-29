@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: EnemyData_SkeletonKnight
   m_EditorClassIdentifier: 
   enemyName: Skeleton Knight
-  specialInfo: The knight skeleton is an enemy that attacks in an area around itself
-    and can come back to life if you don't finish it off in time.
+  specialInfo: Damages all adjacent tiles when it attacks. Leaves a skull behind
+    when killed and can revive if the fight lasts too long.
   portrait: {fileID: 21300000, guid: 586c9c1bef52f4ee88656f5aef67731b, type: 3}
   maxHealth: 35
   force: 3

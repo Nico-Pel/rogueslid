@@ -4,7 +4,18 @@ using UnityEngine;
 public class GhostStepsAbility : AbilityDefinition
 {
     [Min(1)]
-    [SerializeField] private int traversalDamage = 3;
+    [SerializeField] private int traversalDamage = 2;
+
+    public override string GetDisplayDescription(Character character, CharacterAbilityRuntime runtime)
+    {
+        int damage = GetTraversalDamage(character, runtime, 0);
+        if (damage <= 0)
+        {
+            damage = traversalDamage;
+        }
+
+        return $"Activate or deactivate Ghost Steps at any time. While active, Pandora can pass through enemies during movement, and each enemy crossed takes {damage} damage.";
+    }
 
     public override bool AllowsUnitTraversal(Character character, CharacterAbilityRuntime runtime)
     {

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_arcane_trap
   rewardTitle: Arcane Trap
-  rewardDescription: Choose a tile within range 4. An Arcane Trap activates there at the start of the next enemy turn. If the tile is occupied, it waits until the occupant leaves. If the occupant ends its turn there, the trap triggers immediately for 4 damage.
+  rewardDescription: Place a trap on a tile within range 4. It becomes active and
+    visible at the start of the next enemy turn. Deal 4 damage.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 63cc53f36bfe4d7fa06a2cc2e352d503, type: 2}

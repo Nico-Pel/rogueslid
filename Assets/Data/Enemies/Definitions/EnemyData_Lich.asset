@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: EnemyData_Lich
   m_EditorClassIdentifier: 
   enemyName: Lich
-  specialInfo: The lich periodically summons cursed skulls that revive her servants
-    if you do not destroy them in time. The minions die along with the lich.
+  specialInfo: Periodically summons cursed skulls that can revive fallen servants
+    if left alive. Killing the Lich also kills all her summoned minions.
   portrait: {fileID: 21300000, guid: f875093a84c7a497180c7dad4dea32ae, type: 3}
   maxHealth: 60
   force: 2

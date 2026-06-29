@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_shop_bell
   rewardTitle: Shop Bell
-  rewardDescription: Immediately make the shop appear.
+  rewardDescription: Immediately open the shop.
   artwork: {fileID: 71674303, guid: 558798edc9be34311b606488d861229d, type: 3}
   itemKey: 37
   shopPrice: 15

@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: EnemyData_Troll
   m_EditorClassIdentifier: 
   enemyName: Troll
-  specialInfo: Slams the whole arena, and launches targets farther away each turn.
+  specialInfo: Each turn, the Troll slams the whole arena, damages you, and knocks
+    you away. Its damage keeps increasing during the fight.
   portrait: {fileID: 21300000, guid: d323f11256daf4065bd1daaa1a55e67f, type: 3}
   maxHealth: 50
   force: 1
