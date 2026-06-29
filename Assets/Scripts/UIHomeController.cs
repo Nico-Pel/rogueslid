@@ -2,6 +2,7 @@ using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class UIHomeController : MonoBehaviour
 {
@@ -18,10 +19,9 @@ public class UIHomeController : MonoBehaviour
     [SerializeField] private CharacterData zhuangCharacterData;
     [SerializeField] private GameObject pandoraCharacterPrefab;
     [SerializeField] private GameObject hectorCharacterPrefab;
-    [SerializeField] private float themeTweenDuration = 0.5f;
+    public float themeTweenDuration = 0.5f;
 
     [Header("UI")]
-    [SerializeField] private Image backgroundImage;
     [SerializeField] private Image characterTitleImage;
     [SerializeField] private Button portraitButton;
     [SerializeField] private TMP_Text characterNameText;
@@ -29,8 +29,14 @@ public class UIHomeController : MonoBehaviour
     [SerializeField] private Button startButton;
     [SerializeField] private TMP_Text startText;
     [SerializeField] private Image startCharacterIconImage;
+    [SerializeField] private Image storyFrameImage;
+    [SerializeField] private TMP_Text storyDescriptionText;
     [SerializeField] private Button previousButton;
     [SerializeField] private Button nextButton;
+
+    [Header("Theme Colors")]
+    [SerializeField] private List<Image> element35Images = new List<Image>();
+    [SerializeField] private List<Image> element41Images = new List<Image>();
 
     private BoardManager board;
     private UIGame uiGame;
@@ -96,11 +102,6 @@ public class UIHomeController : MonoBehaviour
 
     private void CacheReferences()
     {
-        if (backgroundImage == null)
-        {
-            backgroundImage = FindComponentByName<Image>(transform, "Background");
-        }
-
         if (characterTitleImage == null)
         {
             characterTitleImage = FindComponentByName<Image>(transform, "CharaTitle");
@@ -141,6 +142,16 @@ public class UIHomeController : MonoBehaviour
             startCharacterIconImage = FindComponentByName<Image>(transform, "iCharaIcon");
         }
 
+        if (storyFrameImage == null)
+        {
+            storyFrameImage = FindComponentByName<Image>(transform, "iStoryFrame");
+        }
+
+        if (storyDescriptionText == null)
+        {
+            storyDescriptionText = FindComponentByName<TMP_Text>(transform, "tDescription");
+        }
+
         if (previousButton == null)
         {
             previousButton = FindComponentByName<Button>(transform, "BPrevious");
@@ -168,6 +179,8 @@ public class UIHomeController : MonoBehaviour
             nextButton.onClick.RemoveListener(HandleNextClicked);
             nextButton.onClick.AddListener(HandleNextClicked);
         }
+
+        CacheThemeColorImages();
     }
 
     private void Show(bool immediate)
@@ -283,15 +296,76 @@ public class UIHomeController : MonoBehaviour
 
     private void ApplyTheme(CharacterData characterData, bool immediate)
     {
-        Color backgroundColor = characterData.GetUIColor(CharacterUIColorKey.FooterBackground, new Color(0.11f, 0.07f, 0.15f, 1f));
-        Color titleBackgroundColor = characterData.GetUIColor(CharacterUIColorKey.PortraitNameplateBackground, new Color(0.25f, 0.07f, 0.3f, 1f));
+        Color element35Color = characterData.GetUIColor(CharacterUIColorKey.PortraitNameplateBackground, new Color(0.30588236f, 0.08235294f, 0.47058824f, 1f));
+        Color element41Color = characterData.GetUIColor(CharacterUIColorKey.AbilityButtonTypeIcon, new Color(0.44313726f, 0f, 0.62352943f, 1f));
+        Color descriptionTextColor = characterData.GetUIColor(CharacterUIColorKey.PowerRewardDescriptionText, new Color(0.6862745f, 0.54509807f, 0.74509805f, 1f));
         Color titleTextColor = characterData.GetUIColor(CharacterUIColorKey.PowerRewardNewSubtitleText, new Color(1f, 0.73f, 0f, 1f));
         float duration = immediate ? 0f : themeTweenDuration;
 
-        TweenImageColor(backgroundImage, backgroundColor, duration);
-        TweenImageColor(characterTitleImage, titleBackgroundColor, duration);
-        TweenImageColor(portraitButtonImage, titleBackgroundColor, duration);
+        TweenImageColor(characterTitleImage, element35Color, duration);
+        TweenImageColor(portraitButtonImage, element35Color, duration);
+        TweenImageColor(storyFrameImage, element35Color, duration);
+        TweenImagesColor(element35Images, element35Color, duration);
+        TweenImagesColor(element41Images, element41Color, duration);
         TweenTextColor(characterNameText, titleTextColor, duration);
+        TweenTextColor(storyDescriptionText, descriptionTextColor, duration);
+    }
+
+    private void CacheThemeColorImages()
+    {
+        AutoAssignThemeColorImages(element35Images, new Color(0.30588236f, 0.08235294f, 0.47058824f, 1f));
+        AutoAssignThemeColorImages(element41Images, new Color(0.44313726f, 0f, 0.62352943f, 1f));
+    }
+
+    private void AutoAssignThemeColorImages(List<Image> targetList, Color referenceColor)
+    {
+        if (targetList == null)
+        {
+            return;
+        }
+
+        RemoveMissingImages(targetList);
+        if (targetList.Count > 0)
+        {
+            return;
+        }
+
+        Image[] allImages = GetComponentsInChildren<Image>(true);
+        for (int index = 0; index < allImages.Length; index++)
+        {
+            Image image = allImages[index];
+            if (image == null || ColorsDiffer(image.color, referenceColor))
+            {
+                continue;
+            }
+
+            targetList.Add(image);
+        }
+    }
+
+    private static void RemoveMissingImages(List<Image> images)
+    {
+        if (images == null)
+        {
+            return;
+        }
+
+        for (int index = images.Count - 1; index >= 0; index--)
+        {
+            if (images[index] == null)
+            {
+                images.RemoveAt(index);
+            }
+        }
+    }
+
+    private static bool ColorsDiffer(Color left, Color right)
+    {
+        const float tolerance = 0.01f;
+        return Mathf.Abs(left.r - right.r) > tolerance ||
+               Mathf.Abs(left.g - right.g) > tolerance ||
+               Mathf.Abs(left.b - right.b) > tolerance ||
+               Mathf.Abs(left.a - right.a) > tolerance;
     }
 
     private HomeCharacterConfig GetCurrentCharacterConfig()
@@ -336,6 +410,19 @@ public class UIHomeController : MonoBehaviour
         }
 
         image.DOColor(targetColor, duration).SetUpdate(true);
+    }
+
+    private static void TweenImagesColor(List<Image> images, Color targetColor, float duration)
+    {
+        if (images == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < images.Count; index++)
+        {
+            TweenImageColor(images[index], targetColor, duration);
+        }
     }
 
     private static void TweenTextColor(TMP_Text text, Color targetColor, float duration)
