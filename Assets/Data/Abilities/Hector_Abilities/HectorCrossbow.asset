@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: HectorCrossbow
   m_EditorClassIdentifier: 
   abilityName: Crossbow
+  description: Deal 4 damage to an enemy in a straight line within range 10.
   icon: {fileID: -1954196116, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: bdeda82d9ca524e368195c9a05c658d7, type: 2}

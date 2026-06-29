@@ -96,7 +96,8 @@ public enum AbilityUpgradeKey
     WolfStepAlphaWolf,
     WolfStepHungryWolf,
     WolfStepQuickSteps,
-    WolfStepWolfCharge
+    WolfStepWolfCharge,
+    LamellarStepSharpenedBlades
 }
 
 public enum ItemRewardKey
@@ -128,7 +129,22 @@ public enum ItemRewardKey
     BarbarianHorn,
     WhiteFlag,
     SamuraiMask,
-    ScopeGlasses
+    ScopeGlasses,
+    IronSpikedSandals,
+    Makibishi,
+    MouseTrap,
+    CowardsScarf,
+    CorruptedBlouse,
+    VoodooCharm,
+    SpringCoil,
+    Scarecrow,
+    LoadedDie,
+    ShopBell,
+    BlastStaff,
+    Hood,
+    ScrapBomb,
+    CoinPurse,
+    IronGauntlets
 }
 
 public sealed class RewardOffer
@@ -145,6 +161,7 @@ public sealed class RewardOffer
     public AbilityUpgradeKey UpgradeKey;
     public bool IsStackable;
     public ItemRewardKey ItemKey;
+    public int ShopPrice;
 }
 
 public sealed class PlayerRunRewardState
@@ -157,6 +174,7 @@ public sealed class PlayerRunRewardState
 
     public bool IsInitialized { get; private set; }
     public int CurrentHealth { get; private set; } = -1;
+    public int CurrentGold { get; private set; }
 
     public void InitializeFrom(IReadOnlyList<AbilityDefinition> initialAbilities, int currentHealth)
     {
@@ -234,6 +252,11 @@ public sealed class PlayerRunRewardState
             && equippedAbility == ability;
     }
 
+    public bool KnowsAbility(AbilityDefinition ability)
+    {
+        return ability != null && knownAbilities.Contains(ability);
+    }
+
     public bool HasChosenRewardCategory(AbilityCategory category)
     {
         return rewardChosenCategories.Contains(category);
@@ -283,6 +306,11 @@ public sealed class PlayerRunRewardState
         {
             CurrentHealth += 2;
         }
+
+        if (itemKey == ItemRewardKey.CoinPurse)
+        {
+            CurrentGold += 30;
+        }
     }
 
     public bool HasItem(ItemRewardKey itemKey)
@@ -303,6 +331,42 @@ public sealed class PlayerRunRewardState
     public void SetCurrentHealth(int currentHealth)
     {
         CurrentHealth = Mathf.Max(0, currentHealth);
+    }
+
+    public void AddGold(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        CurrentGold += amount;
+    }
+
+    public bool CanSpendGold(int amount)
+    {
+        return amount <= 0 || CurrentGold >= amount;
+    }
+
+    public bool TrySpendGold(int amount)
+    {
+        if (amount <= 0)
+        {
+            return true;
+        }
+
+        if (CurrentGold < amount)
+        {
+            return false;
+        }
+
+        CurrentGold -= amount;
+        return true;
+    }
+
+    public void SetCurrentGold(int currentGold)
+    {
+        CurrentGold = Mathf.Max(0, currentGold);
     }
 
     public int GetBonusMovementPoints()

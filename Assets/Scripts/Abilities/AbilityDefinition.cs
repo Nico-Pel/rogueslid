@@ -73,6 +73,8 @@ public abstract class AbilityDefinition : ScriptableObject
 {
     [Header("Identity")]
     [SerializeField] private string abilityName;
+    [TextArea]
+    [SerializeField] private string description;
     [SerializeField] private Sprite icon;
     [SerializeField] private AbilityCategory category = AbilityCategory.BasicAttack;
     [SerializeField] private AnimationClip attackAnimationClip;
@@ -116,6 +118,7 @@ public abstract class AbilityDefinition : ScriptableObject
     [SerializeField] private float temporaryTrailReplacementDuration = 0.5f;
 
     public string AbilityName => string.IsNullOrWhiteSpace(abilityName) ? name : abilityName;
+    public string Description => description;
     public Sprite Icon => icon;
     public AbilityCategory Category => category;
     public AnimationClip AttackAnimationClip => attackAnimationClip;

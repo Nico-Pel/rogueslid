@@ -72,6 +72,17 @@ public class FireTileHazard : BoardHazard
         character.TakeDamage(damage, null, false, DamageSoundType.MagicHit);
     }
 
+    public override void HandleCharacterTurnEnded(Character character)
+    {
+        if (character == null)
+        {
+            return;
+        }
+
+        PlayDamageSound();
+        character.TakeDamage(damage, null, false, DamageSoundType.MagicHit);
+    }
+
     private void EnsureFireObject()
     {
         if (fireObjectInstance != null || fireObjectPrefab == null)

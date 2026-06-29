@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_whisperfang_lucky_bolt
   rewardTitle: Lucky Bolt
-  rewardDescription: Whisperfang's fifth shot each turn deals 1 extra damage.
+  rewardDescription: Whisperfang's fifth and seventh shots each turn deal 1 extra damage.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: ee2979b98ecf4214acbdd64b0dd56211, type: 2}
   upgradeKey: 49

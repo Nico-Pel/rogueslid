@@ -19,7 +19,8 @@ MonoBehaviour:
   maxHealth: 40
   force: 4
   resistance: 0
-  mobility: 0
+  mobility: 4
+  goldReward: 4
   attackPattern: 1
   attackRange: 20
   damageSoundType: 0

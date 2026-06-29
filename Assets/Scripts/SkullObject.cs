@@ -25,6 +25,7 @@ public class SkullObject : MonoBehaviour
 
     public Vector2Int GridPosition => gridPosition;
     public bool IsResolving => isResolving;
+    public virtual bool AllowsTraversal => true;
     public virtual bool CanPlayerStandOn => true;
     protected BoardManager Board => board;
 
@@ -181,6 +182,7 @@ public class SkullObject : MonoBehaviour
             yield return new WaitForSeconds(victoryResolveDelay);
         }
 
+        board?.HandleSkeletonSkullRemoved(skeletonData);
         board?.ClearStaticObstacle(gridPosition, gameObject);
         board?.UnregisterSkullObject(this);
         Destroy(gameObject);
@@ -203,6 +205,7 @@ public class SkullObject : MonoBehaviour
             return;
         }
 
+        board.HandleSkeletonSkullRemoved(skeletonData);
         board.ClearStaticObstacle(gridPosition, gameObject);
         board.UnregisterSkullObject(this);
         Destroy(gameObject);

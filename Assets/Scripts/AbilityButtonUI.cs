@@ -27,9 +27,12 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     [SerializeField] private Color availableColor = Color.white;
     [SerializeField] private Color disabledColor = new Color(1f, 1f, 1f, 0.5f);
     [SerializeField] private Color heartRipperExecuteFadeColor = new Color(1f, 0f, 0.02745098f, 0.6666667f);
+    [SerializeField] private Color whisperfangLuckyFadeColor = new Color(1f, 0.8627451f, 0.15294118f, 0.6666667f);
     [SerializeField] private float fadePulseMinAlpha = 0.1f;
     [SerializeField] private float fadePulseMaxAlpha = 0.4f;
     [SerializeField] private float fadePulseDuration = 0.5f;
+    [SerializeField] private float countBounceScaleMultiplier = 1.2f;
+    [SerializeField] private float countBounceDuration = 0.28f;
     [SerializeField] private Sprite basicAttackTypeSprite;
     [SerializeField] private Sprite mobilityTypeSprite;
     [SerializeField] private Sprite specialPowerTypeSprite;
@@ -48,6 +51,9 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private float pointerDownStartTime;
     private bool wasWaitingForReuseDelay;
     private Tween fadePulseTween;
+    private Tween countBounceTween;
+    private Color currentFadePulseColor;
+    private int lastSeenBonusTurnUseGainVersion = -1;
 
     public int AbilityIndex => abilitySlotIndex;
     public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
@@ -101,6 +107,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         clickInterceptor = onPrimaryClick;
         longPressCallback = onLongPress;
         wasWaitingForReuseDelay = false;
+        lastSeenBonusTurnUseGainVersion = -1;
         Refresh();
     }
 
@@ -120,6 +127,8 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         longPressTriggered = false;
         suppressNextClick = false;
         wasWaitingForReuseDelay = false;
+        lastSeenBonusTurnUseGainVersion = -1;
+        StopCountBounce();
         Refresh();
     }
 
@@ -145,6 +154,33 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             && runtime.IsUsable(character)
             && runtime.Definition is HeartRipperAbility heartRipper
             && heartRipper.HasExecutableHealOpportunity(character, runtime);
+        bool showDemonbaneFallbackFade = hasAbility
+            && isPlayerTurn
+            && runtime.IsUsable(character)
+            && runtime.Definition is DemonbaneAbility demonbane
+            && demonbane.HasFallbackCastOpportunity(character, runtime);
+        bool showWhisperfangLuckyFade = hasAbility
+            && isPlayerTurn
+            && runtime.IsUsable(character)
+            && runtime.Definition is WhisperfangAbility whisperfang
+            && whisperfang.IsLuckyBoltPrimed(character, runtime);
+        bool shouldBounceCount = hasAbility
+            && showUsageCount
+            && runtime.BonusTurnUseGainVersion > 0
+            && lastSeenBonusTurnUseGainVersion >= 0
+            && runtime.BonusTurnUseGainVersion != lastSeenBonusTurnUseGainVersion;
+
+        if (hasAbility)
+        {
+            if (lastSeenBonusTurnUseGainVersion < 0)
+            {
+                lastSeenBonusTurnUseGainVersion = runtime.BonusTurnUseGainVersion;
+            }
+        }
+        else
+        {
+            lastSeenBonusTurnUseGainVersion = -1;
+        }
 
         if (button != null)
         {
@@ -171,7 +207,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
             if (fadeIndicator != null)
             {
-                SetFadeIndicatorVisible(false);
+                SetFadeIndicatorVisible(false, heartRipperExecuteFadeColor);
             }
 
             return;
@@ -215,6 +251,11 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             countLabel.text = showUsageCount ? counterText : string.Empty;
         }
 
+        if (hasAbility)
+        {
+            lastSeenBonusTurnUseGainVersion = runtime.BonusTurnUseGainVersion;
+        }
+
         if (cooldownRoot != null)
         {
             cooldownRoot.SetActive(showCooldown);
@@ -225,7 +266,19 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             cooldownCountLabel.text = showCooldown ? runtime.RemainingCooldown.ToString() : string.Empty;
         }
 
-        SetFadeIndicatorVisible(showHeartRipperExecuteFade);
+        if (showWhisperfangLuckyFade)
+        {
+            SetFadeIndicatorVisible(true, whisperfangLuckyFadeColor);
+        }
+        else
+        {
+            SetFadeIndicatorVisible(showHeartRipperExecuteFade || showDemonbaneFallbackFade, heartRipperExecuteFadeColor);
+        }
+
+        if (shouldBounceCount)
+        {
+            PlayCountBounce();
+        }
     }
 
     private void HandleClicked()
@@ -280,6 +333,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private void OnDisable()
     {
         StopFadePulse();
+        StopCountBounce();
     }
 
     public void ApplyTheme(Color backgroundColor, Color outlineColor, Color countBackgroundColor, Color typeIconColor, Color typeOutlineColor)
@@ -478,13 +532,13 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         }
     }
 
-    private void SetFadeIndicatorVisible(bool isVisible)
+    private void SetFadeIndicatorVisible(bool isVisible, Color fadeColor)
     {
         if (fadeIndicatorImage != null)
         {
-            Color fadeColor = heartRipperExecuteFadeColor;
-            fadeColor.a = isVisible ? Mathf.Clamp(fadePulseMaxAlpha, 0f, 1f) : 0f;
-            fadeIndicatorImage.color = fadeColor;
+            Color appliedColor = fadeColor;
+            appliedColor.a = isVisible ? Mathf.Clamp(fadePulseMaxAlpha, 0f, 1f) : 0f;
+            fadeIndicatorImage.color = appliedColor;
         }
 
         if (fadeIndicator != null && fadeIndicator.activeSelf != isVisible)
@@ -494,7 +548,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         if (isVisible)
         {
-            StartFadePulse();
+            StartFadePulse(fadeColor);
         }
         else
         {
@@ -502,7 +556,50 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         }
     }
 
-    private void StartFadePulse()
+    private void PlayCountBounce()
+    {
+        if (countRoot == null)
+        {
+            return;
+        }
+
+        Transform bounceTarget = countRoot.transform;
+        StopCountBounce();
+        bounceTarget.localScale = Vector3.one;
+        countBounceTween = bounceTarget
+            .DOPunchScale(Vector3.one * Mathf.Max(0f, countBounceScaleMultiplier - 1f), Mathf.Max(0.05f, countBounceDuration), 1, 0.5f)
+            .SetUpdate(true)
+            .OnKill(() =>
+            {
+                if (bounceTarget != null)
+                {
+                    bounceTarget.localScale = Vector3.one;
+                }
+
+                countBounceTween = null;
+            });
+    }
+
+    private void StopCountBounce()
+    {
+        if (countBounceTween != null)
+        {
+            countBounceTween.Kill();
+            countBounceTween = null;
+        }
+
+        if (countRoot != null)
+        {
+            countRoot.transform.localScale = Vector3.one;
+        }
+    }
+
+    private void SetFadeIndicatorVisible(bool isVisible)
+    {
+        SetFadeIndicatorVisible(isVisible, heartRipperExecuteFadeColor);
+    }
+
+    private void StartFadePulse(Color fadeColor)
     {
         if (fadeIndicatorImage == null)
         {
@@ -514,7 +611,8 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         float duration = Mathf.Max(0.01f, fadePulseDuration);
 
         StopFadePulse();
-        Color baseColor = heartRipperExecuteFadeColor;
+        currentFadePulseColor = fadeColor;
+        Color baseColor = currentFadePulseColor;
         baseColor.a = minAlpha;
         fadeIndicatorImage.color = baseColor;
         fadePulseTween = fadeIndicatorImage

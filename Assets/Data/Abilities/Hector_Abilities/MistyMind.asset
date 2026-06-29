@@ -23,7 +23,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 979218ba003345c3809d5ee997ee5a2f, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
-  cooldownTurns: 1
+  cooldownTurns: 2
   reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 0

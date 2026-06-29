@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: RoyalDagger
   m_EditorClassIdentifier: 
   abilityName: Royal Dagger
+  description: Deal 7 damage to an enemy in a straight line within range 1.
   icon: {fileID: -1282944587, guid: ee24ccf862a5a4eae9e6d0633eb18c8f, type: 3}
   category: 0
   attackAnimationClip: {fileID: 7400000, guid: 33a959b33d4c045a0a539b82b228aae7, type: 2}

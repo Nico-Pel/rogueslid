@@ -61,16 +61,10 @@ public class Enemy : MonoBehaviour
     [ReadOnly] [SerializeField] private bool attackFirst;
     [ReadOnly] [SerializeField] private bool fleeAfterAttacking;
     [ReadOnly] [SerializeField] [Range(0f, 100f)] private float fleeThresholdPercent;
-    [ReadOnly] [SerializeField] private GameObject fearFxPrefab;
     [ReadOnly] [SerializeField] private float fearBodyWiggleStrength;
     [SerializeField] private float fearFeedbackDelay = 0.25f;
-    [SerializeField] private GameObject bleedingFxPrefab;
     [Min(0f)]
     [SerializeField] private float bleedingDamageRandomDelayMax = 0.33f;
-    [SerializeField] private GameObject frozenFxPrefab;
-    [SerializeField] private GameObject frozenImpactFxPrefab;
-    [Min(0f)]
-    [SerializeField] private float frozenImpactFxLifetime = 2f;
     [SerializeField] private Color bleedingRimGlowColor = Color.red;
     [Min(0f)]
     [SerializeField] private float bleedingRimGlowIntensity = 1f;
@@ -151,13 +145,16 @@ public class Enemy : MonoBehaviour
     private int forceModifierFromStatuses;
     private bool mistyConfusionParanoia;
     private bool mistyConfusionBrokenHeart;
+    private float mistyConfusionAllyDamageMultiplier = 1f;
+    private float mistyConfusionBrokenHeartSelfDamageRatio;
     private GameObject activeMistyConfusionFxInstance;
-    private GameObject activeFrozenFxInstance;
+    private readonly Dictionary<CombatStatusType, GameObject> activePersistentStatusFxInstances = new Dictionary<CombatStatusType, GameObject>();
     private bool isBleedingRimGlowApplied;
     private Coroutine mistyConfusionFxTimeoutCoroutine;
     private AnimatorOverrideController enemyAnimatorOverrideController;
     private DragoonRiderEnemyData dragoonRiderData;
     private LichEnemyData lichData;
+    private GameObject specialAlternateProjectilePrefab;
     private Transform fireBallSpawnPos;
     private int movementInterruptCount;
     private int combatTurnCount;
@@ -187,6 +184,8 @@ public class Enemy : MonoBehaviour
     private bool hasFlyingAnimationOverride;
     private bool flyingAnimationOverrideValue;
     private bool dragoonTwinAttackSuppressed;
+    private int forcedFearTurnsRemaining;
+    private CombatStatusFxLibrary statusFxLibrary;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -249,7 +248,6 @@ public class Enemy : MonoBehaviour
         attackFirst = enemyData.AttackFirst;
         fleeAfterAttacking = enemyData.FleeAfterAttacking;
         fleeThresholdPercent = enemyData.FleeThresholdPercent;
-        fearFxPrefab = enemyData.FearFxPrefab;
         fearBodyWiggleStrength = enemyData.FearBodyWiggleStrength;
         ignoreObstaclesForMovement = enemyData.IgnoreObstaclesForMovement;
         canEndTurnOnObstacle = enemyData.CanEndTurnOnObstacle;
@@ -283,6 +281,8 @@ public class Enemy : MonoBehaviour
         {
             selfPowerUpFxPrefab = enemyData.SpecialSelfBuffFxPrefab;
         }
+
+        specialAlternateProjectilePrefab = enemyData.SpecialAlternateProjectilePrefab;
 
         dragoonRiderData = enemyData as DragoonRiderEnemyData;
         lichData = enemyData as LichEnemyData;
@@ -332,6 +332,7 @@ public class Enemy : MonoBehaviour
         dragoonTwinAttackSuppressed = false;
         hasFlyingAnimationOverride = false;
         flyingAnimationOverrideValue = false;
+        forcedFearTurnsRemaining = 0;
         ReleaseExtraOccupiedCells();
         ClearWormTunnels();
         if (specialBehavior == EnemySpecialBehavior.GiantWormTunnelBoss)
@@ -601,7 +602,7 @@ public class Enemy : MonoBehaviour
 
         if (specialBehavior == EnemySpecialBehavior.DragoonTwinBoss)
         {
-            yield return ExecuteDragoonTwinTurn(target);
+            yield return ExecuteDragoonTwinTurn(target, effectiveMobility);
             yield return PerformEndOfTurnRegen();
             yield break;
         }
@@ -617,6 +618,11 @@ public class Enemy : MonoBehaviour
         }
 
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        if (forcedFearTurnsRemaining > 0)
+        {
+            forcedFearTurnsRemaining--;
+        }
+
         UpdateFearState(persistentFleeBehaviour);
         if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
         {
@@ -652,6 +658,7 @@ public class Enemy : MonoBehaviour
 
         bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
         List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
+        int movementSpentThisTurn = 0;
         if (persistentFleeBehaviour && effectiveMobility > 0 && plannedPath.Count == 0)
         {
             persistentFleeBehaviour = false;
@@ -673,6 +680,7 @@ public class Enemy : MonoBehaviour
                 break;
             }
 
+            movementSpentThisTurn++;
             yield return WaitForMovementStepResolution();
 
             if (specialBehavior == EnemySpecialBehavior.BoarCharge && CanExecuteBoarCharge(target))
@@ -709,6 +717,7 @@ public class Enemy : MonoBehaviour
             consecutiveFleeTurns = 0;
         }
 
+        HandleMovementExhaustionDamage(movementSpentThisTurn, effectiveMobility);
         yield return PerformEndOfTurnRegen();
     }
 
@@ -737,6 +746,11 @@ public class Enemy : MonoBehaviour
         }
 
         bool persistentFleeBehaviour = ShouldUseFleeBehaviour();
+        if (forcedFearTurnsRemaining > 0)
+        {
+            forcedFearTurnsRemaining--;
+        }
+
         UpdateFearState(persistentFleeBehaviour);
         if (persistentFleeBehaviour && maxFleeTurns > 0 && consecutiveFleeTurns >= maxFleeTurns)
         {
@@ -771,6 +785,7 @@ public class Enemy : MonoBehaviour
 
         bool useFleeBehaviour = persistentFleeBehaviour || temporaryFleeMove;
         List<Vector2Int> plannedPath = BuildMovementPlan(target, useFleeBehaviour, effectiveMobility);
+        int movementSpentThisTurn = 0;
         if (persistentFleeBehaviour && effectiveMobility > 0 && plannedPath.Count == 0)
         {
             persistentFleeBehaviour = false;
@@ -792,6 +807,7 @@ public class Enemy : MonoBehaviour
                 break;
             }
 
+            movementSpentThisTurn++;
             yield return WaitForMovementStepResolution();
         }
 
@@ -820,6 +836,8 @@ public class Enemy : MonoBehaviour
         {
             consecutiveFleeTurns = 0;
         }
+
+        HandleMovementExhaustionDamage(movementSpentThisTurn, effectiveMobility);
     }
 
     private IEnumerator ExecutePostAttackFlee(Character target, int movementPointsToSpend)
@@ -830,6 +848,7 @@ public class Enemy : MonoBehaviour
         }
 
         List<Vector2Int> fleePath = BuildMovementPlan(target, true, movementPointsToSpend);
+        int movementSpent = 0;
         for (int step = 0; step < fleePath.Count; step++)
         {
             bool moved = TryMoveToPlannedStep(fleePath[step]);
@@ -838,8 +857,11 @@ public class Enemy : MonoBehaviour
                 yield break;
             }
 
+            movementSpent++;
             yield return WaitForMovementStepResolution();
         }
+
+        HandleMovementExhaustionDamage(movementSpent, movementPointsToSpend);
     }
 
     private IEnumerator PerformEndOfTurnRegen()
@@ -1104,10 +1126,23 @@ public class Enemy : MonoBehaviour
         pendingMobilityPenalty += amount;
     }
 
-    public IEnumerator ApplyMistyConfusion(bool paranoia, bool brokenHeart, bool reduceMobilityNextTurn)
+    public void ApplyFear(int turnCount = 1)
+    {
+        if (turnCount <= 0)
+        {
+            return;
+        }
+
+        forcedFearTurnsRemaining = Mathf.Max(forcedFearTurnsRemaining, turnCount);
+        UpdateFearState(true);
+    }
+
+    public IEnumerator ApplyMistyConfusion(bool paranoia, bool brokenHeart, bool reduceMobilityNextTurn, float allyDamageMultiplier = 1f, float brokenHeartSelfDamageRatio = 0f)
     {
         mistyConfusionParanoia = paranoia;
         mistyConfusionBrokenHeart = brokenHeart;
+        mistyConfusionAllyDamageMultiplier = Mathf.Max(1f, allyDamageMultiplier);
+        mistyConfusionBrokenHeartSelfDamageRatio = Mathf.Clamp01(brokenHeartSelfDamageRatio);
         ShowMistyConfusionFx();
 
         if (reduceMobilityNextTurn)
@@ -1115,7 +1150,7 @@ public class Enemy : MonoBehaviour
             ApplyMobilityPenaltyNextTurn(1);
         }
 
-        if (currentHealth <= 0 || !CanAttackAnyEnemyAlly())
+        if (currentHealth <= 0 || !CanAttackAnyEnemyAlly(true))
         {
             ClearMistyConfusion();
             yield break;
@@ -1328,6 +1363,11 @@ public class Enemy : MonoBehaviour
 
     private bool ShouldUseFleeBehaviour()
     {
+        if (forcedFearTurnsRemaining > 0)
+        {
+            return true;
+        }
+
         if (fleePermanentlyDisabled)
         {
             return false;
@@ -1345,6 +1385,22 @@ public class Enemy : MonoBehaviour
 
         float healthPercent = (float)currentHealth / maxHealth * 100f;
         return healthPercent <= fleeThresholdPercent;
+    }
+
+    private void HandleMovementExhaustionDamage(int movementSpent, int availableMovement)
+    {
+        if (movementSpent <= 0 || availableMovement <= 0 || movementSpent < availableMovement)
+        {
+            return;
+        }
+
+        Character playerCharacter = Board != null && Board.Player != null ? Board.Player.ControlledCharacter : null;
+        if (playerCharacter == null || !playerCharacter.HasItem(ItemRewardKey.MouseTrap) || currentHealth <= 0)
+        {
+            return;
+        }
+
+        TakeDamage(1, DamageSoundType.Default);
     }
 
     private void DisablePersistentFlee()
@@ -1407,14 +1463,78 @@ public class Enemy : MonoBehaviour
 
     private void PlayFearFx()
     {
-        if (fearFxPrefab == null)
+        (Transform anchor, Vector3 offset) = GetEnemyHeadFxAnchor();
+        GetStatusFxLibrary()?.SpawnFearFx(anchor, offset);
+    }
+
+    private CombatStatusFxLibrary GetStatusFxLibrary()
+    {
+        if (statusFxLibrary == null)
+        {
+            statusFxLibrary = CombatStatusFxLibrary.LoadDefault();
+        }
+
+        return statusFxLibrary;
+    }
+
+    private void PlayStatusApplyFx(CombatStatusType statusType)
+    {
+        (Transform anchor, Vector3 offset) = GetEnemyStatusFxAnchor(statusType, false);
+        GetStatusFxLibrary()?.SpawnApplyFx(statusType, anchor, offset);
+    }
+
+    private void RefreshPersistentStatusFx(CombatStatusType statusType)
+    {
+        bool shouldBeActive = HasStatusEffect(statusType);
+        if (!shouldBeActive)
+        {
+            ClearPersistentStatusFx(statusType);
+            return;
+        }
+
+        if (activePersistentStatusFxInstances.TryGetValue(statusType, out GameObject existingInstance) && existingInstance != null)
         {
             return;
         }
 
-        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
-        GameObject spawnedFx = Instantiate(fearFxPrefab, anchor.position, fearFxPrefab.transform.rotation);
-        spawnedFx.transform.localScale = fearFxPrefab.transform.localScale;
+        (Transform anchor, Vector3 offset) = GetEnemyStatusFxAnchor(statusType, true);
+        GameObject spawnedFx = GetStatusFxLibrary()?.SpawnPersistentFx(statusType, anchor, offset);
+        if (spawnedFx != null)
+        {
+            activePersistentStatusFxInstances[statusType] = spawnedFx;
+        }
+    }
+
+    private (Transform anchor, Vector3 localOffset) GetEnemyStatusFxAnchor(CombatStatusType statusType, bool persistent)
+    {
+        switch (statusType)
+        {
+            case CombatStatusType.Frozen:
+            case CombatStatusType.Poisoned:
+                return (enemyBody != null ? enemyBody : transform, Vector3.zero);
+            case CombatStatusType.Bleeding:
+            default:
+                return GetEnemyHeadFxAnchor();
+        }
+    }
+
+    private (Transform anchor, Vector3 localOffset) GetEnemyHeadFxAnchor()
+    {
+        return (EffectAnchor != null ? EffectAnchor : transform, Vector3.zero);
+    }
+
+    private void ClearPersistentStatusFx(CombatStatusType statusType)
+    {
+        if (!activePersistentStatusFxInstances.TryGetValue(statusType, out GameObject existingInstance))
+        {
+            return;
+        }
+
+        activePersistentStatusFxInstances.Remove(statusType);
+        if (existingInstance != null)
+        {
+            Destroy(existingInstance);
+        }
     }
 
     private void PlayFearWiggle()
@@ -1511,6 +1631,11 @@ public class Enemy : MonoBehaviour
                 int deltaY = Mathf.Abs(delta.y);
                 bool sameRowOrColumn = origin.x == target.GridPosition.x || origin.y == target.GridPosition.y;
                 bool perfectDiagonal = deltaX == deltaY && deltaX > 0;
+
+                if (target.HasItem(ItemRewardKey.Hood) && manhattanDistance >= 5)
+                {
+                    return false;
+                }
 
                 if (requireAlignedShot)
                 {
@@ -2996,10 +3121,17 @@ public class Enemy : MonoBehaviour
         }
 
         int fireballCount = dragoonRiderData.SummonedFireballCount;
+        Character playerCharacter = Board.Player != null ? Board.Player.ControlledCharacter : null;
+        bool shouldTargetCurrentPlayerCellFirst = playerCharacter != null && !playerCharacter.MovedLastTurn;
         float perFireballDuration = Mathf.Max(0.15f, dragoonRiderData.FireballVolleyDuration / Mathf.Max(1, fireballCount));
         for (int index = 0; index < fireballCount; index++)
         {
-            if (!TryGetRandomFreeNonFireCell(out Vector2Int targetCell))
+            Vector2Int targetCell;
+            if (shouldTargetCurrentPlayerCellFirst && index == 0)
+            {
+                targetCell = playerCharacter.GridPosition;
+            }
+            else if (!TryGetRandomFreeNonFireCell(out targetCell))
             {
                 yield break;
             }
@@ -3719,6 +3851,8 @@ public class Enemy : MonoBehaviour
             yield break;
         }
 
+        combatTurnCount++;
+
         Vector2Int previousTunnelCell = gridPosition;
         EnsureWormTunnelAt(previousTunnelCell);
         if (!TrySelectGiantWormDestination(target, previousTunnelCell, out Vector2Int destination, out GiantWormAttackMode attackMode, out bool createTunnelAtDestination))
@@ -3761,6 +3895,11 @@ public class Enemy : MonoBehaviour
         }
 
         StopWormPositionLock();
+
+        if (ShouldLaunchGiantWormTunnelBoulder() && TryGetGiantWormTunnelBoulderTargetCell(target, out Vector2Int boulderTargetCell))
+        {
+            yield return LaunchGiantWormTunnelBoulder(boulderTargetCell);
+        }
 
         if (attackMode == GiantWormAttackMode.Adjacent && IsRadiallyAdjacentToTarget(target))
         {
@@ -3834,23 +3973,51 @@ public class Enemy : MonoBehaviour
             specialBumpHeight);
     }
 
-    private IEnumerator ExecuteDragoonTwinTurn(Character target)
+    private IEnumerator ExecuteDragoonTwinTurn(Character target, int effectiveMobility)
     {
         if (Board == null || target == null)
         {
             yield break;
         }
 
-        bool canAttack = !dragoonTwinAttackSuppressed;
-        SetFlyingOverride(true);
+        bool isGroundedThisTurn = dragoonTwinAttackSuppressed;
+        SetFlyingOverride(!isGroundedThisTurn);
 
-        if (canAttack)
+        if (isGroundedThisTurn)
+        {
+            yield return PerformDragoonTwinGroundedTurn(target, effectiveMobility);
+        }
+        else
         {
             yield return PerformDragoonTwinRangedAttack(target);
         }
 
         yield return PerformDragoonTwinSpecialMove(target);
         dragoonTwinAttackSuppressed = false;
+    }
+
+    private IEnumerator PerformDragoonTwinGroundedTurn(Character target, int effectiveMobility)
+    {
+        if (target == null)
+        {
+            yield break;
+        }
+
+        if (CanPerformDragoonMeleeFrom(gridPosition, target))
+        {
+            yield return PerformDragoonTwinGroundAttack(target);
+            yield break;
+        }
+
+        if (effectiveMobility > 0 && TryFindBestDragoonMeleeObjective(target, effectiveMobility, out PathPlan meleePlan))
+        {
+            yield return FollowPathPlan(meleePlan.Path);
+        }
+
+        if (CanPerformDragoonMeleeFrom(gridPosition, target))
+        {
+            yield return PerformDragoonTwinGroundAttack(target);
+        }
     }
 
     private IEnumerator PerformDragoonTwinRangedAttack(Character target)
@@ -3869,6 +4036,25 @@ public class Enemy : MonoBehaviour
 
         yield return FireFracturingJumpProjectileAt(target);
         target.TakeDamage(Mathf.Max(1, EffectiveForce), this, true, damageSoundType);
+        yield return new WaitForSeconds(0.08f);
+    }
+
+    private IEnumerator PerformDragoonTwinGroundAttack(Character target)
+    {
+        if (target == null)
+        {
+            yield break;
+        }
+
+        FaceTargetForAttack(target);
+        TriggerOptionalSecondaryActionAnimation();
+        float damageDelay = GetTargetDamageDelay(target);
+        if (damageDelay > 0f)
+        {
+            yield return new WaitForSeconds(damageDelay);
+        }
+
+        target.TakeDamage(Mathf.Max(1, EffectiveForce), this, false, damageSoundType);
         yield return new WaitForSeconds(0.08f);
     }
 
@@ -3969,7 +4155,8 @@ public class Enemy : MonoBehaviour
             targetPosition,
             Mathf.Max(0.01f, specialJumpPower),
             1,
-            travelDuration);
+            travelDuration)
+            .SetEase(Ease.Linear);
         yield return jumpTween.WaitForCompletion();
 
         FractureProjectileInstance(projectile);
@@ -4339,6 +4526,86 @@ public class Enemy : MonoBehaviour
         return target != null && Board != null && Board.HasLineOfSight(gridPosition, target.GridPosition);
     }
 
+    private bool ShouldLaunchGiantWormTunnelBoulder()
+    {
+        return combatTurnCount > 0 && combatTurnCount % 3 == 0;
+    }
+
+    private bool TryGetGiantWormTunnelBoulderTargetCell(Character target, out Vector2Int targetCell)
+    {
+        targetCell = gridPosition;
+        if (Board == null || target == null)
+        {
+            return false;
+        }
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int candidateCell = new Vector2Int(x, y);
+                if (candidateCell == target.GridPosition || wormTunnelInstances.ContainsKey(candidateCell) || !IsCellValidForWormEmergence(candidateCell))
+                {
+                    continue;
+                }
+
+                if (!Board.HasLineOfSight(candidateCell, target.GridPosition))
+                {
+                    continue;
+                }
+
+                candidates.Add(candidateCell);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        targetCell = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        return true;
+    }
+
+    private IEnumerator LaunchGiantWormTunnelBoulder(Vector2Int targetCell)
+    {
+        if (Board == null || specialAlternateProjectilePrefab == null)
+        {
+            yield break;
+        }
+
+        FaceMovementDirection(targetCell - gridPosition);
+        TriggerAttackAnimation();
+
+        if (projectileSpawnDelay > 0f)
+        {
+            yield return new WaitForSeconds(projectileSpawnDelay);
+        }
+
+        Transform resolvedLaunchAnchor = projectileSpawnPos != null ? projectileSpawnPos : EffectAnchor;
+        Vector3 launchPosition = resolvedLaunchAnchor != null
+            ? resolvedLaunchAnchor.position
+            : transform.position + Vector3.up * 0.5f;
+        Vector3 targetPosition = Board.GridToWorldPosition(targetCell) + Vector3.up * projectileTravelHeight;
+        SoundManager.Instance?.PlayArrowShot(launchPosition);
+
+        GameObject projectile = Instantiate(specialAlternateProjectilePrefab, launchPosition, specialAlternateProjectilePrefab.transform.rotation);
+        projectile.transform.localScale = specialAlternateProjectilePrefab.transform.localScale;
+
+        float travelDuration = Mathf.Max(0.2f, (Vector3.Distance(launchPosition, targetPosition) / Mathf.Max(0.01f, projectileTravelSpeed)) * 2f);
+        Tween jumpTween = projectile.transform.DOJump(
+            targetPosition,
+            Mathf.Max(0.01f, specialJumpPower),
+            1,
+            travelDuration);
+        yield return jumpTween.WaitForCompletion();
+
+        SoundManager.Instance?.PlayDamageSound(DamageSoundType.Default, targetPosition);
+        FractureProjectileInstance(projectile);
+        EnsureWormTunnelAt(targetCell);
+    }
+
     private IEnumerator PerformGiantWormAdjacentAttack(Character target)
     {
         if (target == null)
@@ -4580,12 +4847,17 @@ public class Enemy : MonoBehaviour
 
         if (statusType == CombatStatusType.Bleeding && !alreadyHadStatus)
         {
-            PlayBleedingFx();
+            PlayStatusApplyFx(CombatStatusType.Bleeding);
         }
 
         if (statusType == CombatStatusType.Frozen && !alreadyHadStatus)
         {
-            PlayFrozenImpactFx();
+            PlayStatusApplyFx(CombatStatusType.Frozen);
+        }
+
+        if (statusType == CombatStatusType.Poisoned && !alreadyHadStatus)
+        {
+            PlayStatusApplyFx(CombatStatusType.Poisoned);
         }
 
         RefreshStatusVisuals();
@@ -4632,7 +4904,7 @@ public class Enemy : MonoBehaviour
                 yield break;
             }
 
-            PlayBleedingFx();
+            PlayStatusApplyFx(CombatStatusType.Bleeding);
             TakeDamage(bleedingDamage, DamageSoundType.MagicHit);
         }
 
@@ -4678,18 +4950,6 @@ public class Enemy : MonoBehaviour
         RefreshStatusVisuals();
     }
 
-    private void PlayBleedingFx()
-    {
-        if (bleedingFxPrefab == null)
-        {
-            return;
-        }
-
-        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
-        GameObject spawnedFx = Instantiate(bleedingFxPrefab, anchor.position, bleedingFxPrefab.transform.rotation);
-        spawnedFx.transform.localScale = bleedingFxPrefab.transform.localScale;
-    }
-
     private void CacheStatusRenderers()
     {
         if (statusRenderers != null && statusRenderers.Length > 0)
@@ -4713,7 +4973,8 @@ public class Enemy : MonoBehaviour
 
     private void RefreshStatusVisuals()
     {
-        RefreshFrozenFx();
+        RefreshPersistentStatusFx(CombatStatusType.Frozen);
+        RefreshPersistentStatusFx(CombatStatusType.Poisoned);
         RefreshBleedingRimGlow();
     }
 
@@ -4753,57 +5014,9 @@ public class Enemy : MonoBehaviour
         isBleedingRimGlowApplied = hasBleeding;
     }
 
-    private void RefreshFrozenFx()
-    {
-        bool hasFrozen = HasStatusEffect(CombatStatusType.Frozen);
-        if (!hasFrozen)
-        {
-            ClearFrozenFx();
-            return;
-        }
-
-        if (activeFrozenFxInstance != null || frozenFxPrefab == null)
-        {
-            return;
-        }
-
-        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
-        activeFrozenFxInstance = Instantiate(frozenFxPrefab, anchor);
-        activeFrozenFxInstance.transform.localPosition = Vector3.zero;
-        activeFrozenFxInstance.transform.localRotation = frozenFxPrefab.transform.localRotation;
-        activeFrozenFxInstance.transform.localScale = frozenFxPrefab.transform.localScale;
-    }
-
-    private void ClearFrozenFx()
-    {
-        if (activeFrozenFxInstance == null)
-        {
-            return;
-        }
-
-        Destroy(activeFrozenFxInstance);
-        activeFrozenFxInstance = null;
-    }
-
-    private void PlayFrozenImpactFx()
-    {
-        if (frozenImpactFxPrefab == null)
-        {
-            return;
-        }
-
-        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
-        GameObject spawnedFx = Instantiate(frozenImpactFxPrefab, anchor.position, frozenImpactFxPrefab.transform.rotation, anchor);
-        spawnedFx.transform.localScale = frozenImpactFxPrefab.transform.localScale;
-        if (frozenImpactFxLifetime > 0f)
-        {
-            Destroy(spawnedFx, frozenImpactFxLifetime);
-        }
-    }
-
     private IEnumerator ResolveMistyConfusionTurn()
     {
-        List<Enemy> targets = GatherConfusionTargets();
+        List<Enemy> targets = GatherConfusionTargets(true);
         if (targets.Count == 0)
         {
             ClearMistyConfusion();
@@ -4822,7 +5035,7 @@ public class Enemy : MonoBehaviour
                 break;
             }
 
-            if (target == null || target == this || target.CurrentHealth <= 0 || !CanAttackEnemyTargetFrom(gridPosition, target))
+            if (target == null || target == this || target.CurrentHealth <= 0 || !CanAttackEnemyTargetFrom(gridPosition, target, true))
             {
                 continue;
             }
@@ -4843,26 +5056,42 @@ public class Enemy : MonoBehaviour
                 }
             }
 
-            target.TakeDamage(EffectiveForce, damageSoundType);
+            int allyDamage = Mathf.Max(1, Mathf.RoundToInt(EffectiveForce * mistyConfusionAllyDamageMultiplier));
+            int appliedDamage = target.TakeDamage(allyDamage, damageSoundType);
+            if (mistyConfusionBrokenHeart && currentHealth > 0 && appliedDamage > 0)
+            {
+                int selfDamage = Mathf.Max(1, Mathf.RoundToInt(appliedDamage * mistyConfusionBrokenHeartSelfDamageRatio));
+                StartCoroutine(ApplyMistyBrokenHeartSelfDamageAfterDelay(selfDamage, 1f));
+            }
             yield return new WaitForSeconds(0.08f);
         }
 
-        if (mistyConfusionBrokenHeart && currentHealth > 0)
+        ClearMistyConfusion();
+    }
+
+    private IEnumerator ApplyMistyBrokenHeartSelfDamageAfterDelay(int damage, float delay)
+    {
+        if (delay > 0f)
         {
-            TakeDamage(1, DamageSoundType.Default);
+            yield return new WaitForSeconds(delay);
         }
 
-        ClearMistyConfusion();
+        if (currentHealth > 0)
+        {
+            TakeDamage(Mathf.Max(1, damage), DamageSoundType.Default);
+        }
     }
 
     private void ClearMistyConfusion()
     {
         mistyConfusionParanoia = false;
         mistyConfusionBrokenHeart = false;
+        mistyConfusionAllyDamageMultiplier = 1f;
+        mistyConfusionBrokenHeartSelfDamageRatio = 0f;
         ClearMistyConfusionFx();
     }
 
-    private List<Enemy> GatherConfusionTargets()
+    private List<Enemy> GatherConfusionTargets(bool includeDirectDiagonalTargets = false)
     {
         List<Enemy> targets = new List<Enemy>();
         if (Board == null)
@@ -4879,7 +5108,7 @@ public class Enemy : MonoBehaviour
                 continue;
             }
 
-            if (CanAttackEnemyTargetFrom(gridPosition, candidate))
+            if (CanAttackEnemyTargetFrom(gridPosition, candidate, includeDirectDiagonalTargets))
             {
                 targets.Add(candidate);
             }
@@ -4910,9 +5139,9 @@ public class Enemy : MonoBehaviour
         return weakestEnemy;
     }
 
-    public bool CanAttackAnyEnemyAlly()
+    public bool CanAttackAnyEnemyAlly(bool includeDirectDiagonalTargets = false)
     {
-        return GatherConfusionTargets().Count > 0;
+        return GatherConfusionTargets(includeDirectDiagonalTargets).Count > 0;
     }
 
     private void ShowMistyConfusionFx()
@@ -4964,7 +5193,7 @@ public class Enemy : MonoBehaviour
         activeMistyConfusionFxInstance = null;
     }
 
-    private bool CanAttackEnemyTargetFrom(Vector2Int origin, Enemy target)
+    private bool CanAttackEnemyTargetFrom(Vector2Int origin, Enemy target, bool includeDirectDiagonalTargets = false)
     {
         if (target == null || Board == null)
         {
@@ -4973,6 +5202,12 @@ public class Enemy : MonoBehaviour
 
         Vector2Int delta = target.GridPosition - origin;
         int manhattanDistance = Mathf.Abs(delta.x) + Mathf.Abs(delta.y);
+        int diagonalDistance = Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y));
+
+        if (includeDirectDiagonalTargets && manhattanDistance == 2 && diagonalDistance == 1)
+        {
+            return true;
+        }
 
         switch (attackPattern)
         {
@@ -5057,7 +5292,15 @@ public class Enemy : MonoBehaviour
 
         if (allowSpecialDeathSpawn)
         {
-            Board?.SpawnSkeletonSkull(this);
+            bool spawnedSkull = Board != null && Board.SpawnSkeletonSkull(this);
+            if (!spawnedSkull)
+            {
+                Board?.AwardGoldForEnemy(this);
+            }
+        }
+        else
+        {
+            Board?.AwardGoldForEnemy(this);
         }
 
         ReleaseExtraOccupiedCells();

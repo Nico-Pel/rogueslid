@@ -23,7 +23,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ef814cdf03b14fa7a1c3d85b47be3128, type: 2}
   usesPerTurn: 1
   usesPerCombat: 0
-  cooldownTurns: 1
+  cooldownTurns: 2
   reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 0
@@ -41,12 +41,54 @@ MonoBehaviour:
   temporaryTrailReplacementDuration: 0.5
   baseDamage: 2
   range: 10
-  baseRadius: 3
+  baseRadius: 2
   initialDelay: 0.7
   projectilePrefab: {fileID: 4669369967587303769, guid: bb82b5f2cbb9243d584a087c46571ac6, type: 3}
   projectileTravelSpeed: 5
   minimumTravelDuration: 0.36
   projectileJumpPower: 10
+  projectileTravelProgressCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 2.2
+      outSlope: 2.2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.35
+      value: 0.46
+      inSlope: 0.45
+      outSlope: 0.45
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.62
+      value: 0.6
+      inSlope: 1.4
+      outSlope: 1.4
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 3
+      outSlope: 3
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
   projectileImpactOffset: {x: 0, y: 0.2, z: 0}
   emptyImpactScale: 0.1

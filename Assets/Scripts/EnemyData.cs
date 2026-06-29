@@ -33,6 +33,8 @@ public class EnemyData : ScriptableObject
     [SerializeField] private int resistance;
     [Min(0)]
     [SerializeField] private int mobility = 2;
+    [Min(0)]
+    [SerializeField] private int goldReward = 4;
     [SerializeField] private EnemyAttackPattern attackPattern = EnemyAttackPattern.AdjacentOrthogonal;
     [Min(1)]
     [SerializeField] private int attackRange = 1;
@@ -101,6 +103,7 @@ public class EnemyData : ScriptableObject
     [Min(0f)]
     [SerializeField] private float specialBumpDurationPerDistance = 0.08f;
     [SerializeField] private GameObject specialSelfBuffFxPrefab;
+    [SerializeField] private GameObject specialAlternateProjectilePrefab;
     [SerializeField] private GameObject specialCompanionPrefab;
 
     [Header("Displayed Stats")]
@@ -123,6 +126,7 @@ public class EnemyData : ScriptableObject
     public int Force => Mathf.Max(0, force);
     public int Resistance => Mathf.Max(0, resistance);
     public int Mobility => Mathf.Max(0, mobility);
+    public int GoldReward => Mathf.Max(0, goldReward);
     public EnemyAttackPattern AttackPattern => attackPattern;
     public int AttackRange => Mathf.Max(1, attackRange);
     public DamageSoundType DamageSoundType => damageSoundType;
@@ -167,6 +171,7 @@ public class EnemyData : ScriptableObject
     public float SpecialBumpHeight => Mathf.Max(0f, specialBumpHeight);
     public float SpecialBumpDurationPerDistance => Mathf.Max(0f, specialBumpDurationPerDistance);
     public GameObject SpecialSelfBuffFxPrefab => specialSelfBuffFxPrefab;
+    public GameObject SpecialAlternateProjectilePrefab => specialAlternateProjectilePrefab;
     public GameObject SpecialCompanionPrefab => specialCompanionPrefab;
     public bool ShowAttack => showAttack;
     public Sprite AttackSprite => attackSprite;

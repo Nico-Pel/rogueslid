@@ -16,6 +16,7 @@ MonoBehaviour:
   description: A ruthless assassin who dances across the board with deadly precision.
   portrait: {fileID: 21300000, guid: 61fbbdf05e257431eb248c172b416f8e, type: 3}
   portraitLose: {fileID: 21300000, guid: 78803390e616e4ce5acbcc1ab79a11a4, type: 3}
+  pathIcon: {fileID: 552667749, guid: 0908207145742434bbee8ded68f13915, type: 3}
   maxHealth: 10
   bonusDamage: 0
   resistance: 0

@@ -133,7 +133,7 @@ public class WolfStepAbility : AbilityDefinition
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.WolfStepAlphaWolf) > 0)
         {
-            character.DamageEnemiesAround(character.GridPosition, 1, 1, true, this);
+            character.DamageEnemiesAround(character.GridPosition, 1, 2, true, this);
             character.PlayFeedbackFx(alphaPulseFxPrefab, destroyAfterSeconds: alphaPulseFxDuration);
         }
 

@@ -70,6 +70,15 @@ public class BoardCell
         Walkable = true;
     }
 
+    public void SetTraversableStaticObstacle(GameObject obstacle)
+    {
+        StaticObstacle = obstacle;
+        StaticObstacleBlocksMovement = false;
+        StopsCharacterSlide = false;
+        Type = BoardCellType.Classic;
+        Walkable = true;
+    }
+
     public void SetHazard(BoardHazard hazard)
     {
         Hazard = hazard;
@@ -111,6 +120,7 @@ public class BoardManager : MonoBehaviour
 
     [Header("Prefabs")]
     [SerializeField] private GameObject playerCharacterPrefab;
+    [SerializeField] private CharacterData selectedCharacterDataOverride;
 #if UNITY_EDITOR
     [Header("Editor Debug")]
     [SerializeField] private bool useForcedDatas;
@@ -118,6 +128,9 @@ public class BoardManager : MonoBehaviour
     [SerializeField] private EnemyPoolDefinition forcedEnemyPoolDefinition;
     [Min(1)]
     [SerializeField] private int cheatRewardsCount = 1;
+    [Header("Editor Only - Forced Rewards")]
+    [SerializeField] private bool useForcedRewards;
+    [SerializeField] private List<RewardDefinition> forcedRewards = new List<RewardDefinition>();
 #endif
 
     [Header("Rewards")]
@@ -150,7 +163,22 @@ public class BoardManager : MonoBehaviour
     private EnemyPoolDefinition currentSelectedEnemyPool;
     private bool isResolvingSkullsForVictory;
     private bool combatStartEnemyActionsResolved;
+    private bool shopShownForCurrentBiome;
+    private bool forceShopAfterCurrentArena;
     private static readonly int ColorShaderProperty = Shader.PropertyToID("_Color");
+    private static readonly string[] DragoonTwinsLayoutRows =
+    {
+        "#o...o#",
+        "o..E..o",
+        "..###..",
+        "......o",
+        "oo.P.oo",
+        "o......",
+        "..###..",
+        "...E...",
+        "o.....o",
+        "#o..oo#"
+    };
     public int Width => BoardWidth;
     public int Height => BoardHeight;
     public BoardCell[,] Cells => cells;
@@ -161,11 +189,27 @@ public class BoardManager : MonoBehaviour
     public BiomeData CurrentBiome => GetCurrentBiomeData();
     public AudioClip CurrentCombatMusic => GetCurrentBiomeData() != null ? GetCurrentBiomeData().CombatMusic : null;
     public PlayerRunRewardState RunRewardState => runRewardState;
+    public int CurrentGold => runRewardState != null ? runRewardState.CurrentGold : 0;
     public float ExtraEnemySpawnDelay => Mathf.Max(0f, extraEnemySpawnDelay);
     public GameObject DefaultSpawnFxPrefab => defaultEnemySpawnFxPrefab;
     public float DefaultSpawnFxLifetime => Mathf.Max(0f, defaultEnemySpawnFxLifetime);
     public Transform ObstaclesRoot => obstaclesRoot;
+    public bool GenerateOnStart => generateOnStart;
     public event Action AllEnemiesDefeated;
+    public event Action<int> GoldChanged;
+
+    public void SetPlayerCharacterSetup(GameObject prefab, CharacterData characterData)
+    {
+        Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup called. prefab={(prefab != null ? prefab.name : "null")} characterData={(characterData != null ? characterData.CharacterName : "null")}", this);
+
+        if (prefab != null)
+        {
+            playerCharacterPrefab = prefab;
+        }
+
+        selectedCharacterDataOverride = characterData;
+        Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup applied. playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+    }
 
 #if UNITY_EDITOR
     public int CheatRewardsCount
@@ -197,19 +241,20 @@ public class BoardManager : MonoBehaviour
 
     private void Awake()
     {
-        if (generateOnStart)
-        {
-            ResetArenaProgression();
-            GenerateBoard();
-        }
+        Debug.Log($"[Pouet Startup] BoardManager.Awake generateOnStart={generateOnStart} useForcedDatas={useForcedDatas} forcedBiome={(forcedBiome != null ? forcedBiome.name : "null")} forcedEnemyPoolDefinition={(forcedEnemyPoolDefinition != null ? forcedEnemyPoolDefinition.name : "null")} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+
+        // Initial arena generation is orchestrated by GameTurnManager so character
+        // selection and forced-data setup are applied before the board is created.
     }
 
     [ContextMenu("Generate Board")]
     public void GenerateBoard()
     {
+        Debug.Log($"[Pouet Startup] GenerateBoard begin. useForcedDatas={useForcedDatas} forcedBiome={(forcedBiome != null ? forcedBiome.name : "null")} forcedEnemyPoolDefinition={(forcedEnemyPoolDefinition != null ? forcedEnemyPoolDefinition.name : "null")} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")} arenaCount={arenaCount}", this);
         ApplyCurrentBiomeVisuals();
         currentSelectedEnemyPool = ResolveSelectedEnemyPoolForCurrentArena();
         Texture2D selectedArenaLayout = SelectArenaLayout(currentSelectedEnemyPool);
+        Debug.Log($"[Pouet Startup] GenerateBoard resolved. currentSelectedEnemyPool={(currentSelectedEnemyPool != null ? currentSelectedEnemyPool.name : "null")} selectedArenaLayout={(selectedArenaLayout != null ? selectedArenaLayout.name : "null")}", this);
         if (selectedArenaLayout == null)
         {
             Debug.LogError("BoardManager requires at least one arena layout texture.", this);
@@ -243,6 +288,13 @@ public class BoardManager : MonoBehaviour
 
         List<Vector2Int> playerSpawnCandidates = new List<Vector2Int>();
         List<Vector2Int> enemySpawnCandidates = new List<Vector2Int>();
+        int obstacleMarkerCount = 0;
+        int optionalObstacleMarkerCount = 0;
+        int emptyMarkerCount = 0;
+        float bestFallbackDistanceScore = float.PositiveInfinity;
+        Vector2Int bestFallbackPlayerSpawnCell = Vector2Int.zero;
+        bool hasFallbackPlayerSpawnCell = false;
+        Vector2 boardCenter = new Vector2((BoardWidth - 1) * 0.5f, (BoardHeight - 1) * 0.5f);
 
         for (int row = 0; row < BoardHeight; row++)
         {
@@ -251,12 +303,25 @@ public class BoardManager : MonoBehaviour
                 BoardCell cell = cells[column, row];
                 ArenaMarker marker = GetMarkerForCell(column, row, currentArenaLayout, currentArenaMirroredOnYAxis);
 
+                if (marker != ArenaMarker.Obstacle && marker != ArenaMarker.EnemySpawn)
+                {
+                    float distanceToCenter = Vector2.SqrMagnitude(new Vector2(column, row) - boardCenter);
+                    if (!hasFallbackPlayerSpawnCell || distanceToCenter < bestFallbackDistanceScore)
+                    {
+                        hasFallbackPlayerSpawnCell = true;
+                        bestFallbackDistanceScore = distanceToCenter;
+                        bestFallbackPlayerSpawnCell = cell.GridPosition;
+                    }
+                }
+
                 switch (marker)
                 {
                     case ArenaMarker.Obstacle:
+                        obstacleMarkerCount++;
                         SpawnObstacle(cell);
                         break;
                     case ArenaMarker.OptionalObstacle:
+                        optionalObstacleMarkerCount++;
                         if (UnityEngine.Random.value < optionalObstacleChance)
                         {
                             SpawnObstacle(cell);
@@ -268,7 +333,21 @@ public class BoardManager : MonoBehaviour
                     case ArenaMarker.PlayerSpawn:
                         playerSpawnCandidates.Add(cell.GridPosition);
                         break;
+                    default:
+                        emptyMarkerCount++;
+                        break;
                 }
+            }
+        }
+
+        Debug.Log($"[Pouet Startup] GenerateBoard markers counted. playerSpawns={playerSpawnCandidates.Count} enemySpawns={enemySpawnCandidates.Count} obstacles={obstacleMarkerCount} optionalObstacles={optionalObstacleMarkerCount} empty={emptyMarkerCount}", this);
+
+        if (playerSpawnCandidates.Count == 0)
+        {
+            if (hasFallbackPlayerSpawnCell)
+            {
+                playerSpawnCandidates.Add(bestFallbackPlayerSpawnCell);
+                Debug.Log($"[Pouet Startup] GenerateBoard fallback player spawn used. cell={bestFallbackPlayerSpawnCell} reason=nearest-walkable-to-center distanceScore={bestFallbackDistanceScore:F3}", this);
             }
         }
 
@@ -288,8 +367,10 @@ public class BoardManager : MonoBehaviour
 
     public void ResetArenaProgression()
     {
+        Debug.Log($"[Pouet Startup] ResetArenaProgression before reset. useForcedDatas={useForcedDatas} forcedBiome={(forcedBiome != null ? forcedBiome.name : "null")} forcedEnemyPoolDefinition={(forcedEnemyPoolDefinition != null ? forcedEnemyPoolDefinition.name : "null")} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
         currentBiomeIndex = 0;
         arenaCount = 1;
+        shopShownForCurrentBiome = false;
         hasGeneratedBoardThisSession = false;
         currentSelectedEnemyPool = null;
         activeSkullObjects.Clear();
@@ -298,7 +379,10 @@ public class BoardManager : MonoBehaviour
         isResolvingSkullsForVictory = false;
         encounteredEnemyPools.Clear();
         runRewardState = new PlayerRunRewardState();
+        forceShopAfterCurrentArena = false;
         ApplyCurrentBiomeVisuals();
+        NotifyGoldChanged();
+        Debug.Log($"[Pouet Startup] ResetArenaProgression after reset. arenaCount={arenaCount} currentBiomeIndex={currentBiomeIndex}", this);
     }
 
     public void GenerateNextArena()
@@ -443,7 +527,7 @@ public class BoardManager : MonoBehaviour
         }
 
         SkullObject skullObject = cell.StaticObstacle.GetComponent<SkullObject>();
-        return skullObject != null && !skullObject.IsResolving;
+        return skullObject != null && skullObject.AllowsTraversal && !skullObject.IsResolving;
     }
 
     public bool MoveOccupant(Vector2Int from, Vector2Int to, BoardOccupantKind occupantKind, bool allowBlockedDestination = false)
@@ -459,6 +543,11 @@ public class BoardManager : MonoBehaviour
         }
 
         GameObject occupant = fromCell.Occupant;
+        if (occupantKind == BoardOccupantKind.Enemy && occupant != null && occupant.TryGetComponent(out Enemy exitingEnemy))
+        {
+            fromCell.Hazard?.HandleEnemyExited(exitingEnemy);
+        }
+
         fromCell.ClearOccupant();
         toCell.SetOccupant(occupant, occupantKind);
         return true;
@@ -656,6 +745,56 @@ public class BoardManager : MonoBehaviour
 
             hazard.HandlePlayerTurnStarted();
         }
+    }
+
+    public void HandleEnemyTurnStarted()
+    {
+        if (spawnedHazards.Count == 0)
+        {
+            return;
+        }
+
+        List<BoardHazard> hazardsSnapshot = new List<BoardHazard>(spawnedHazards);
+        for (int index = 0; index < hazardsSnapshot.Count; index++)
+        {
+            BoardHazard hazard = hazardsSnapshot[index];
+            if (hazard == null)
+            {
+                continue;
+            }
+
+            hazard.HandleEnemyTurnStarted();
+        }
+    }
+
+    public void HandleEnemyTurnEnded()
+    {
+        if (spawnedHazards.Count == 0)
+        {
+            return;
+        }
+
+        List<BoardHazard> hazardsSnapshot = new List<BoardHazard>(spawnedHazards);
+        for (int index = 0; index < hazardsSnapshot.Count; index++)
+        {
+            BoardHazard hazard = hazardsSnapshot[index];
+            if (hazard == null)
+            {
+                continue;
+            }
+
+            hazard.HandleEnemyTurnEnded();
+        }
+    }
+
+    public void HandlePlayerTurnEnded(Character playerCharacter)
+    {
+        if (playerCharacter == null || !TryGetCell(playerCharacter.GridPosition, out BoardCell cell))
+        {
+            return;
+        }
+
+        cell.Hazard?.HandleCharacterTurnEnded(playerCharacter);
     }
 
     public bool HasCombatStartEnemyActionsReady()
@@ -1063,7 +1202,14 @@ public class BoardManager : MonoBehaviour
             spawnWorldPosition);
         SkullObject skullObject = GetOrAddComponent<SkullObject>(skullObjectInstance);
         skullObject.Assign(this, enemy.GridPosition, skeletonData);
-        cell.SetStaticObstacle(skullObjectInstance, BoardCellType.Rock);
+        if (skullObject.AllowsTraversal)
+        {
+            cell.SetTraversableStaticObstacle(skullObjectInstance);
+        }
+        else
+        {
+            cell.SetStaticObstacle(skullObjectInstance, BoardCellType.Rock);
+        }
         RegisterSkullObject(skullObject);
         return true;
     }
@@ -1392,9 +1538,16 @@ public class BoardManager : MonoBehaviour
 
     private ArenaMarker GetMarkerForCell(int column, int row, Texture2D layout, bool mirrorOnYAxis)
     {
+        if (TryGetHardcodedArenaMarker(column, row, layout, mirrorOnYAxis, out ArenaMarker hardcodedMarker))
+        {
+            return hardcodedMarker;
+        }
+
         int sampledColumn = mirrorOnYAxis ? (BoardWidth - 1) - column : column;
         Color pixel = layout.GetPixel(sampledColumn, (BoardHeight - 1) - row);
         float max = Mathf.Max(pixel.r, pixel.g, pixel.b);
+        float min = Mathf.Min(pixel.r, pixel.g, pixel.b);
+        float dominantDelta = max - min;
 
         if (max < 0.2f)
         {
@@ -1404,24 +1557,67 @@ public class BoardManager : MonoBehaviour
         bool isGray = Mathf.Abs(pixel.r - pixel.g) < 0.08f
             && Mathf.Abs(pixel.g - pixel.b) < 0.08f
             && pixel.r > 0.2f
-            && pixel.r < 0.8f;
+            && pixel.r < 0.8f
+            && dominantDelta < 0.06f;
 
         if (isGray)
         {
             return ArenaMarker.OptionalObstacle;
         }
 
-        if (pixel.g > 0.45f && pixel.g > pixel.r * 1.2f && pixel.g > pixel.b * 1.2f)
+        // Arena layouts are authored as JPGs, so we use a tolerant dominant-channel
+        // detection instead of strict ratios to keep spawn markers stable after compression.
+        bool hasStrongGreenDominance = pixel.g >= 0.22f
+            && pixel.g > pixel.r
+            && pixel.g > pixel.b
+            && dominantDelta >= 0.05f;
+        if (hasStrongGreenDominance)
         {
             return ArenaMarker.PlayerSpawn;
         }
 
-        if (pixel.r > 0.45f && pixel.r > pixel.g * 1.2f && pixel.r > pixel.b * 1.2f)
+        bool hasStrongRedDominance = pixel.r >= 0.22f
+            && pixel.r > pixel.g
+            && pixel.r > pixel.b
+            && dominantDelta >= 0.05f;
+        if (hasStrongRedDominance)
         {
             return ArenaMarker.EnemySpawn;
         }
 
         return ArenaMarker.Empty;
+    }
+
+    private bool TryGetHardcodedArenaMarker(int column, int row, Texture2D layout, bool mirrorOnYAxis, out ArenaMarker marker)
+    {
+        marker = ArenaMarker.Empty;
+        if (layout == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(layout.name, "BossArenaDragoonTwins", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int sampledColumn = mirrorOnYAxis ? (BoardWidth - 1) - column : column;
+        if (row < 0 || row >= DragoonTwinsLayoutRows.Length || sampledColumn < 0 || sampledColumn >= DragoonTwinsLayoutRows[row].Length)
+        {
+            return false;
+        }
+
+        char symbol = DragoonTwinsLayoutRows[row][sampledColumn];
+        marker = symbol switch
+        {
+            '#' => ArenaMarker.Obstacle,
+            'o' => ArenaMarker.OptionalObstacle,
+            'E' => ArenaMarker.EnemySpawn,
+            'P' => ArenaMarker.PlayerSpawn,
+            _ => ArenaMarker.Empty
+        };
+
+        return true;
     }
 
     private void SpawnObstacle(BoardCell cell)
@@ -1452,6 +1648,7 @@ public class BoardManager : MonoBehaviour
 
     private void SpawnPlayerCharacter(List<Vector2Int> spawnCandidates)
     {
+        Debug.Log($"[Pouet Startup] SpawnPlayerCharacter called. spawnCandidates={spawnCandidates.Count} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
         if (spawnCandidates.Count == 0)
         {
             Debug.LogWarning("No player spawn marker found in arena layout.", this);
@@ -1470,11 +1667,19 @@ public class BoardManager : MonoBehaviour
             cells[spawnPoint.x, spawnPoint.y].WorldPosition + Vector3.up * spawnHeight);
 
         Character character = GetOrAddComponent<Character>(characterObject);
+        if (selectedCharacterDataOverride != null)
+        {
+            character.SetCharacterData(selectedCharacterDataOverride);
+        }
+
+        Debug.Log($"[Pouet Startup] SpawnPlayerCharacter instanced. spawnPoint={spawnPoint} characterObject={characterObject.name} characterDataBeforeAssign={(character.Data != null ? character.Data.CharacterName : "null")}", this);
+
         character.Assign(player, spawnPoint, this);
         EnsureRunRewardStateInitialized(character);
         character.ApplyRunRewardState(runRewardState);
         player.AssignCharacter(character);
         cells[spawnPoint.x, spawnPoint.y].SetOccupant(characterObject, BoardOccupantKind.PlayerCharacter);
+        Debug.Log($"[Pouet Startup] SpawnPlayerCharacter complete. characterDataAfterAssign={(character.Data != null ? character.Data.CharacterName : "null")}", this);
     }
 
     private void SpawnEnemies(List<Vector2Int> spawnCandidates)
@@ -1492,13 +1697,24 @@ public class BoardManager : MonoBehaviour
             return;
         }
 
-        Shuffle(spawnCandidates);
+        bool preserveSpawnOrder = currentSelectedEnemyPool != null
+            && currentSelectedEnemyPool.ArenaLayoutOverride != null;
+        if (!preserveSpawnOrder)
+        {
+            Shuffle(spawnCandidates);
+        }
+        else
+        {
+            Debug.Log($"[Pouet Startup] SpawnEnemies preserving spawn order for layout override pool {(currentSelectedEnemyPool != null ? currentSelectedEnemyPool.name : "null")}", this);
+        }
+
         int count = Mathf.Min(enemyPrefabsToSpawn.Count, spawnCandidates.Count);
 
         for (int index = 0; index < count; index++)
         {
             Vector2Int spawnPoint = spawnCandidates[index];
             GameObject enemyPrefab = enemyPrefabsToSpawn[index];
+            Debug.Log($"[Pouet Startup] SpawnEnemies candidate index={index} enemyPrefab={(enemyPrefab != null ? enemyPrefab.name : "null")} spawnPoint={spawnPoint}", this);
             if (enemyPrefab == null)
             {
                 continue;
@@ -1746,9 +1962,58 @@ public class BoardManager : MonoBehaviour
         }
     }
 
+    private void NotifyGoldChanged()
+    {
+        GoldChanged?.Invoke(CurrentGold);
+    }
+
+    private int GetEnemyGoldReward(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return 0;
+        }
+
+        if (enemy.SpecialBehavior == EnemySpecialBehavior.RagnarOgreMinion)
+        {
+            return 6;
+        }
+
+        if (IsBossEnemy(enemy))
+        {
+            return 7;
+        }
+
+        return enemy.Data != null ? enemy.Data.GoldReward : 0;
+    }
+
+    private bool IsBossEnemy(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return false;
+        }
+
+        if (enemy.name.StartsWith("Boss-", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return enemy.SpecialBehavior == EnemySpecialBehavior.GiantWormTunnelBoss
+            || enemy.SpecialBehavior == EnemySpecialBehavior.TrollShockwaveBoss
+            || enemy.SpecialBehavior == EnemySpecialBehavior.RagnarWarboss
+            || enemy.SpecialBehavior == EnemySpecialBehavior.DragoonTwinBoss;
+    }
+
     public List<RewardOffer> GenerateRewardChoices()
     {
         EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+
+        if (IsForcedRewardsModeEnabled())
+        {
+            return GenerateForcedRewardChoices();
+        }
+
         List<RewardOffer> powerOffers = BuildAvailablePowerOffers();
         List<RewardOffer> itemOffers = BuildAvailableItemOffers();
         List<RewardOffer> choices = new List<RewardOffer>();
@@ -1774,6 +2039,145 @@ public class BoardManager : MonoBehaviour
 
         Shuffle(choices);
         return choices;
+    }
+
+    private List<RewardOffer> GenerateForcedRewardChoices()
+    {
+#if !UNITY_EDITOR
+        return new List<RewardOffer>();
+#else
+        List<RewardOffer> candidates = BuildForcedRewardCandidates();
+        List<RewardOffer> choices = new List<RewardOffer>(3);
+        if (candidates.Count <= 0)
+        {
+            while (choices.Count < 3)
+            {
+                choices.Add(null);
+            }
+
+            return choices;
+        }
+
+        for (int index = 0; index < 3; index++)
+        {
+            RewardOffer candidate = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            choices.Add(CloneRewardOffer(candidate));
+        }
+
+        return choices;
+#endif
+    }
+
+    private List<RewardOffer> BuildForcedRewardCandidates()
+    {
+        List<RewardOffer> candidates = new List<RewardOffer>();
+#if !UNITY_EDITOR
+        return candidates;
+#else
+        if (forcedRewards == null || forcedRewards.Count == 0)
+        {
+            return candidates;
+        }
+
+        for (int index = 0; index < forcedRewards.Count; index++)
+        {
+            RewardDefinition forcedReward = forcedRewards[index];
+            if (forcedReward == null)
+            {
+                continue;
+            }
+
+            switch (forcedReward)
+            {
+                case AbilityRewardDefinition abilityRewardDefinition:
+                    AddForcedAbilityFamilyCandidates(candidates, abilityRewardDefinition);
+                    break;
+                case AbilityUpgradeRewardDefinition upgradeRewardDefinition:
+                    if (runRewardState != null && upgradeRewardDefinition.CanOffer(runRewardState))
+                    {
+                        candidates.Add(upgradeRewardDefinition.CreateOffer());
+                    }
+
+                    break;
+                case ItemRewardDefinition itemRewardDefinition:
+                    candidates.Add(itemRewardDefinition.CreateOffer());
+                    break;
+                default:
+                    if (forcedReward.Kind == RewardOfferKind.Item)
+                    {
+                        candidates.Add(forcedReward.CreateOffer());
+                    }
+                    else if (runRewardState != null && forcedReward.CanOffer(runRewardState))
+                    {
+                        candidates.Add(forcedReward.CreateOffer());
+                    }
+
+                    break;
+            }
+        }
+
+        return candidates;
+#endif
+    }
+
+    private void AddForcedAbilityFamilyCandidates(List<RewardOffer> candidates, AbilityRewardDefinition abilityRewardDefinition)
+    {
+#if !UNITY_EDITOR
+        return;
+#else
+        if (candidates == null || abilityRewardDefinition == null || abilityRewardDefinition.Ability == null || runRewardState == null)
+        {
+            return;
+        }
+
+        if (!runRewardState.KnowsAbility(abilityRewardDefinition.Ability))
+        {
+            candidates.Add(abilityRewardDefinition.CreateOffer());
+            return;
+        }
+
+        IReadOnlyList<AbilityUpgradeRewardDefinition> linkedUpgrades = abilityRewardDefinition.Ability.LinkedUpgradeRewards;
+        if (linkedUpgrades == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < linkedUpgrades.Count; index++)
+        {
+            AbilityUpgradeRewardDefinition upgradeDefinition = linkedUpgrades[index];
+            if (upgradeDefinition == null || !upgradeDefinition.CanOffer(runRewardState))
+            {
+                continue;
+            }
+
+            candidates.Add(upgradeDefinition.CreateOffer());
+        }
+#endif
+    }
+
+    private static RewardOffer CloneRewardOffer(RewardOffer source)
+    {
+        if (source == null)
+        {
+            return null;
+        }
+
+        return new RewardOffer
+        {
+            Id = source.Id,
+            Title = source.Title,
+            Description = source.Description,
+            Artwork = source.Artwork,
+            Definition = source.Definition,
+            Kind = source.Kind,
+            IconKind = source.IconKind,
+            ShowPowerStroke = source.ShowPowerStroke,
+            Ability = source.Ability,
+            UpgradeKey = source.UpgradeKey,
+            IsStackable = source.IsStackable,
+            ItemKey = source.ItemKey,
+            ShopPrice = source.ShopPrice
+        };
     }
 
     public void ApplyReward(RewardOffer rewardOffer)
@@ -1808,6 +2212,272 @@ public class BoardManager : MonoBehaviour
         {
             player.ControlledCharacter.ApplyRunRewardState(runRewardState);
         }
+
+        if (rewardOffer.Kind == RewardOfferKind.Item)
+        {
+            if (rewardOffer.ItemKey == ItemRewardKey.ShopBell)
+            {
+                forceShopAfterCurrentArena = true;
+            }
+
+            NotifyGoldChanged();
+        }
+    }
+
+    public bool ShouldOpenShopAfterCurrentArena()
+    {
+        return (forceShopAfterCurrentArena || !shopShownForCurrentBiome)
+            && !IsCurrentArenaBossBattle()
+            && (forceShopAfterCurrentArena || arenaCount >= 7);
+    }
+
+    public void MarkShopShownForCurrentBiome()
+    {
+        shopShownForCurrentBiome = true;
+        forceShopAfterCurrentArena = false;
+    }
+
+    public bool TryPurchaseReward(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null || runRewardState == null)
+        {
+            Debug.Log($"[Pouet Shop] TryPurchaseReward aborted. rewardOfferNull={rewardOffer == null} runRewardStateNull={runRewardState == null}", this);
+            return false;
+        }
+
+        int price = Mathf.Max(0, rewardOffer.ShopPrice);
+        if (!runRewardState.TrySpendGold(price))
+        {
+            Debug.Log($"[Pouet Shop] TryPurchaseReward failed to spend gold. title={rewardOffer.Title} price={price} currentGold={runRewardState.CurrentGold}", this);
+            return false;
+        }
+
+        Debug.Log($"[Pouet Shop] TryPurchaseReward applying reward. title={rewardOffer.Title} kind={rewardOffer.Kind} itemKey={rewardOffer.ItemKey}", this);
+        ApplyReward(rewardOffer);
+        NotifyGoldChanged();
+        Debug.Log($"[Pouet Shop] TryPurchaseReward success. title={rewardOffer.Title} goldAfter={runRewardState.CurrentGold}", this);
+        return true;
+    }
+
+    public void AwardGold(int amount)
+    {
+        EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+        if (runRewardState == null || amount <= 0)
+        {
+            return;
+        }
+
+        runRewardState.AddGold(amount);
+        NotifyGoldChanged();
+    }
+
+    public void AddGold(int amount)
+    {
+        AwardGold(amount);
+    }
+
+    public void ApplyFearToAllEnemies(int turnCount)
+    {
+        if (turnCount <= 0)
+        {
+            return;
+        }
+
+        for (int index = 0; index < spawnedEnemies.Count; index++)
+        {
+            Enemy enemy = spawnedEnemies[index];
+            enemy?.ApplyFear(turnCount);
+        }
+    }
+
+    public void DamageAllEnemies(int damage)
+    {
+        DamageAllEnemies(damage, null);
+    }
+
+    public void DamageAllEnemies(int damage, ItemRewardDefinition sourceItemDefinition)
+    {
+        if (damage <= 0)
+        {
+            return;
+        }
+
+        Character controlledCharacter = player != null ? player.ControlledCharacter : null;
+        for (int index = spawnedEnemies.Count - 1; index >= 0; index--)
+        {
+            Enemy enemy = spawnedEnemies[index];
+            if (enemy == null || enemy.CurrentHealth <= 0)
+            {
+                continue;
+            }
+
+            if (controlledCharacter != null)
+            {
+                controlledCharacter.DealDamageToEnemy(enemy, damage, false, true, DamageSoundType.MagicHit, null);
+                if (sourceItemDefinition != null && sourceItemDefinition.DamageFxPrefab != null)
+                {
+                    controlledCharacter.PlayFeedbackFx(
+                        sourceItemDefinition.DamageFxPrefab,
+                        enemy.EffectAnchor,
+                        destroyAfterSeconds: sourceItemDefinition.DamageFxLifetime);
+                }
+            }
+            else
+            {
+                enemy.TakeDamage(damage, DamageSoundType.MagicHit, true);
+            }
+        }
+    }
+
+    public bool TryTeleportCharacterToRandomFreeCellInRadius(Character character, int radius)
+    {
+        if (character == null || radius <= 0)
+        {
+            return false;
+        }
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        Vector2Int origin = character.GridPosition;
+        for (int offsetX = -radius; offsetX <= radius; offsetX++)
+        {
+            for (int offsetY = -radius; offsetY <= radius; offsetY++)
+            {
+                if (offsetX == 0 && offsetY == 0)
+                {
+                    continue;
+                }
+
+                Vector2Int candidate = origin + new Vector2Int(offsetX, offsetY);
+                if (!IsInsideBoard(candidate) || Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)) > radius || !IsCellWalkable(candidate))
+                {
+                    continue;
+                }
+
+                candidates.Add(candidate);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        Vector2Int destination = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        return character.TryTeleportToImmediate(destination);
+    }
+
+    public bool IsValidSpringCoilDestination(Character character, Vector2Int targetCell, int radius)
+    {
+        if (character == null || radius < 0 || !IsInsideBoard(targetCell))
+        {
+            return false;
+        }
+
+        Vector2Int origin = character.GridPosition;
+        int chebyshevDistance = Mathf.Max(Mathf.Abs(targetCell.x - origin.x), Mathf.Abs(targetCell.y - origin.y));
+        if (chebyshevDistance > radius)
+        {
+            return false;
+        }
+
+        return targetCell == origin || IsCellWalkable(targetCell);
+    }
+
+    public void AwardGoldForEnemy(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return;
+        }
+
+        AwardGold(GetEnemyGoldReward(enemy));
+    }
+
+    public void HandleSkeletonSkullRemoved(SkeletonEnemyData skeletonData)
+    {
+        if (skeletonData == null)
+        {
+            return;
+        }
+
+        AwardGold(Mathf.Max(0, skeletonData.GoldReward));
+    }
+
+    public void HandleBarrelDestroyed(Vector2Int gridPosition)
+    {
+        float roll = UnityEngine.Random.value;
+        int goldReward = roll < 0.70f
+            ? 0
+            : roll < 0.85f
+                ? 1
+                : roll < 0.95f
+                    ? 2
+                    : 3;
+
+        if (goldReward > 0)
+        {
+            AwardGold(goldReward);
+        }
+    }
+
+    public List<RewardOffer> GenerateShopAbilityUnlockOffers()
+    {
+        EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+        List<RewardOffer> offers = new List<RewardOffer>();
+        offers.Add(BuildShopAbilityUnlockOffer(AbilityCategory.BasicAttack));
+        offers.Add(BuildShopAbilityUnlockOffer(AbilityCategory.MobilitySkill));
+        offers.Add(BuildShopAbilityUnlockOffer(AbilityCategory.SpecialPower));
+        return offers;
+    }
+
+    public List<RewardOffer> GenerateShopUpgradeOffers()
+    {
+        EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+        List<RewardOffer> offers = new List<RewardOffer>();
+        HashSet<string> usedOfferIds = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<AbilityDefinition> usedAbilities = new HashSet<AbilityDefinition>();
+
+        TryAddPrioritizedShopUpgradeOffer(offers, usedOfferIds, usedAbilities, AbilityCategory.BasicAttack);
+        TryAddPrioritizedShopUpgradeOffer(offers, usedOfferIds, usedAbilities, AbilityCategory.MobilitySkill);
+        TryAddPrioritizedShopUpgradeOffer(offers, usedOfferIds, usedAbilities, AbilityCategory.SpecialPower);
+
+        while (offers.Count < 3)
+        {
+            RewardOffer fallbackOffer = BuildFallbackShopUpgradeOffer(usedOfferIds, usedAbilities);
+            if (fallbackOffer == null)
+            {
+                break;
+            }
+
+            offers.Add(fallbackOffer);
+            usedOfferIds.Add(fallbackOffer.Id);
+            if (fallbackOffer.Ability != null)
+            {
+                usedAbilities.Add(fallbackOffer.Ability);
+            }
+        }
+
+        while (offers.Count < 3)
+        {
+            offers.Add(null);
+        }
+
+        return offers;
+    }
+
+    public List<RewardOffer> GenerateShopItemOffers()
+    {
+        EnsureRunRewardStateInitialized(player != null ? player.ControlledCharacter : null);
+        List<RewardOffer> itemOffers = BuildAvailableItemOffers();
+        List<RewardOffer> results = new List<RewardOffer>();
+        AddRandomUniqueRewards(results, itemOffers, 3);
+
+        while (results.Count < 3)
+        {
+            results.Add(null);
+        }
+
+        return results;
     }
 
     public List<ItemRewardDefinition> GetCombatStartYesNoItemDefinitions()
@@ -1951,8 +2621,10 @@ public class BoardManager : MonoBehaviour
             return false;
         }
 
+        int preservedGold = runRewardState != null ? runRewardState.CurrentGold : 0;
         PlayerRunRewardState loadedState = new PlayerRunRewardState();
         loadedState.InitializeFrom(characterData.StartingAbilities, character.CurrentHealth);
+        loadedState.SetCurrentGold(preservedGold);
 
         Dictionary<string, AbilityDefinition> potentialAbilitiesById = BuildPotentialAbilityLookup(characterData);
         ApplyBuiltAbilitySlot(loadedState, AbilityCategory.BasicAttack, buildData.BasicAttackAbilityId, potentialAbilitiesById);
@@ -1995,6 +2667,7 @@ public class BoardManager : MonoBehaviour
 
         runRewardState = loadedState;
         player.ControlledCharacter.ApplyRunRewardState(runRewardState);
+        NotifyGoldChanged();
         return true;
     }
 
@@ -2070,10 +2743,39 @@ public class BoardManager : MonoBehaviour
             return offers;
         }
 
-        AddRewardOffers(offers, characterData.UnlockableAbilityRewards);
+        Dictionary<AbilityDefinition, AbilityRewardDefinition> unlockDefinitionsByAbility = new Dictionary<AbilityDefinition, AbilityRewardDefinition>();
+        IReadOnlyList<AbilityRewardDefinition> unlockableAbilityRewards = characterData.UnlockableAbilityRewards;
+        if (unlockableAbilityRewards != null)
+        {
+            for (int index = 0; index < unlockableAbilityRewards.Count; index++)
+            {
+                AbilityRewardDefinition unlockDefinition = unlockableAbilityRewards[index];
+                if (unlockDefinition == null || unlockDefinition.Ability == null || unlockDefinitionsByAbility.ContainsKey(unlockDefinition.Ability))
+                {
+                    continue;
+                }
 
+                unlockDefinitionsByAbility.Add(unlockDefinition.Ability, unlockDefinition);
+            }
+        }
+
+        List<AbilityDefinition> potentialAbilities = characterData.GetAllPotentialAbilities();
         HashSet<AbilityDefinition> trackedAbilities = new HashSet<AbilityDefinition>();
-        AddAbilityUpgradeOffers(offers, characterData.GetAllPotentialAbilities(), trackedAbilities);
+        for (int index = 0; index < potentialAbilities.Count; index++)
+        {
+            AbilityDefinition ability = potentialAbilities[index];
+            if (ability == null || !trackedAbilities.Add(ability))
+            {
+                continue;
+            }
+
+            RewardOffer offer = BuildWeightedPowerOfferForAbilityFamily(ability, unlockDefinitionsByAbility);
+            if (offer != null)
+            {
+                offers.Add(offer);
+            }
+        }
+
         return offers;
     }
 
@@ -2082,6 +2784,131 @@ public class BoardManager : MonoBehaviour
         List<RewardOffer> offers = new List<RewardOffer>();
         AddRewardOffers(offers, itemRewardDefinitions);
         return offers;
+    }
+
+    private RewardOffer BuildShopAbilityUnlockOffer(AbilityCategory category)
+    {
+        Character character = player != null ? player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        if (characterData == null || runRewardState == null)
+        {
+            return null;
+        }
+
+        List<AbilityRewardDefinition> candidates = new List<AbilityRewardDefinition>();
+        IReadOnlyList<AbilityRewardDefinition> unlockableAbilityRewards = characterData.UnlockableAbilityRewards;
+        for (int index = 0; index < unlockableAbilityRewards.Count; index++)
+        {
+            AbilityRewardDefinition unlockDefinition = unlockableAbilityRewards[index];
+            if (unlockDefinition == null
+                || unlockDefinition.Ability == null
+                || unlockDefinition.Ability.Category != category
+                || runRewardState.KnowsAbility(unlockDefinition.Ability))
+            {
+                continue;
+            }
+
+            candidates.Add(unlockDefinition);
+        }
+
+        if (candidates.Count <= 0)
+        {
+            return null;
+        }
+
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)].CreateOffer();
+    }
+
+    private void TryAddPrioritizedShopUpgradeOffer(
+        List<RewardOffer> offers,
+        ISet<string> usedOfferIds,
+        ISet<AbilityDefinition> usedAbilities,
+        AbilityCategory category)
+    {
+        AbilityDefinition equippedAbility = runRewardState != null ? runRewardState.GetEquippedAbility(category) : null;
+        RewardOffer rewardOffer = BuildShopUpgradeOfferForAbility(equippedAbility, usedOfferIds);
+        if (rewardOffer == null)
+        {
+            return;
+        }
+
+        offers.Add(rewardOffer);
+        usedOfferIds.Add(rewardOffer.Id);
+        if (rewardOffer.Ability != null)
+        {
+            usedAbilities.Add(rewardOffer.Ability);
+        }
+    }
+
+    private RewardOffer BuildFallbackShopUpgradeOffer(ISet<string> usedOfferIds, ISet<AbilityDefinition> usedAbilities)
+    {
+        if (runRewardState == null)
+        {
+            return null;
+        }
+
+        List<AbilityDefinition> knownAbilities = runRewardState.GetKnownAbilities();
+        List<RewardOffer> candidates = new List<RewardOffer>();
+        for (int index = 0; index < knownAbilities.Count; index++)
+        {
+            AbilityDefinition ability = knownAbilities[index];
+            if (ability == null || usedAbilities.Contains(ability))
+            {
+                continue;
+            }
+
+            RewardOffer rewardOffer = BuildShopUpgradeOfferForAbility(ability, usedOfferIds);
+            if (rewardOffer != null)
+            {
+                candidates.Add(rewardOffer);
+            }
+        }
+
+        if (candidates.Count <= 0)
+        {
+            return null;
+        }
+
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+    }
+
+    private RewardOffer BuildShopUpgradeOfferForAbility(AbilityDefinition ability, ISet<string> usedOfferIds)
+    {
+        if (ability == null || runRewardState == null)
+        {
+            return null;
+        }
+
+        List<AbilityUpgradeRewardDefinition> availableUpgrades = new List<AbilityUpgradeRewardDefinition>();
+        IReadOnlyList<AbilityUpgradeRewardDefinition> linkedUpgradeRewards = ability.LinkedUpgradeRewards;
+        if (linkedUpgradeRewards == null)
+        {
+            return null;
+        }
+
+        for (int index = 0; index < linkedUpgradeRewards.Count; index++)
+        {
+            AbilityUpgradeRewardDefinition rewardDefinition = linkedUpgradeRewards[index];
+            if (rewardDefinition == null || !rewardDefinition.CanOffer(runRewardState))
+            {
+                continue;
+            }
+
+            RewardOffer rewardOffer = rewardDefinition.CreateOffer();
+            if (rewardOffer == null || usedOfferIds.Contains(rewardOffer.Id))
+            {
+                continue;
+            }
+
+            availableUpgrades.Add(rewardDefinition);
+        }
+
+        if (availableUpgrades.Count <= 0)
+        {
+            return null;
+        }
+
+        return availableUpgrades[UnityEngine.Random.Range(0, availableUpgrades.Count)].CreateOffer();
     }
 
     private void AddRewardOffers<TRewardDefinition>(List<RewardOffer> offers, IReadOnlyList<TRewardDefinition> rewardDefinitions)
@@ -2104,41 +2931,64 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private void AddAbilityUpgradeOffers(
-        List<RewardOffer> offers,
-        IReadOnlyList<AbilityDefinition> abilities,
-        HashSet<AbilityDefinition> trackedAbilities)
+    private RewardOffer BuildWeightedPowerOfferForAbilityFamily(
+        AbilityDefinition ability,
+        IReadOnlyDictionary<AbilityDefinition, AbilityRewardDefinition> unlockDefinitionsByAbility)
     {
-        if (abilities == null)
+        if (ability == null || runRewardState == null)
         {
-            return;
+            return null;
         }
 
-        for (int abilityIndex = 0; abilityIndex < abilities.Count; abilityIndex++)
+        if (runRewardState.HasAbility(ability))
         {
-            AbilityDefinition ability = abilities[abilityIndex];
-            if (ability == null || !trackedAbilities.Add(ability))
-            {
-                continue;
-            }
-
+            List<AbilityUpgradeRewardDefinition> availableUpgrades = new List<AbilityUpgradeRewardDefinition>();
             IReadOnlyList<AbilityUpgradeRewardDefinition> linkedUpgradeRewards = ability.LinkedUpgradeRewards;
             if (linkedUpgradeRewards == null)
             {
-                continue;
+                return null;
             }
 
             for (int rewardIndex = 0; rewardIndex < linkedUpgradeRewards.Count; rewardIndex++)
             {
                 AbilityUpgradeRewardDefinition rewardDefinition = linkedUpgradeRewards[rewardIndex];
-                if (rewardDefinition == null || !rewardDefinition.CanOffer(runRewardState))
+                if (rewardDefinition != null && rewardDefinition.CanOffer(runRewardState))
                 {
-                    continue;
+                    availableUpgrades.Add(rewardDefinition);
                 }
-
-                offers.Add(rewardDefinition.CreateOffer());
             }
+
+            if (availableUpgrades.Count <= 0)
+            {
+                return null;
+            }
+
+            return availableUpgrades[UnityEngine.Random.Range(0, availableUpgrades.Count)].CreateOffer();
         }
+
+        if (runRewardState.HasChosenRewardCategory(ability.Category))
+        {
+            return null;
+        }
+
+        if (unlockDefinitionsByAbility != null
+            && unlockDefinitionsByAbility.TryGetValue(ability, out AbilityRewardDefinition unlockDefinition)
+            && unlockDefinition != null
+            && unlockDefinition.CanOffer(runRewardState))
+        {
+            return unlockDefinition.CreateOffer();
+        }
+
+        return null;
+    }
+
+    private bool IsForcedRewardsModeEnabled()
+    {
+#if UNITY_EDITOR
+        return useForcedRewards;
+#else
+        return false;
+#endif
     }
 
     private void AddRandomUniqueRewards(List<RewardOffer> target, List<RewardOffer> source, int desiredCount)
@@ -2154,17 +3004,7 @@ public class BoardManager : MonoBehaviour
         for (int index = 0; index < workingSource.Count && desiredCount > 0; index++)
         {
             RewardOffer rewardOffer = workingSource[index];
-            bool alreadyAdded = false;
-            for (int targetIndex = 0; targetIndex < target.Count; targetIndex++)
-            {
-                if (target[targetIndex].Id == rewardOffer.Id)
-                {
-                    alreadyAdded = true;
-                    break;
-                }
-            }
-
-            if (alreadyAdded)
+            if (ContainsRewardOffer(target, rewardOffer.Id))
             {
                 continue;
             }
@@ -2172,6 +3012,25 @@ public class BoardManager : MonoBehaviour
             target.Add(rewardOffer);
             desiredCount--;
         }
+    }
+
+    private static bool ContainsRewardOffer(List<RewardOffer> offers, string rewardId)
+    {
+        if (offers == null || string.IsNullOrWhiteSpace(rewardId))
+        {
+            return false;
+        }
+
+        for (int index = 0; index < offers.Count; index++)
+        {
+            RewardOffer rewardOffer = offers[index];
+            if (rewardOffer != null && rewardOffer.Id == rewardId)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool TrySpawnExtraEnemyWithDefaultFx(out Enemy enemy)
@@ -2403,6 +3262,7 @@ public class BoardManager : MonoBehaviour
         }
 
         arenaCount = 1;
+        shopShownForCurrentBiome = false;
         currentSelectedEnemyPool = null;
         ApplyCurrentBiomeVisuals();
     }

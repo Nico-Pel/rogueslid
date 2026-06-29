@@ -22,6 +22,7 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Color wolfMobilityColor = new Color(1f, 0.7294118f, 0.003921569f, 1f);
     [SerializeField] private GameObject rewardsMenu;
     [SerializeField] private Button ignoreRewardsButton;
+    [SerializeField] private Button rewardRerollButton;
     [SerializeField] private GameObject targetCellIndicatorPrefab;
     [SerializeField] private GameObject targetableOnlyCellIndicatorPrefab;
     [SerializeField] private UnitStatsMenuUI enemyStatsMenu;
@@ -29,6 +30,7 @@ public class UIGame : MonoBehaviour
     [SerializeField] private GameObject rewardCheckMenu;
     [SerializeField] private Button rewardCheckBackgroundButton;
     [SerializeField] private Button rewardCheckChooseButton;
+    [SerializeField] private Button rewardCheckBackButton;
     [SerializeField] private RewardButtonUI rewardCheckCard;
     [SerializeField] private GameObject yesNoMenu;
     [SerializeField] private Image yesNoArtworkImage;
@@ -55,6 +57,8 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button switchAbilityCancelButton;
     [SerializeField] private Button toolsButton;
     [SerializeField] private GameObject toolsMenu;
+    [SerializeField] private UIShop uiShop;
+    [SerializeField] private TMP_Text moneyText;
     [SerializeField] private Button toolsMenuBackdropButton;
     [SerializeField] private TMP_InputField toolsBuildNameInput;
     [SerializeField] private TMP_Text toolsSelectedBuildLabel;
@@ -69,14 +73,18 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button toolsCloseButton;
     [SerializeField] private float statsMenuClickThreshold = 16f;
     [SerializeField] private bool disableAbilityButtonsWithoutValidTargets = false;
+    [SerializeField] private float targetedAreaIndicatorReleaseDelay = 0.25f;
 
     private readonly List<GameObject> mobilityIcons = new List<GameObject>();
     private readonly List<bool> wolfMobilityIcons = new List<bool>();
     private readonly List<GameObject> itemIcons = new List<GameObject>();
     private readonly Dictionary<ItemRewardKey, ItemIconUI> itemIconsByKey = new Dictionary<ItemRewardKey, ItemIconUI>();
+    private readonly Dictionary<ItemRewardKey, float> itemActivationPulseEndTimes = new Dictionary<ItemRewardKey, float>();
     private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
     private readonly List<RewardButtonUI> rewardCards = new List<RewardButtonUI>();
     private readonly List<GameObject> targetCellIndicators = new List<GameObject>();
+    private readonly Dictionary<Vector2Int, GameObject> targetCellIndicatorsByCell = new Dictionary<Vector2Int, GameObject>();
+    private readonly Dictionary<GameObject, Color> targetCellIndicatorBaseColors = new Dictionary<GameObject, Color>();
     private readonly List<GameObject> targetableOnlyCellIndicators = new List<GameObject>();
     private Character observedCharacter;
     private Action<RewardOffer> onRewardSelected;
@@ -96,17 +104,24 @@ public class UIGame : MonoBehaviour
     private Vector2 statsPointerStartPosition;
     private RewardOffer pendingRewardConfirmation;
     private ItemRewardDefinition currentPreviewedItemDefinition;
+    private bool rewardCheckOpenedFromShop;
     private AbilityDefinition pendingAbilityReplacementOldAbility;
     private AbilityButtonUI currentAbilityCheckSourceButton;
     private readonly List<RewardOffer> currentAbilityCheckOffers = new List<RewardOffer>();
     private Action onYesNoAccepted;
     private Action onYesNoDeclined;
     private Action onRetryRequested;
+    private Action onLoseMenuRequested;
+    private BoardManager observedBoardForGold;
     private float targetableOnlyCellIndicatorDuration = 0.75f;
     private Coroutine clearTargetableOnlyIndicatorsCoroutine;
     private readonly List<EquipmentBuildData> availableEquipmentBuilds = new List<EquipmentBuildData>();
     private int selectedEquipmentBuildIndex = -1;
     private float targetableOnlyCellIndicatorObstacleHeightOffset = 0.7f;
+    private bool isShopOpen;
+    private Vector2Int? activeAreaPreviewCenterCell;
+    private static readonly Color DefaultTargetIndicatorColor = new Color32(0xFF, 0xE4, 0x00, 0xA3);
+    private static readonly Color AreaPreviewIndicatorColor = new Color32(0x00, 0xCD, 0xFF, 0xDD);
 
     private void Awake()
     {
@@ -218,6 +233,7 @@ public class UIGame : MonoBehaviour
         CacheAbilityCheckMenu();
         CacheSwitchAbilityMenu();
         EnsureToolsUI();
+        EnsureShopUI();
         if (rewardsMenu != null)
         {
             rewardsMenu.SetActive(false);
@@ -242,7 +258,9 @@ public class UIGame : MonoBehaviour
             HandleTurnChanged(gameTurnManager.CurrentTurn);
         }
 
+        RebindGoldEvents();
         BindToCurrentCharacter();
+        RefreshMoneyDisplay();
     }
 
     private void OnDisable()
@@ -255,9 +273,11 @@ public class UIGame : MonoBehaviour
             gameTurnManager.NoValidTargetFeedbackRequested -= HandleNoValidTargetFeedbackRequested;
         }
 
+        RebindGoldEvents(null);
         ClearTargetCellIndicators();
         ClearTargetableOnlyCellIndicators();
         HideToolsMenu();
+        HideShop();
         UnbindCharacter();
     }
 
@@ -293,6 +313,7 @@ public class UIGame : MonoBehaviour
         rewardsMenu.SetActive(true);
         ClearTargetCellIndicators();
         UpdateEndTurnButtonVisibility();
+        RefreshRewardRerollButtonState();
         for (int index = 0; index < rewardCards.Count; index++)
         {
             RewardOffer rewardOffer = rewardOffers != null && index < rewardOffers.Count ? rewardOffers[index] : null;
@@ -310,6 +331,8 @@ public class UIGame : MonoBehaviour
             rewardsMenu.SetActive(false);
         }
 
+        RefreshRewardRerollButtonState();
+
         onRewardSelected = null;
         onRewardsIgnored = null;
         pendingRewardConfirmation = null;
@@ -321,6 +344,33 @@ public class UIGame : MonoBehaviour
         RefreshTargetCellIndicators();
     }
 
+    public void ShowShop(Action onLeaveRequested)
+    {
+        EnsureShopUI();
+        HideStatsMenus();
+        HideRewardCheck();
+        HideAbilityCheck();
+        HideSwitchAbilityMenu();
+        ClearTargetCellIndicators();
+        ClearTargetableOnlyCellIndicators();
+        UpdateEndTurnButtonVisibility();
+        isShopOpen = true;
+        footerUI?.ShowShopLabel();
+        footerUI?.RefreshTravelPath(observedCharacter, gameTurnManager != null && gameTurnManager.Board != null ? gameTurnManager.Board.ArenaCount : 1, true);
+        if (uiShop != null)
+        {
+            uiShop.gameObject.SetActive(true);
+            uiShop.Show(this, gameTurnManager != null ? gameTurnManager.Board : null, SoundManager.Instance, onLeaveRequested);
+        }
+    }
+
+    public void HideShop()
+    {
+        isShopOpen = false;
+        uiShop?.Hide();
+        RefreshFooterCharacterInfo();
+    }
+
     public void HideStatsMenus()
     {
         enemyStatsMenu?.Hide();
@@ -328,6 +378,11 @@ public class UIGame : MonoBehaviour
     }
 
     public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback)
+    {
+        ShowLoseMenu(characterName, losePortrait, retryCallback, null);
+    }
+
+    public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback, Action menuCallback)
     {
         CacheLoseMenu();
         HideStatsMenus();
@@ -342,6 +397,7 @@ public class UIGame : MonoBehaviour
         }
 
         onRetryRequested = retryCallback;
+        onLoseMenuRequested = menuCallback;
         if (loseCharacterPortraitImage != null)
         {
             loseCharacterPortraitImage.sprite = losePortrait;
@@ -360,6 +416,7 @@ public class UIGame : MonoBehaviour
     public void HideLoseMenu()
     {
         onRetryRequested = null;
+        onLoseMenuRequested = null;
         if (loseMenu != null)
         {
             loseMenu.SetActive(false);
@@ -426,6 +483,7 @@ public class UIGame : MonoBehaviour
     {
         HideStatsMenus();
         HideAbilityCheck();
+        RebindGoldEvents();
 
         if (endTurnButton != null)
         {
@@ -504,6 +562,62 @@ public class UIGame : MonoBehaviour
         RefreshTargetCellIndicators();
     }
 
+    private void HandleGoldChanged(int currentGold)
+    {
+        RefreshMoneyDisplay();
+    }
+
+    private void RebindGoldEvents()
+    {
+        RebindGoldEvents(gameTurnManager != null ? gameTurnManager.Board : null);
+    }
+
+    private void RebindGoldEvents(BoardManager targetBoard)
+    {
+        if (observedBoardForGold == targetBoard)
+        {
+            return;
+        }
+
+        if (observedBoardForGold != null)
+        {
+            observedBoardForGold.GoldChanged -= HandleGoldChanged;
+        }
+
+        observedBoardForGold = targetBoard;
+
+        if (observedBoardForGold != null)
+        {
+            observedBoardForGold.GoldChanged += HandleGoldChanged;
+        }
+    }
+
+    public void RefreshMoneyDisplay()
+    {
+        if (moneyText == null)
+        {
+            Transform moneyTransform = transform.Find("UIMoney/tMoney");
+            if (moneyTransform != null)
+            {
+                moneyText = moneyTransform.GetComponent<TMP_Text>();
+            }
+        }
+
+        if (moneyText == null)
+        {
+            return;
+        }
+
+        int currentGold = gameTurnManager != null && gameTurnManager.Board != null ? gameTurnManager.Board.CurrentGold : 0;
+        moneyText.text = currentGold.ToString();
+    }
+
+    public Sprite GetRewardTypeIconSprite(RewardPresentationIconKind iconKind)
+    {
+        CacheRewardTypeIcons();
+        return ResolveTypeIconSprite(iconKind);
+    }
+
     private void HandleAbilitiesChanged(Character character)
     {
         HideAbilityCheck();
@@ -515,11 +629,76 @@ public class UIGame : MonoBehaviour
 
     private void HandlePendingAbilityChanged(int abilityIndex)
     {
+        activeAreaPreviewCenterCell = null;
         RefreshAbilityButtons();
         RefreshTargetCellIndicators();
         if (abilityIndex >= 0)
         {
             ClearTargetableOnlyCellIndicators();
+        }
+    }
+
+    public void RefreshTargetingIndicators()
+    {
+        RefreshTargetCellIndicators();
+    }
+
+    public void UpdateTargetedAbilityPreview(Vector2 screenPosition)
+    {
+        if (!TryGetRainOfBoltsPreviewContext(out Character character, out RainOfBoltsAbility rainOfBoltsAbility))
+        {
+            ClearAreaTargetingPreview();
+            return;
+        }
+
+        if (!TryGetTargetCellFromScreen(screenPosition, out Vector2Int targetCell)
+            || !rainOfBoltsAbility.CanActivateOnCell(character, GetCurrentTargetIndicatorRuntime(), targetCell))
+        {
+            ClearAreaTargetingPreview();
+            return;
+        }
+
+        ApplyAreaTargetingPreview(rainOfBoltsAbility, character, targetCell);
+    }
+
+    public void HandleTargetedAbilityCommitted(CharacterAbilityRuntime runtime, Vector2Int targetCell)
+    {
+        if (runtime?.Definition is not RainOfBoltsAbility rainOfBoltsAbility || observedCharacter == null)
+        {
+            ClearAreaTargetingPreview();
+            return;
+        }
+
+        HashSet<Vector2Int> previewCells = rainOfBoltsAbility.GetPreviewAreaCells(observedCharacter, targetCell);
+        List<GameObject> delayedIndicators = new List<GameObject>();
+        for (int index = targetCellIndicators.Count - 1; index >= 0; index--)
+        {
+            GameObject indicator = targetCellIndicators[index];
+            if (indicator == null)
+            {
+                targetCellIndicators.RemoveAt(index);
+                continue;
+            }
+
+            if (TryGetIndicatorCell(indicator, out Vector2Int indicatorCell) && previewCells.Contains(indicatorCell))
+            {
+                SetIndicatorColor(indicator, AreaPreviewIndicatorColor);
+                delayedIndicators.Add(indicator);
+            }
+            else
+            {
+                Destroy(indicator);
+            }
+        }
+
+        targetCellIndicators.Clear();
+        targetCellIndicatorsByCell.Clear();
+        targetCellIndicatorBaseColors.Clear();
+        activeAreaPreviewCenterCell = null;
+
+        if (delayedIndicators.Count > 0)
+        {
+            StartCoroutine(DestroyIndicatorsAfterDelay(delayedIndicators, targetedAreaIndicatorReleaseDelay));
         }
     }
 
@@ -538,6 +717,13 @@ public class UIGame : MonoBehaviour
         Action ignoredCallback = onRewardsIgnored;
         HideRewards();
         ignoredCallback?.Invoke();
+    }
+
+    private void HandleRewardRerollClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        gameTurnManager?.RequestLoadedDieReroll();
+        RefreshRewardRerollButtonState();
     }
 
     private void HandleCharacterPortraitClicked()
@@ -573,7 +759,21 @@ public class UIGame : MonoBehaviour
 
         currentPreviewedItemDefinition = null;
         pendingRewardConfirmation = rewardOffer;
+        rewardCheckOpenedFromShop = false;
         ShowRewardCheck(rewardOffer, true);
+    }
+
+    public void ShowShopRewardPreview(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null)
+        {
+            return;
+        }
+
+        currentPreviewedItemDefinition = null;
+        pendingRewardConfirmation = null;
+        rewardCheckOpenedFromShop = true;
+        ShowRewardCheck(rewardOffer, false);
     }
 
     private void HandleRewardCheckChooseClicked()
@@ -593,6 +793,13 @@ public class UIGame : MonoBehaviour
         }
 
         ConfirmPendingRewardSelection();
+    }
+
+    private void HandleRewardCheckBackClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        pendingRewardConfirmation = null;
+        HideRewardCheck();
     }
 
     private void HandleRewardCheckBackgroundClicked()
@@ -637,6 +844,14 @@ public class UIGame : MonoBehaviour
         Action retryCallback = onRetryRequested;
         HideLoseMenu();
         retryCallback?.Invoke();
+    }
+
+    private void HandleLoseMenuClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        Action menuCallback = onLoseMenuRequested;
+        HideLoseMenu();
+        menuCallback?.Invoke();
     }
 
     private bool HandleAbilityButtonPrimaryClick(AbilityButtonUI button)
@@ -808,15 +1023,31 @@ public class UIGame : MonoBehaviour
     private void RefreshTargetCellIndicators()
     {
         ClearTargetCellIndicators();
+        activeAreaPreviewCenterCell = null;
 
         if (targetCellIndicatorPrefab == null
             || observedCharacter == null
             || gameTurnManager == null
             || gameTurnManager.Board == null
-            || gameTurnManager.CurrentTurn != TurnSide.Player
-            || gameTurnManager.IsRewardMenuOpen
+            || (gameTurnManager.CurrentTurn != TurnSide.Player && !gameTurnManager.IsCombatStartRelocationSelectionActive)
+            || (gameTurnManager.IsRewardMenuOpen && !gameTurnManager.IsCombatStartRelocationSelectionActive)
             || gameTurnManager.IsArenaTransitionRunning)
         {
+            return;
+        }
+
+        if (gameTurnManager.IsCombatStartRelocationSelectionActive)
+        {
+            List<Vector2Int> relocationCells = GetCombatStartRelocationCells();
+            for (int index = 0; index < relocationCells.Count; index++)
+            {
+                Vector3 spawnPosition = gameTurnManager.Board.GridToWorldPosition(relocationCells[index]);
+                GameObject indicator = Instantiate(targetCellIndicatorPrefab, spawnPosition, targetCellIndicatorPrefab.transform.rotation, gameTurnManager.Board.transform);
+                indicator.name = $"{targetCellIndicatorPrefab.name}_{relocationCells[index].x}_{relocationCells[index].y}";
+                indicator.transform.localScale = targetCellIndicatorPrefab.transform.localScale;
+                RegisterTargetCellIndicator(relocationCells[index], indicator);
+            }
+
             return;
         }
 
@@ -833,7 +1064,7 @@ public class UIGame : MonoBehaviour
             GameObject indicator = Instantiate(targetCellIndicatorPrefab, spawnPosition, targetCellIndicatorPrefab.transform.rotation, gameTurnManager.Board.transform);
             indicator.name = $"{targetCellIndicatorPrefab.name}_{validCells[index].x}_{validCells[index].y}";
             indicator.transform.localScale = targetCellIndicatorPrefab.transform.localScale;
-            targetCellIndicators.Add(indicator);
+            RegisterTargetCellIndicator(validCells[index], indicator);
         }
     }
 
@@ -887,6 +1118,30 @@ public class UIGame : MonoBehaviour
         return validCells;
     }
 
+    private List<Vector2Int> GetCombatStartRelocationCells()
+    {
+        List<Vector2Int> validCells = new List<Vector2Int>();
+        if (gameTurnManager?.Board == null || observedCharacter == null)
+        {
+            return validCells;
+        }
+
+        BoardManager board = gameTurnManager.Board;
+        for (int x = 0; x < board.Width; x++)
+        {
+            for (int y = 0; y < board.Height; y++)
+            {
+                Vector2Int cell = new Vector2Int(x, y);
+                if (gameTurnManager.CanSelectCombatStartRelocationCell(cell))
+                {
+                    validCells.Add(cell);
+                }
+            }
+        }
+
+        return validCells;
+    }
+
     private void ClearTargetCellIndicators()
     {
         for (int index = 0; index < targetCellIndicators.Count; index++)
@@ -898,6 +1153,9 @@ public class UIGame : MonoBehaviour
         }
 
         targetCellIndicators.Clear();
+        targetCellIndicatorsByCell.Clear();
+        targetCellIndicatorBaseColors.Clear();
+        activeAreaPreviewCenterCell = null;
     }
 
     private void ClearTargetableOnlyCellIndicators()
@@ -917,6 +1175,165 @@ public class UIGame : MonoBehaviour
         }
 
         targetableOnlyCellIndicators.Clear();
+    }
+
+    private void RegisterTargetCellIndicator(Vector2Int cell, GameObject indicator)
+    {
+        if (indicator == null)
+        {
+            return;
+        }
+
+        targetCellIndicators.Add(indicator);
+        targetCellIndicatorsByCell[cell] = indicator;
+        targetCellIndicatorBaseColors[indicator] = GetIndicatorColor(indicator);
+    }
+
+    private void ApplyAreaTargetingPreview(RainOfBoltsAbility rainOfBoltsAbility, Character character, Vector2Int centerCell)
+    {
+        if (rainOfBoltsAbility == null || character == null)
+        {
+            return;
+        }
+
+        if (activeAreaPreviewCenterCell.HasValue && activeAreaPreviewCenterCell.Value == centerCell)
+        {
+            return;
+        }
+
+        activeAreaPreviewCenterCell = centerCell;
+        HashSet<Vector2Int> previewCells = rainOfBoltsAbility.GetPreviewAreaCells(character, centerCell);
+        foreach (KeyValuePair<Vector2Int, GameObject> pair in targetCellIndicatorsByCell)
+        {
+            GameObject indicator = pair.Value;
+            if (indicator == null)
+            {
+                continue;
+            }
+
+            SetIndicatorColor(indicator, previewCells.Contains(pair.Key) ? AreaPreviewIndicatorColor : GetBaseIndicatorColor(indicator));
+        }
+    }
+
+    private void ClearAreaTargetingPreview()
+    {
+        activeAreaPreviewCenterCell = null;
+        foreach (GameObject indicator in targetCellIndicators)
+        {
+            if (indicator == null)
+            {
+                continue;
+            }
+
+            SetIndicatorColor(indicator, GetBaseIndicatorColor(indicator));
+        }
+    }
+
+    private Color GetBaseIndicatorColor(GameObject indicator)
+    {
+        if (indicator != null && targetCellIndicatorBaseColors.TryGetValue(indicator, out Color color))
+        {
+            return color;
+        }
+
+        return DefaultTargetIndicatorColor;
+    }
+
+    private Color GetIndicatorColor(GameObject indicator)
+    {
+        SpriteRenderer spriteRenderer = indicator != null ? indicator.GetComponentInChildren<SpriteRenderer>() : null;
+        return spriteRenderer != null ? spriteRenderer.color : DefaultTargetIndicatorColor;
+    }
+
+    private void SetIndicatorColor(GameObject indicator, Color color)
+    {
+        SpriteRenderer spriteRenderer = indicator != null ? indicator.GetComponentInChildren<SpriteRenderer>() : null;
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = color;
+        }
+    }
+
+    private bool TryGetIndicatorCell(GameObject indicator, out Vector2Int cell)
+    {
+        cell = default;
+        if (indicator == null)
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<Vector2Int, GameObject> pair in targetCellIndicatorsByCell)
+        {
+            if (pair.Value == indicator)
+            {
+                cell = pair.Key;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryGetRainOfBoltsPreviewContext(out Character character, out RainOfBoltsAbility rainOfBoltsAbility)
+    {
+        character = observedCharacter;
+        rainOfBoltsAbility = null;
+
+        CharacterAbilityRuntime runtime = GetCurrentTargetIndicatorRuntime();
+        if (character == null || runtime?.Definition is not RainOfBoltsAbility typedAbility)
+        {
+            return false;
+        }
+
+        if (gameTurnManager == null || gameTurnManager.PendingCellTargetAbilityIndex < 0)
+        {
+            return false;
+        }
+
+        rainOfBoltsAbility = typedAbility;
+        return true;
+    }
+
+    private bool TryGetTargetCellFromScreen(Vector2 screenPosition, out Vector2Int targetCell)
+    {
+        targetCell = default;
+        if (gameTurnManager?.Board == null)
+        {
+            return false;
+        }
+
+        Camera targetCamera = Camera.main;
+        if (targetCamera == null)
+        {
+            return false;
+        }
+
+        BoardManager board = gameTurnManager.Board;
+        Plane boardPlane = new Plane(board.transform.up, board.transform.position);
+        Ray ray = targetCamera.ScreenPointToRay(screenPosition);
+        if (!boardPlane.Raycast(ray, out float distance))
+        {
+            return false;
+        }
+
+        Vector3 hitPoint = ray.GetPoint(distance);
+        return board.TryWorldToGridPosition(hitPoint, out targetCell);
+    }
+
+    private System.Collections.IEnumerator DestroyIndicatorsAfterDelay(List<GameObject> indicators, float delay)
+    {
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        for (int index = 0; index < indicators.Count; index++)
+        {
+            if (indicators[index] != null)
+            {
+                Destroy(indicators[index]);
+            }
+        }
     }
 
     private void CacheAbilityButtons()
@@ -995,6 +1412,21 @@ public class UIGame : MonoBehaviour
             ignoreRewardsButton.onClick.AddListener(HandleIgnoreRewardsClicked);
         }
 
+        if (rewardRerollButton == null)
+        {
+            Transform rerollTransform = rewardsMenu.transform.Find("BReroll");
+            if (rerollTransform != null)
+            {
+                rewardRerollButton = rerollTransform.GetComponent<Button>();
+            }
+        }
+
+        if (rewardRerollButton != null)
+        {
+            rewardRerollButton.onClick.RemoveListener(HandleRewardRerollClicked);
+            rewardRerollButton.onClick.AddListener(HandleRewardRerollClicked);
+        }
+
         if (rewardCards.Count > 0)
         {
             return;
@@ -1042,6 +1474,24 @@ public class UIGame : MonoBehaviour
         ApplyCurrentCharacterTheme();
     }
 
+    private void RefreshRewardRerollButtonState()
+    {
+        if (rewardRerollButton == null)
+        {
+            return;
+        }
+
+        bool hasLoadedDie = observedCharacter != null && observedCharacter.HasItem(ItemRewardKey.LoadedDie);
+        bool shouldShow = rewardsMenu != null && rewardsMenu.activeSelf && hasLoadedDie;
+        rewardRerollButton.gameObject.SetActive(shouldShow);
+        if (!shouldShow)
+        {
+            return;
+        }
+
+        rewardRerollButton.interactable = gameTurnManager != null && gameTurnManager.CanUseLoadedDieReroll();
+    }
+
     private void CacheRewardCheckMenu()
     {
         if (rewardCheckMenu == null)
@@ -1068,6 +1518,11 @@ public class UIGame : MonoBehaviour
             rewardCheckChooseButton = rewardCheckMenu.transform.Find("BChoose")?.GetComponent<Button>();
         }
 
+        if (rewardCheckBackButton == null)
+        {
+            rewardCheckBackButton = rewardCheckMenu.transform.Find("BBack")?.GetComponent<Button>();
+        }
+
         if (rewardCheckCard == null)
         {
             rewardCheckCard = rewardCheckMenu.GetComponentInChildren<RewardButtonUI>(true);
@@ -1083,6 +1538,12 @@ public class UIGame : MonoBehaviour
         {
             rewardCheckChooseButton.onClick.RemoveListener(HandleRewardCheckChooseClicked);
             rewardCheckChooseButton.onClick.AddListener(HandleRewardCheckChooseClicked);
+        }
+
+        if (rewardCheckBackButton != null)
+        {
+            rewardCheckBackButton.onClick.RemoveListener(HandleRewardCheckBackClicked);
+            rewardCheckBackButton.onClick.AddListener(HandleRewardCheckBackClicked);
         }
     }
 
@@ -1193,6 +1654,13 @@ public class UIGame : MonoBehaviour
         {
             retryButton.onClick.RemoveListener(HandleRetryClicked);
             retryButton.onClick.AddListener(HandleRetryClicked);
+        }
+
+        Button menuButton = FindComponentByName<Button>(loseMenu.transform, "BMenu");
+        if (menuButton != null)
+        {
+            menuButton.onClick.RemoveListener(HandleLoseMenuClicked);
+            menuButton.onClick.AddListener(HandleLoseMenuClicked);
         }
     }
 
@@ -1525,7 +1993,14 @@ public class UIGame : MonoBehaviour
             }
 
             itemIcon.Bind(itemRewardDefinition, itemIconTheme, HandleItemIconClicked);
-            itemIcon.SetActivationVisible(observedCharacter.IsItemActivationActive(itemRewardDefinition.ItemKey));
+            bool isPersistentlyActive = observedCharacter.IsItemActivationActive(itemRewardDefinition.ItemKey);
+            float remainingPulseDuration = GetRemainingItemActivationPulseDuration(itemRewardDefinition.ItemKey);
+            itemIcon.SetActivationVisible(isPersistentlyActive || remainingPulseDuration > 0f);
+            if (remainingPulseDuration > 0f)
+            {
+                itemIcon.PulseActivation(remainingPulseDuration);
+            }
+
             itemIcons.Add(itemIconObject);
             itemIconsByKey[itemRewardDefinition.ItemKey] = itemIcon;
         }
@@ -1545,11 +2020,29 @@ public class UIGame : MonoBehaviour
 
         if (duration > 0f)
         {
+            itemActivationPulseEndTimes[itemKey] = Time.time + duration;
             itemIcon.PulseActivation(duration);
             return;
         }
 
         itemIcon.SetActivationVisible(isActive);
+    }
+
+    private float GetRemainingItemActivationPulseDuration(ItemRewardKey itemKey)
+    {
+        if (!itemActivationPulseEndTimes.TryGetValue(itemKey, out float pulseEndTime))
+        {
+            return 0f;
+        }
+
+        float remainingDuration = pulseEndTime - Time.time;
+        if (remainingDuration <= 0f)
+        {
+            itemActivationPulseEndTimes.Remove(itemKey);
+            return 0f;
+        }
+
+        return remainingDuration;
     }
 
     private void ApplyCurrentCharacterTheme()
@@ -1734,6 +2227,24 @@ public class UIGame : MonoBehaviour
         BindToolsButton(toolsCloseButton, HandleToolsCloseBuildMenuClicked);
 
         RefreshAvailableEquipmentBuilds();
+    }
+
+    private void EnsureShopUI()
+    {
+        if (uiShop == null)
+        {
+            Transform shopTransform = transform.Find("UIShop");
+            if (shopTransform != null)
+            {
+                uiShop = shopTransform.GetComponent<UIShop>();
+                if (uiShop == null)
+                {
+                    uiShop = shopTransform.gameObject.AddComponent<UIShop>();
+                }
+            }
+        }
+
+        RefreshMoneyDisplay();
     }
 
     private void CacheToolsMenu()
@@ -2617,7 +3128,9 @@ public class UIGame : MonoBehaviour
     private void RefreshFooterCharacterInfo()
     {
         footerUI?.RefreshCharacter(observedCharacter);
-        footerUI?.RefreshArenaCount(gameTurnManager != null && gameTurnManager.Board != null ? gameTurnManager.Board.ArenaCount : 1);
+        int arenaCount = gameTurnManager != null && gameTurnManager.Board != null ? gameTurnManager.Board.ArenaCount : 1;
+        footerUI?.RefreshArenaCount(arenaCount);
+        footerUI?.RefreshTravelPath(observedCharacter, arenaCount, isShopOpen);
         CacheStatsMenus();
     }
 
@@ -2818,12 +3331,18 @@ public class UIGame : MonoBehaviour
             rewardCheckChooseButton.gameObject.SetActive(canChoose);
         }
 
+        if (rewardCheckBackButton != null)
+        {
+            rewardCheckBackButton.gameObject.SetActive(rewardCheckOpenedFromShop);
+        }
+
         rewardCheckMenu.SetActive(true);
     }
 
     private void HideRewardCheck()
     {
         currentPreviewedItemDefinition = null;
+        rewardCheckOpenedFromShop = false;
         if (rewardCheckMenu != null)
         {
             rewardCheckMenu.SetActive(false);
@@ -2914,22 +3433,25 @@ public class UIGame : MonoBehaviour
 
     private string ResolveAbilityDescription(AbilityDefinition abilityDefinition)
     {
-        if (abilityDefinition == null || observedCharacter?.Data == null)
+        if (abilityDefinition == null)
         {
             return string.Empty;
         }
 
-        IReadOnlyList<AbilityRewardDefinition> unlockableRewards = observedCharacter.Data.UnlockableAbilityRewards;
-        for (int index = 0; index < unlockableRewards.Count; index++)
+        if (observedCharacter?.Data != null)
         {
-            AbilityRewardDefinition rewardDefinition = unlockableRewards[index];
-            if (rewardDefinition != null && rewardDefinition.Ability == abilityDefinition)
+            IReadOnlyList<AbilityRewardDefinition> unlockableRewards = observedCharacter.Data.UnlockableAbilityRewards;
+            for (int index = 0; index < unlockableRewards.Count; index++)
             {
-                return rewardDefinition.RewardDescription;
+                AbilityRewardDefinition rewardDefinition = unlockableRewards[index];
+                if (rewardDefinition != null && rewardDefinition.Ability == abilityDefinition)
+                {
+                    return rewardDefinition.RewardDescription;
+                }
             }
         }
 
-        return string.Empty;
+        return abilityDefinition.Description;
     }
 
     private void CollectAcquiredUpgradeOffers(AbilityDefinition abilityDefinition, List<RewardOffer> offers)
@@ -2975,19 +3497,23 @@ public class UIGame : MonoBehaviour
         switch (upgradeDefinition.UpgradeKey)
         {
             case AbilityUpgradeKey.GhostStepsAdrenaline:
-                return $"If Pandora dealt damage to at least one enemy with Ghost Steps, she has a {5 * stacks}% chance to recover 1 movement point.";
+                return $"If Pandora dealt damage to at least one enemy with Ghost Steps, she has a {10 * stacks}% chance to recover 1 movement point.";
             case AbilityUpgradeKey.SpinningBladesSharpening:
                 return $"Increase Spinning Blades damage by {stacks}.";
             case AbilityUpgradeKey.AssassinsRushShadowPulse:
                 return $"Increase Assassin's Rush range by {stacks}.";
             case AbilityUpgradeKey.AssassinsRushTasteOfBlood:
-                return $"After using Assassin's Rush, Pandora gains {stacks} bonus damage for her next attack.";
+                return $"After using Assassin's Rush, Pandora gains {stacks} bonus damage for her next Weapon Ability.";
+            case AbilityUpgradeKey.LamellarStepSharpenedBlades:
+                return $"Increase each Lamellar Step dagger's damage by {stacks}.";
             case AbilityUpgradeKey.NighttimeMenaceShadowArea:
                 return $"Increase Nighttime Menace range by {stacks}.";
             case AbilityUpgradeKey.RoyalDaggerBlessedBlade:
                 return $"Increase Royal Dagger damage by {2 * stacks}.";
             case AbilityUpgradeKey.RoyalDaggerRoyalBlessing:
                 return $"Pandora recovers {2 * stacks} health when she kills an enemy with Royal Dagger.";
+            case AbilityUpgradeKey.DemonbaneBloodCallsBlood:
+                return $"Demonbane deals {2 * stacks} extra damage to bleeding enemies.";
             case AbilityUpgradeKey.SacredCrossbowLightBolt:
                 return $"Sacred Crossbow gains +{stacks} damage for each target it has already pierced.";
             case AbilityUpgradeKey.RainOfBoltsIronBolts:
@@ -3114,6 +3640,11 @@ public class UIGame : MonoBehaviour
             default:
                 return objectRewardIcon;
         }
+    }
+
+    public RewardButtonStyle GetItemRewardStyle()
+    {
+        return itemRewardStyle;
     }
 
     private static RewardPresentationIconKind GetIconKindForAbilityCategory(AbilityCategory category)

@@ -19,7 +19,7 @@ public class SacredCrossbowAbility : AbilityDefinition
     [Min(1)]
     [SerializeField] private int range = 10;
     [Min(1)]
-    [SerializeField] private int secondarySplashDamage = 1;
+    [SerializeField] private int secondarySplashDamage = 2;
     [Min(1)]
     [SerializeField] private int secondarySplashRange = 1;
     [SerializeField] private GameObject projectilePrefab;

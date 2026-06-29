@@ -126,7 +126,7 @@ public class ThiefsDaggerAbility : AbilityDefinition
                 && targetWasNewThisTurn
                 && HasAnotherUnhitTargetInRange(character, enemy))
             {
-                character.GrantAbilityBonusTurnUse(this, 1);
+                runtime.QueueActivationUseDelta(-1);
             }
 
             return true;

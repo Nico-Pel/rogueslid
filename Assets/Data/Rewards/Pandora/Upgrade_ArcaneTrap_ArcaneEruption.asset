@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_arcane_trap_arcane_eruption
   rewardTitle: Arcane Eruption
-  rewardDescription: If an enemy is standing on Arcane Trap's tile when it appears, the trap deals 2 extra damage when triggered.
+  rewardDescription: If an enemy ends its turn on Arcane Trap's tile when it activates, the trap deals 2 extra damage when triggered.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 63cc53f36bfe4d7fa06a2cc2e352d503, type: 2}
   upgradeKey: 39

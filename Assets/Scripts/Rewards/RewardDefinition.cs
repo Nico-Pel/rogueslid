@@ -12,6 +12,7 @@ public abstract class RewardDefinition : ScriptableObject
     public string RewardTitle => string.IsNullOrWhiteSpace(rewardTitle) ? name : rewardTitle;
     public string RewardDescription => rewardDescription;
     public Sprite Artwork => artwork;
+    public virtual int ShopPrice => 0;
 
     public abstract RewardOfferKind Kind { get; }
     public abstract RewardPresentationIconKind IconKind { get; }
@@ -31,7 +32,8 @@ public abstract class RewardDefinition : ScriptableObject
             Kind = Kind,
             IconKind = IconKind,
             ShowPowerStroke = ShowPowerStroke,
-            Definition = this
+            Definition = this,
+            ShopPrice = ShopPrice
         };
     }
 

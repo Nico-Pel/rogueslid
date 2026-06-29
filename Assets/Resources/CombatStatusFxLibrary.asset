@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f7890abcd1234567890ef, type: 3}
+  m_Name: CombatStatusFxLibrary
+  m_EditorClassIdentifier: 
+  statusEntries:
+  - statusType: 0
+    applyFxPrefab: {fileID: 185086, guid: 6c4ae31fa47a6c143a4e64ca4b65fc4a, type: 3}
+    applyFxLifetime: 2
+    persistentFxPrefab: {fileID: 3802418962348063953, guid: 79d5056093c1d4a2b9df11c9c5c5e753, type: 3}
+    persistentFxLocalOffset: {x: 0, y: 0, z: 0}
+  - statusType: 1
+    applyFxPrefab: {fileID: 6036324850068858145, guid: 7af48c84f5dc24117af7dd3d0f7e8de8, type: 3}
+    applyFxLifetime: 2
+    persistentFxPrefab: {fileID: 3814935834660799232, guid: 558e8a41f623a441197d37a744e15675, type: 3}
+    persistentFxLocalOffset: {x: 0, y: 0, z: 0}
+  - statusType: 2
+    applyFxPrefab: {fileID: 1350399091613688021, guid: 9f6f4b3ae632d4c8ca926d87bee5c5a0, type: 3}
+    applyFxLifetime: 2
+    persistentFxPrefab: {fileID: 0}
+    persistentFxLocalOffset: {x: 0, y: 0, z: 0}
+  fearApplyFxPrefab: {fileID: 8335289513195480944, guid: 81c8e5be748904defb436d0ec9f5800d, type: 3}
+  fearApplyFxLifetime: 2

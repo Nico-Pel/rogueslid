@@ -22,6 +22,14 @@ public abstract class BoardHazard : MonoBehaviour
     {
     }
 
+    public virtual void HandleEnemyTurnStarted()
+    {
+    }
+
+    public virtual void HandleEnemyTurnEnded()
+    {
+    }
+
     public virtual int GetEnemyPathPenalty(Enemy enemy)
     {
         return 0;
@@ -31,12 +39,20 @@ public abstract class BoardHazard : MonoBehaviour
     {
     }
 
+    public virtual void HandleCharacterTurnEnded(Character character)
+    {
+    }
+
     public virtual bool WouldKillEnemy(Enemy enemy)
     {
         return false;
     }
 
     public virtual void HandleEnemyEntered(Enemy enemy)
+    {
+    }
+
+    public virtual void HandleEnemyExited(Enemy enemy)
     {
     }
 }

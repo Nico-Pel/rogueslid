@@ -24,18 +24,19 @@ public class ArcaneTrapHazard : BoardHazard
     [SerializeField] private string trapActionTriggerParameter = "Action";
     [SerializeField] private float enemyTriggerDelay = 0.15f;
     [SerializeField] private int baseDamage = 4;
-    [SerializeField] private int activePlayerTurnDuration = 1;
+    [SerializeField] private int activeEnemyTurnDuration = 1;
     [SerializeField] private int eruptionBonusDamage;
     [SerializeField] private bool waveTrigger;
     [SerializeField] private bool applyExhaustion;
 
     private AbilityDefinition sourceAbility;
     private TrapPhase phase = TrapPhase.Warning;
-    private int playerTurnStartsUntilActivation = 1;
-    private int remainingActivePlayerTurnStarts = 1;
+    private int enemyTurnStartsUntilActivation = 1;
+    private int remainingActiveEnemyTurnEnds = 1;
     private GameObject warningFxInstance;
     private GameObject trapObjInstance;
     private bool isResolving;
+    private bool waitingForOccupantToLeave;
 
     public override bool IsVisibleToEnemies => phase == TrapPhase.Active;
 
@@ -57,13 +58,14 @@ public class ArcaneTrapHazard : BoardHazard
         warningFxPrefab = warningPrefab;
         trapObjPrefab = trapPrefab;
         baseDamage = Mathf.Max(1, damage);
-        activePlayerTurnDuration = Mathf.Max(1, 3 + sustainStacks);
+        activeEnemyTurnDuration = Mathf.Max(1, 1 + sustainStacks);
         eruptionBonusDamage = Mathf.Max(0, eruptionBonus);
         waveTrigger = wave;
         applyExhaustion = exhaustion;
-        playerTurnStartsUntilActivation = 1;
-        remainingActivePlayerTurnStarts = activePlayerTurnDuration;
+        enemyTurnStartsUntilActivation = 1;
+        remainingActiveEnemyTurnEnds = activeEnemyTurnDuration;
         phase = TrapPhase.Warning;
+        waitingForOccupantToLeave = false;
 
         transform.SetParent(targetBoard.transform, true);
         transform.position = targetBoard.GridToWorldPosition(targetGridPosition);
@@ -71,7 +73,7 @@ public class ArcaneTrapHazard : BoardHazard
         RefreshVisuals();
     }
 
-    public override void HandlePlayerTurnStarted()
+    public override void HandleEnemyTurnStarted()
     {
         if (phase == TrapPhase.Expired || isResolving)
         {
@@ -80,26 +82,50 @@ public class ArcaneTrapHazard : BoardHazard
 
         if (phase == TrapPhase.Warning)
         {
-            playerTurnStartsUntilActivation = Mathf.Max(0, playerTurnStartsUntilActivation - 1);
-            if (playerTurnStartsUntilActivation > 0)
+            enemyTurnStartsUntilActivation = Mathf.Max(0, enemyTurnStartsUntilActivation - 1);
+            if (enemyTurnStartsUntilActivation > 0)
             {
                 return;
             }
 
-            phase = TrapPhase.Active;
-            remainingActivePlayerTurnStarts = Mathf.Max(1, activePlayerTurnDuration);
-            RefreshVisuals();
-
             if (board != null && board.TryGetEnemy(gridPosition, out Enemy enemy) && enemy != null)
             {
-                Trigger(enemy, eruptionBonusDamage);
+                waitingForOccupantToLeave = true;
+                return;
             }
 
+            ActivateTrap();
+            return;
+        }
+    }
+
+    public override void HandleEnemyTurnEnded()
+    {
+        if (phase == TrapPhase.Expired || isResolving)
+        {
             return;
         }
 
-        remainingActivePlayerTurnStarts = Mathf.Max(0, remainingActivePlayerTurnStarts - 1);
-        if (remainingActivePlayerTurnStarts <= 0)
+        if (phase == TrapPhase.Warning)
+        {
+            if (!waitingForOccupantToLeave || enemyTurnStartsUntilActivation > 0)
+            {
+                return;
+            }
+
+            if (board != null && board.TryGetEnemy(gridPosition, out Enemy enemy) && enemy != null)
+            {
+                ActivateTrap();
+                Trigger(enemy, eruptionBonusDamage);
+                return;
+            }
+
+            ActivateTrap();
+            return;
+        }
+
+        remainingActiveEnemyTurnEnds = Mathf.Max(0, remainingActiveEnemyTurnEnds - 1);
+        if (remainingActiveEnemyTurnEnds <= 0)
         {
             BeginNaturalExpiration();
         }
@@ -130,6 +156,16 @@ public class ArcaneTrapHazard : BoardHazard
 
         enemy.BeginMovementInterrupt();
         StartCoroutine(TriggerEnemyAfterDelay(enemy));
+    }
+
+    public override void HandleEnemyExited(Enemy enemy)
+    {
+        if (phase != TrapPhase.Warning || enemy == null || isResolving || !waitingForOccupantToLeave || enemyTurnStartsUntilActivation > 0)
+        {
+            return;
+        }
+
+        ActivateTrap();
     }
 
     private System.Collections.IEnumerator TriggerEnemyAfterDelay(Enemy enemy)
@@ -181,6 +217,19 @@ public class ArcaneTrapHazard : BoardHazard
         }
 
         DestroyHazard();
+    }
+
+    private void ActivateTrap()
+    {
+        if (phase != TrapPhase.Warning || isResolving)
+        {
+            return;
+        }
+
+        phase = TrapPhase.Active;
+        waitingForOccupantToLeave = false;
+        remainingActiveEnemyTurnEnds = Mathf.Max(1, activeEnemyTurnDuration);
+        RefreshVisuals();
     }
 
     private void ApplyTrapEffects(Enemy enemy, int damage, HashSet<Enemy> affectedEnemies)

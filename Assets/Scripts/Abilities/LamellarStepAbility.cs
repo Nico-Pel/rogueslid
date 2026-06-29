@@ -92,6 +92,7 @@ public class LamellarStepAbility : AbilityDefinition
         bool suppressDaggers = runtime.ConsumeSuppressNextPrimaryEffectOnce();
         bool hitAnyTarget = false;
         HashSet<Enemy> hitEnemies = new HashSet<Enemy>();
+        int damagePerDagger = daggerDamage + character.GetUpgradeStacks(AbilityUpgradeKey.LamellarStepSharpenedBlades);
         if (!suppressDaggers)
         {
             bool spectralDaggers = character.GetUpgradeStacks(AbilityUpgradeKey.LamellarStepSpectralDaggers) > 0;
@@ -115,7 +116,7 @@ public class LamellarStepAbility : AbilityDefinition
                 {
                     if (character.Board.TryGetEnemy(scan, out Enemy enemy) && enemy != null)
                     {
-                        int appliedDamage = character.DealDamageToEnemy(enemy, daggerDamage, true, true, DamageSoundType.Sword, this);
+                        int appliedDamage = character.DealDamageToEnemy(enemy, damagePerDagger, true, true, DamageSoundType.Sword, this);
                         if (appliedDamage > 0)
                         {
                             hitAnyTarget = true;
@@ -142,7 +143,7 @@ public class LamellarStepAbility : AbilityDefinition
                     }
                     else if (character.Board.TryGetLichSkullObject(scan, out LichSkullObject lichSkull) && lichSkull != null)
                     {
-                        int appliedDamage = character.DealDamageToLichSkull(lichSkull, daggerDamage, true, DamageSoundType.Sword, this);
+                        int appliedDamage = character.DealDamageToLichSkull(lichSkull, damagePerDagger, true, DamageSoundType.Sword, this);
                         if (appliedDamage > 0)
                         {
                             hitAnyTarget = true;

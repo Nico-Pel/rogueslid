@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_misty_spirit_broken_heart
   rewardTitle: Broken Heart
-  rewardDescription: An enemy affected by Misty Mind takes 1 damage after attacking an ally.
+  rewardDescription: One second after damaging an ally, an enemy affected by Misty Mind suffers damage equal to 50% of the damage it dealt.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: e72095304fe2454aad9f7d0e41d33211, type: 2}
   upgradeKey: 59

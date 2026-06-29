@@ -24,6 +24,9 @@ public class GameTurnManager : MonoBehaviour
 #if UNITY_EDITOR
     private const KeyCode DebugRewardMenuKey = KeyCode.K;
     private const KeyCode DebugWinArenaKey = KeyCode.Z;
+    private const KeyCode DebugOpenShopKey = KeyCode.Y;
+    private const KeyCode DebugGiveMoneyKey = KeyCode.M;
+    private const KeyCode DebugFullHealKey = KeyCode.O;
 #endif
 
     private bool isEnemyTurnRunning;
@@ -47,9 +50,13 @@ public class GameTurnManager : MonoBehaviour
     private int pendingCellTargetAbilityIndex = -1;
     private ItemRewardDefinition activeCombatStartPrompt;
     private Character trackedCharacter;
-#if UNITY_EDITOR
+    private bool loadedDieRefreshUsedForCurrentRewards;
+    private bool combatStartRelocationSelectionActive;
+    private bool combatStartRelocationResolved;
+    private bool combatStartRelocationMoved;
+    private bool currentRewardMenuIsDebug;
+    private UIHomeController homeMenu;
     private int remainingDebugRewardChoices;
-#endif
 
     public TurnSide CurrentTurn { get; private set; } = TurnSide.Player;
     public BoardManager Board => board;
@@ -58,6 +65,7 @@ public class GameTurnManager : MonoBehaviour
     public bool IsRewardMenuOpen => isRewardMenuOpen;
     public bool IsArenaTransitionRunning => isArenaTransitionRunning;
     public bool IsLoseMenuOpen => isLoseMenuOpen;
+    public bool IsCombatStartRelocationSelectionActive => combatStartRelocationSelectionActive;
     public event Action<TurnSide> TurnChanged;
     public event Action<int> PendingAbilityChanged;
     public event Action<bool> EndTurnAvailabilityChanged;
@@ -65,6 +73,7 @@ public class GameTurnManager : MonoBehaviour
 
     private void Start()
     {
+        Debug.Log($"[Pouet Startup] GameTurnManager.Start begin. boardAssigned={board != null} uiGameAssigned={uiGame != null} soundManagerAssigned={soundManager != null}", this);
         if (board == null)
         {
             board = GetComponent<BoardManager>();
@@ -72,7 +81,7 @@ public class GameTurnManager : MonoBehaviour
 
         if (uiGame == null)
         {
-            uiGame = FindFirstObjectByType<UIGame>();
+            uiGame = FindFirstObjectByType<UIGame>(FindObjectsInactive.Include);
         }
 
         if (soundManager == null)
@@ -90,6 +99,28 @@ public class GameTurnManager : MonoBehaviour
         }
 
         hasStarted = true;
+        homeMenu = FindFirstObjectByType<UIHomeController>(FindObjectsInactive.Include);
+        Debug.Log($"[Pouet Startup] GameTurnManager.Start resolved references. board={(board != null ? board.name : "null")} playerExists={(board != null && board.Player != null)} homeMenu={(homeMenu != null ? homeMenu.name : "null")} generateOnStart={(board != null && board.GenerateOnStart)}", this);
+        if (homeMenu != null)
+        {
+            Debug.Log("[Pouet Startup] GameTurnManager.Start showing home menu path.", this);
+            homeMenu.Initialize(
+                board,
+                uiGame,
+                soundManager);
+            homeMenu.ShowDefault();
+            return;
+        }
+
+        if (board != null && board.GenerateOnStart && board.Player == null)
+        {
+            Debug.Log("[Pouet Startup] GameTurnManager.Start auto-generate path.", this);
+            board.ResetArenaProgression();
+            board.GenerateBoard();
+            return;
+        }
+
+        Debug.Log("[Pouet Startup] GameTurnManager.Start direct combat path.", this);
         soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
         BindToCurrentCharacter();
         StartCombatEntryFlow();
@@ -107,7 +138,27 @@ public class GameTurnManager : MonoBehaviour
 
     private void Update()
     {
-        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen || isLoseMenuOpen)
+#if UNITY_EDITOR
+        HandleDebugKeyboardInput();
+#endif
+
+        if (board == null || board.Player == null || board.Player.ControlledCharacter == null || isEnemyTurnRunning || isArenaTransitionRunning || isLoseMenuOpen)
+        {
+            return;
+        }
+
+        if (homeMenu != null && homeMenu.IsVisible)
+        {
+            return;
+        }
+
+        if (combatStartRelocationSelectionActive)
+        {
+            HandleCombatStartRelocationInput();
+            return;
+        }
+
+        if (isRewardMenuOpen)
         {
             return;
         }
@@ -118,7 +169,6 @@ public class GameTurnManager : MonoBehaviour
         }
 
         HandleSwipeInput();
-        HandleDebugKeyboardInput();
     }
 
     public void RequestEndTurn()
@@ -128,8 +178,20 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
+        Character controlledCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
         ClearPendingAbility();
-        board.Player?.ControlledCharacter?.HandlePlayerTurnEnded();
+        board?.HandlePlayerTurnEnded(controlledCharacter);
+        if (controlledCharacter == null || controlledCharacter.CurrentHealth <= 0)
+        {
+            return;
+        }
+
+        controlledCharacter.HandlePlayerTurnEnded();
+        if (controlledCharacter.CurrentHealth <= 0)
+        {
+            return;
+        }
+
         enemyTurnCoroutine = StartCoroutine(RunEnemyTurn());
     }
 
@@ -144,12 +206,57 @@ public class GameTurnManager : MonoBehaviour
         SetCanEndTurn(true);
     }
 
+    public bool CanUseLoadedDieReroll()
+    {
+        Character currentCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        return isRewardMenuOpen
+            && currentCharacter != null
+            && currentCharacter.HasItem(ItemRewardKey.LoadedDie)
+            && !loadedDieRefreshUsedForCurrentRewards;
+    }
+
+    public void RequestLoadedDieReroll()
+    {
+        if (!CanUseLoadedDieReroll() || board == null)
+        {
+            return;
+        }
+
+        loadedDieRefreshUsedForCurrentRewards = true;
+        List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
+        if (rewardChoices.Count == 0)
+        {
+            if (currentRewardMenuIsDebug)
+            {
+                HandleDebugRewardIgnored();
+            }
+            else
+            {
+                CompleteArenaTransition();
+            }
+
+            return;
+        }
+
+        if (currentRewardMenuIsDebug)
+        {
+            uiGame?.ShowRewards(rewardChoices, HandleDebugRewardSelected, HandleDebugRewardIgnored);
+            soundManager?.PlayVictoryChoiceMusic();
+            return;
+        }
+
+        uiGame?.ShowRewards(rewardChoices, HandleRewardSelected, HandleRewardsIgnored);
+        soundManager?.PlayVictoryChoiceMusic();
+    }
+
     public void RestartForNewBoard()
     {
         if (!hasStarted)
         {
             return;
         }
+
+        Debug.Log($"[Pouet Startup] RestartForNewBoard called. playerExists={(board != null && board.Player != null)} currentTurn={CurrentTurn} isRewardMenuOpen={isRewardMenuOpen} isLoseMenuOpen={isLoseMenuOpen}", this);
 
         StopAllCoroutines();
         isEnemyTurnRunning = false;
@@ -164,8 +271,14 @@ public class GameTurnManager : MonoBehaviour
         activeCombatStartPrompt = null;
         combatStartChoiceResolved = false;
         combatStartChoiceAccepted = false;
+        loadedDieRefreshUsedForCurrentRewards = false;
+        combatStartRelocationSelectionActive = false;
+        combatStartRelocationResolved = false;
+        combatStartRelocationMoved = false;
+        currentRewardMenuIsDebug = false;
         ClearPendingAbility();
         uiGame?.HideRewards();
+        uiGame?.HideShop();
         uiGame?.HideYesNoPrompt();
         uiGame?.HideLoseMenu();
         soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
@@ -189,10 +302,24 @@ public class GameTurnManager : MonoBehaviour
 
         if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
         {
+            if (ability.Definition != null && ability.Definition.TryGetAutomaticTargetCell(character, ability, out Vector2Int automaticTargetCell))
+            {
+                bool automaticTargetUsed = character.TryUseAbility(abilityIndex, automaticTargetCell);
+                if (automaticTargetUsed)
+                {
+                    RegisterPlayerAction();
+                    ClearPendingAbility();
+                }
+
+                return automaticTargetUsed;
+            }
+
             bool canAutoUseSingleTarget = ability.Definition != null
                 && (ability.Definition.Category == AbilityCategory.BasicAttack
                     || ability.Definition.ShouldAutoUseWhenOnlyOneValidTarget(character, ability));
-            if (canAutoUseSingleTarget && TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell))
+            if (canAutoUseSingleTarget
+                && TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell)
+                && ShouldAutoUseSingleTargetCell(character, ability, singleTargetCell))
             {
                 bool singleTargetUsed = character.TryUseAbility(abilityIndex, singleTargetCell);
                 if (singleTargetUsed)
@@ -266,11 +393,33 @@ public class GameTurnManager : MonoBehaviour
         return foundOne;
     }
 
+    private bool ShouldAutoUseSingleTargetCell(Character character, CharacterAbilityRuntime ability, Vector2Int targetCell)
+    {
+        if (character == null || ability?.Definition == null || board == null)
+        {
+            return false;
+        }
+
+        if (ability.Definition.Category == AbilityCategory.BasicAttack
+            && board.TryGetBarrel(targetCell, out BarrelObstacle barrel)
+            && barrel != null)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private bool HasAnyValidTargetCell(Character character, CharacterAbilityRuntime ability)
     {
         if (character == null || ability?.Definition == null || board == null)
         {
             return false;
+        }
+
+        if (ability.Definition.TryGetAutomaticTargetCell(character, ability, out _))
+        {
+            return true;
         }
 
         for (int x = 0; x < board.Width; x++)
@@ -296,6 +445,11 @@ public class GameTurnManager : MonoBehaviour
 
         if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
         {
+            if (ability.Definition.TryGetAutomaticTargetCell(character, ability, out _))
+            {
+                return true;
+            }
+
             return HasAnyValidTargetCell(character, ability);
         }
 
@@ -360,6 +514,24 @@ public class GameTurnManager : MonoBehaviour
             RequestDebugRewardChoice();
             return;
         }
+
+        if (Input.GetKeyDown(DebugOpenShopKey))
+        {
+            RequestDebugOpenShop();
+            return;
+        }
+
+        if (IsDebugGiveMoneyPressed())
+        {
+            RequestDebugGiveMoney();
+            return;
+        }
+
+        if (Input.GetKeyDown(DebugFullHealKey))
+        {
+            RequestDebugFullHeal();
+            return;
+        }
 #endif
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
@@ -413,6 +585,31 @@ public class GameTurnManager : MonoBehaviour
         }
     }
 
+#if UNITY_EDITOR
+    private static bool IsDebugGiveMoneyPressed()
+    {
+        if (Input.GetKeyDown(DebugGiveMoneyKey))
+        {
+            return true;
+        }
+
+        string typedCharacters = Input.inputString;
+        return !string.IsNullOrEmpty(typedCharacters)
+            && (typedCharacters.IndexOf('m') >= 0 || typedCharacters.IndexOf('M') >= 0);
+    }
+
+    private void RequestDebugFullHeal()
+    {
+        Character controlledCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (controlledCharacter == null || controlledCharacter.CurrentHealth <= 0)
+        {
+            return;
+        }
+
+        controlledCharacter.Heal(controlledCharacter.MaxHealth, null, true);
+    }
+#endif
+
     private void HandleSwipeInput()
     {
         Character character = board.Player.ControlledCharacter;
@@ -434,6 +631,17 @@ public class GameTurnManager : MonoBehaviour
 
                     isPointerTracking = true;
                     pointerStartPosition = touch.position;
+                    if (pendingCellTargetAbilityIndex >= 0)
+                    {
+                        uiGame?.UpdateTargetedAbilityPreview(touch.position);
+                    }
+                    break;
+                case TouchPhase.Moved:
+                case TouchPhase.Stationary:
+                    if (isPointerTracking && pendingCellTargetAbilityIndex >= 0)
+                    {
+                        uiGame?.UpdateTargetedAbilityPreview(touch.position);
+                    }
                     break;
                 case TouchPhase.Ended:
                     if (!isPointerTracking)
@@ -461,6 +669,14 @@ public class GameTurnManager : MonoBehaviour
 
             isPointerTracking = true;
             pointerStartPosition = Input.mousePosition;
+            if (pendingCellTargetAbilityIndex >= 0)
+            {
+                uiGame?.UpdateTargetedAbilityPreview(Input.mousePosition);
+            }
+        }
+        else if (Input.GetMouseButton(0) && isPointerTracking && pendingCellTargetAbilityIndex >= 0)
+        {
+            uiGame?.UpdateTargetedAbilityPreview(Input.mousePosition);
         }
         else if (Input.GetMouseButtonUp(0) && isPointerTracking)
         {
@@ -484,6 +700,81 @@ public class GameTurnManager : MonoBehaviour
         }
 
         TrySwipe(character, delta);
+    }
+
+    private void HandleCombatStartRelocationInput()
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (character == null || character.IsBusy)
+        {
+            return;
+        }
+
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            switch (touch.phase)
+            {
+                case TouchPhase.Began:
+                    if (IsPointerOverUI(touch.position, touch.fingerId))
+                    {
+                        return;
+                    }
+
+                    isPointerTracking = true;
+                    pointerStartPosition = touch.position;
+                    break;
+                case TouchPhase.Ended:
+                    if (!isPointerTracking)
+                    {
+                        return;
+                    }
+
+                    isPointerTracking = false;
+                    TryResolveCombatStartRelocation(touch.position);
+                    break;
+                case TouchPhase.Canceled:
+                    isPointerTracking = false;
+                    break;
+            }
+
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (IsPointerOverUI(Input.mousePosition, -1))
+            {
+                return;
+            }
+
+            isPointerTracking = true;
+            pointerStartPosition = Input.mousePosition;
+        }
+        else if (Input.GetMouseButtonUp(0) && isPointerTracking)
+        {
+            isPointerTracking = false;
+            TryResolveCombatStartRelocation(Input.mousePosition);
+        }
+    }
+
+    private void TryResolveCombatStartRelocation(Vector2 screenPosition)
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (character == null || !TryGetTargetCellFromScreen(screenPosition, out Vector2Int targetCell))
+        {
+            return;
+        }
+
+        if (!CanSelectCombatStartRelocationCell(targetCell))
+        {
+            return;
+        }
+
+        combatStartRelocationSelectionActive = false;
+        combatStartRelocationResolved = true;
+        combatStartRelocationMoved = targetCell != character.GridPosition && character.TryTeleportToImmediate(targetCell);
+        uiGame?.RefreshTargetingIndicators();
     }
 
     private void TrySwipe(Character character, Vector2 delta)
@@ -530,8 +821,10 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
+        CharacterAbilityRuntime runtime = character.GetAbility(pendingCellTargetAbilityIndex);
         if (character.TryUseAbility(pendingCellTargetAbilityIndex, targetCell))
         {
+            uiGame?.HandleTargetedAbilityCommitted(runtime, targetCell);
             RegisterPlayerAction();
             ClearPendingAbility();
         }
@@ -600,7 +893,16 @@ public class GameTurnManager : MonoBehaviour
 
     private bool IsTargetingModeActive(Character character)
     {
-        return pendingCellTargetAbilityIndex >= 0 || GetActiveCellSelectableAbilityIndex(character) >= 0;
+        return combatStartRelocationSelectionActive || pendingCellTargetAbilityIndex >= 0 || GetActiveCellSelectableAbilityIndex(character) >= 0;
+    }
+
+    public bool CanSelectCombatStartRelocationCell(Vector2Int targetCell)
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        return combatStartRelocationSelectionActive
+            && board != null
+            && character != null
+            && board.IsValidSpringCoilDestination(character, targetCell, 2);
     }
 
     private bool TryGetTargetCellFromScreen(Vector2 screenPosition, out Vector2Int targetCell)
@@ -668,6 +970,13 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
+        Character currentCharacter = board.Player != null ? board.Player.ControlledCharacter : null;
+        currentCharacter?.HandleCombatStarted();
+        if (currentCharacter != null && currentCharacter.CurrentHealth <= 0)
+        {
+            return;
+        }
+
         if (combatStartSequenceCoroutine != null)
         {
             StopCoroutine(combatStartSequenceCoroutine);
@@ -716,7 +1025,7 @@ public class GameTurnManager : MonoBehaviour
 
             if (promptDefinition.ActivationSound != null)
             {
-                soundManager?.Play2DSound(promptDefinition.ActivationSound);
+                soundManager?.Play2DSound(promptDefinition.ActivationSound, promptDefinition.ActivationSoundVolume);
             }
 
             switch (promptDefinition.YesNoEffect)
@@ -733,6 +1042,28 @@ public class GameTurnManager : MonoBehaviour
                     }
 
                     break;
+                case ItemYesNoEffect.VoodooCharm:
+                    Character voodooCharacter = board.Player != null ? board.Player.ControlledCharacter : null;
+                    if (voodooCharacter != null && voodooCharacter.TrySpendHealth(3))
+                    {
+                        board.AddGold(4);
+                    }
+
+                    break;
+                case ItemYesNoEffect.SpringCoil:
+                    combatStartRelocationSelectionActive = true;
+                    combatStartRelocationResolved = false;
+                    combatStartRelocationMoved = false;
+                    uiGame?.RefreshTargetingIndicators();
+                    while (!combatStartRelocationResolved)
+                    {
+                        yield return null;
+                    }
+
+                    break;
+                case ItemYesNoEffect.BlastStaff:
+                    board.DamageAllEnemies(5, promptDefinition);
+                    break;
             }
 
             if (promptDefinition.ConsumeOnYes)
@@ -745,6 +1076,7 @@ public class GameTurnManager : MonoBehaviour
         activeCombatStartPrompt = null;
         isRewardMenuOpen = false;
         uiGame?.HideYesNoPrompt();
+        uiGame?.RefreshTargetingIndicators();
         yield return BeginPlayerTurnAfterCombatStartActions();
         combatStartSequenceCoroutine = null;
     }
@@ -752,6 +1084,11 @@ public class GameTurnManager : MonoBehaviour
     private IEnumerator BeginPlayerTurnAfterCombatStartActions()
     {
         Character currentCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (currentCharacter != null && currentCharacter.HasItem(ItemRewardKey.Scarecrow))
+        {
+            board?.ApplyFearToAllEnemies(1);
+        }
+
         if (board != null && currentCharacter != null && board.HasCombatStartEnemyActionsReady())
         {
             isEnemyTurnRunning = true;
@@ -791,6 +1128,7 @@ public class GameTurnManager : MonoBehaviour
         isEnemyTurnRunning = true;
         CurrentTurn = TurnSide.Enemy;
         board?.Player?.ControlledCharacter?.BeginEnemyTurn();
+        board?.HandleEnemyTurnStarted();
         StopEndTurnUnlockTimer();
         SetCanEndTurn(false);
         TurnChanged?.Invoke(CurrentTurn);
@@ -825,6 +1163,7 @@ public class GameTurnManager : MonoBehaviour
         {
             controlledCharacter.HandleEnemyTurnEnded();
         }
+        board?.HandleEnemyTurnEnded();
         isEnemyTurnRunning = false;
         enemyTurnCoroutine = null;
 
@@ -924,7 +1263,7 @@ public class GameTurnManager : MonoBehaviour
         isLoseMenuOpen = true;
         loseMenuCoroutine = null;
         soundManager?.PlayLoseJingle();
-        uiGame?.ShowLoseMenu(characterName, losePortrait, HandleRetryRequested);
+        uiGame?.ShowLoseMenu(characterName, losePortrait, HandleRetryRequested, HandleReturnToHomeRequested);
     }
 
     private void HandleRetryRequested()
@@ -934,6 +1273,44 @@ public class GameTurnManager : MonoBehaviour
         UnbindTrackedCharacter();
         board?.ResetArenaProgression();
         board?.GenerateBoard();
+    }
+
+    private void HandleReturnToHomeRequested()
+    {
+        StopAllCoroutines();
+        isEnemyTurnRunning = false;
+        isPointerTracking = false;
+        isArenaTransitionRunning = false;
+        isRewardMenuOpen = false;
+        isLoseMenuOpen = false;
+        nextArenaCoroutine = null;
+        combatStartSequenceCoroutine = null;
+        enemyTurnCoroutine = null;
+        loseMenuCoroutine = null;
+        activeCombatStartPrompt = null;
+        combatStartChoiceResolved = false;
+        combatStartChoiceAccepted = false;
+        loadedDieRefreshUsedForCurrentRewards = false;
+        combatStartRelocationSelectionActive = false;
+        combatStartRelocationResolved = false;
+        combatStartRelocationMoved = false;
+        currentRewardMenuIsDebug = false;
+        ClearPendingAbility();
+        soundManager?.StopArenaMusic();
+        uiGame?.HideRewards();
+        uiGame?.HideShop();
+        uiGame?.HideYesNoPrompt();
+        uiGame?.HideLoseMenu();
+        if (homeMenu != null)
+        {
+            CharacterData currentCharacterData = trackedCharacter != null ? trackedCharacter.Data : null;
+            if (currentCharacterData == null && board != null && board.Player != null && board.Player.ControlledCharacter != null)
+            {
+                currentCharacterData = board.Player.ControlledCharacter.Data;
+            }
+
+            homeMenu.ShowForCharacter(currentCharacterData);
+        }
     }
 
     private void ClearPendingAbility()
@@ -1021,7 +1398,6 @@ public class GameTurnManager : MonoBehaviour
         nextArenaCoroutine = StartCoroutine(LoadNextArenaAfterDelay());
     }
 
-#if UNITY_EDITOR
     public void RequestDebugRewardChoices(int rewardChoiceCount)
     {
         if (board == null || uiGame == null || isEnemyTurnRunning || isArenaTransitionRunning || isLoseMenuOpen)
@@ -1053,6 +1429,36 @@ public class GameTurnManager : MonoBehaviour
     private void RequestDebugRewardChoice()
     {
         RequestDebugRewardChoices(1);
+    }
+
+    private void RequestDebugOpenShop()
+    {
+        if (board == null || uiGame == null || isEnemyTurnRunning || isArenaTransitionRunning || isRewardMenuOpen || isLoseMenuOpen)
+        {
+            return;
+        }
+
+        isPointerTracking = false;
+        ClearPendingAbility();
+        isRewardMenuOpen = true;
+        SetCanEndTurn(false);
+        uiGame.ShowShop(HandleDebugShopClosed);
+        soundManager?.PlayArenaMusic(soundManager != null ? soundManager.ShopMusic : null);
+    }
+
+    public void DebugGiveMoney()
+    {
+        if (board == null)
+        {
+            return;
+        }
+
+        board.AwardGold(50);
+    }
+
+    private void RequestDebugGiveMoney()
+    {
+        DebugGiveMoney();
     }
 
     private void HandleDebugRewardSelected(RewardOffer rewardOffer)
@@ -1090,6 +1496,7 @@ public class GameTurnManager : MonoBehaviour
             }
 
             isRewardMenuOpen = true;
+            currentRewardMenuIsDebug = true;
             uiGame.ShowRewards(rewardChoices, HandleDebugRewardSelected, HandleDebugRewardIgnored);
             soundManager?.PlayVictoryChoiceMusic();
             yield return new WaitUntil(() => !isRewardMenuOpen);
@@ -1105,9 +1512,17 @@ public class GameTurnManager : MonoBehaviour
     {
         remainingDebugRewardChoices = Mathf.Max(0, remainingDebugRewardChoices - 1);
         isRewardMenuOpen = false;
+        currentRewardMenuIsDebug = false;
         uiGame?.HideRewards();
     }
-#endif
+
+    private void HandleDebugShopClosed()
+    {
+        isRewardMenuOpen = false;
+        uiGame?.HideShop();
+        soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
+        SetCanEndTurn(CurrentTurn == TurnSide.Player);
+    }
 
     private IEnumerator LoadNextArenaAfterDelay()
     {
@@ -1119,6 +1534,23 @@ public class GameTurnManager : MonoBehaviour
             yield break;
         }
 
+        Character currentCharacter = board.Player != null ? board.Player.ControlledCharacter : null;
+        if (currentCharacter != null)
+        {
+            currentCharacter.ApplyRunRewardState(board.RunRewardState);
+        }
+
+        if (board.ShouldOpenShopAfterCurrentArena())
+        {
+            board.MarkShopShownForCurrentBiome();
+            isRewardMenuOpen = true;
+            uiGame?.ShowShop(HandleShopClosed);
+            soundManager?.PlayArenaMusic(soundManager != null ? soundManager.ShopMusic : null);
+            yield break;
+        }
+
+        loadedDieRefreshUsedForCurrentRewards = false;
+        currentRewardMenuIsDebug = false;
         List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
         if (rewardChoices.Count == 0)
         {
@@ -1136,6 +1568,16 @@ public class GameTurnManager : MonoBehaviour
         if (board != null && rewardOffer != null)
         {
             board.ApplyReward(rewardOffer);
+            if (rewardOffer.Kind == RewardOfferKind.Item
+                && rewardOffer.ItemKey == ItemRewardKey.ShopBell
+                && board.ShouldOpenShopAfterCurrentArena())
+            {
+                board.MarkShopShownForCurrentBiome();
+                isRewardMenuOpen = true;
+                uiGame?.ShowShop(HandleShopClosed);
+                soundManager?.PlayArenaMusic(soundManager != null ? soundManager.ShopMusic : null);
+                return;
+            }
         }
 
         CompleteArenaTransition();
@@ -1143,12 +1585,37 @@ public class GameTurnManager : MonoBehaviour
 
     private void HandleRewardsIgnored()
     {
+        Character currentCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (board != null
+            && currentCharacter != null
+            && currentCharacter.HasItem(ItemRewardKey.LoadedDie)
+            && !loadedDieRefreshUsedForCurrentRewards)
+        {
+            loadedDieRefreshUsedForCurrentRewards = true;
+            List<RewardOffer> rewardChoices = board.GenerateRewardChoices();
+            if (rewardChoices.Count > 0)
+            {
+                isRewardMenuOpen = true;
+                uiGame?.ShowRewards(rewardChoices, HandleRewardSelected, HandleRewardsIgnored);
+                soundManager?.PlayVictoryChoiceMusic();
+                return;
+            }
+        }
+
+        CompleteArenaTransition();
+    }
+
+    private void HandleShopClosed()
+    {
         CompleteArenaTransition();
     }
 
     private void CompleteArenaTransition()
     {
         isRewardMenuOpen = false;
+        currentRewardMenuIsDebug = false;
+        uiGame?.HideRewards();
+        uiGame?.HideShop();
         if (board != null)
         {
             board.GenerateNextArena();

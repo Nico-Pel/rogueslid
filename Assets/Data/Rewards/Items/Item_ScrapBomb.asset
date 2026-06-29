@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1b1e0cb96d54742b62c9b4bb7215004, type: 3}
+  m_Name: Item_ScrapBomb
+  m_EditorClassIdentifier: 
+  rewardId: item_scrap_bomb
+  rewardTitle: Scrap Bomb
+  rewardDescription: Enemies killed by your attacks explode and deal 1 damage to
+    other nearby enemies.
+  artwork: {fileID: -1882264711, guid: 558798edc9be34311b606488d861229d, type: 3}
+  itemKey: 40
+  shopPrice: 15
+  showCombatStartYesNoPrompt: 0
+  activationQuestionOverride: 
+  consumeOnYes: 0
+  yesNoEffect: 0
+  activationSound: {fileID: 8300000, guid: ee8815eb75bf8498388a49e827d4ca63, type: 3}
+  damageFxPrefab: {fileID: 1847734682164545968, guid: 34a74acfd8cef4a929e459ad5e17611d, type: 3}
+  damageFxLifetime: 2
+  activationSoundVolume: 0.25

@@ -27,12 +27,17 @@ public class ArcaneTrapAbility : AbilityDefinition
             return false;
         }
 
-        if (!character.Board.TryGetCell(targetCell, out BoardCell cell) || !cell.Walkable || cell.IsOccupied || cell.Hazard != null)
+        if (!character.Board.TryGetCell(targetCell, out BoardCell cell) || !cell.Walkable || cell.Hazard != null)
         {
             return false;
         }
 
-        return true;
+        if (!cell.IsOccupied)
+        {
+            return true;
+        }
+
+        return character.Board.TryGetEnemy(targetCell, out Enemy occupyingEnemy) && occupyingEnemy != null;
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)

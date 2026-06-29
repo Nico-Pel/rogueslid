@@ -86,6 +86,7 @@ public class BarrelObstacle : MonoBehaviour
 
         breakSound?.PlaySound(transform.position);
         board?.ClearStaticObstacle(gridPosition, gameObject);
+        board?.HandleBarrelDestroyed(gridPosition);
 
         if (fracturesRoot != null)
         {

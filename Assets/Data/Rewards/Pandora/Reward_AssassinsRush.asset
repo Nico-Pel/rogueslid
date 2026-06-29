@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: reward_assassins_rush
   rewardTitle: Assassin's Rush
-  rewardDescription: Dash in a straight line to any free tile within range 3. Assassin's Rush recovers in 1 turn.
+  rewardDescription: Dash in a straight line to any free tile within range 3.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 6a8e12f72b0a4c0abf0ec7fbc98b2101, type: 2}
+  shopPrice: 30

@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_iron_greaves
   rewardTitle: Iron Greaves
-  rewardDescription: Gain 2 resistance while you have full health.
+  rewardDescription: Gain 1 resistance while you have full health.
   artwork: {fileID: 343211089, guid: 82815694f6d7e4eba94663ced4be4c1b, type: 3}
   itemKey: 8

@@ -4,8 +4,11 @@ using UnityEngine;
 public class AbilityRewardDefinition : RewardDefinition
 {
     [SerializeField] private AbilityDefinition ability;
+    [Min(0)]
+    [SerializeField] private int shopPrice = 30;
 
     public AbilityDefinition Ability => ability;
+    public override int ShopPrice => Mathf.Max(0, shopPrice);
     public override RewardOfferKind Kind => RewardOfferKind.AbilityUnlock;
     public override RewardPresentationIconKind IconKind => GetAbilityIconKind(ability != null ? ability.Category : AbilityCategory.BasicAttack);
     public override bool ShowPowerStroke => true;
@@ -14,7 +17,7 @@ public class AbilityRewardDefinition : RewardDefinition
     {
         return ability != null
             && runRewardState != null
-            && !runRewardState.HasAbility(ability)
+            && !runRewardState.KnowsAbility(ability)
             && !runRewardState.HasChosenRewardCategory(ability.Category);
     }
 

@@ -25,7 +25,7 @@ public class MistySpiritAbility : AbilityDefinition
 
         return character.Board.TryGetEnemy(targetCell, out Enemy enemy)
             && enemy != null
-            && enemy.CanAttackAnyEnemyAlly();
+            && enemy.CanAttackAnyEnemyAlly(true);
     }
 
     public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
@@ -48,7 +48,7 @@ public class MistySpiritAbility : AbilityDefinition
             return false;
         }
 
-        if (!character.Board.TryGetEnemy(targetCell.Value, out Enemy enemy) || enemy == null || !enemy.CanAttackAnyEnemyAlly())
+        if (!character.Board.TryGetEnemy(targetCell.Value, out Enemy enemy) || enemy == null || !enemy.CanAttackAnyEnemyAlly(true))
         {
             return false;
         }
@@ -59,7 +59,9 @@ public class MistySpiritAbility : AbilityDefinition
             enemy,
             character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritParanoia) > 0,
             character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritBrokenHeart) > 0,
-            character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritUnsteadySteps) > 0));
+            character.GetUpgradeStacks(AbilityUpgradeKey.MistySpiritUnsteadySteps) > 0,
+            2f,
+            0.5f));
         return true;
     }
 
@@ -68,7 +70,9 @@ public class MistySpiritAbility : AbilityDefinition
         Enemy enemy,
         bool paranoia,
         bool brokenHeart,
-        bool reduceMobilityNextTurn)
+        bool reduceMobilityNextTurn,
+        float allyDamageMultiplier,
+        float brokenHeartSelfDamageRatio)
     {
         if (character == null || enemy == null)
         {
@@ -77,7 +81,7 @@ public class MistySpiritAbility : AbilityDefinition
 
         character.BeginActionLock();
         PlayConfiguredFx(character, new[] { enemy });
-        yield return enemy.ApplyMistyConfusion(paranoia, brokenHeart, reduceMobilityNextTurn);
+        yield return enemy.ApplyMistyConfusion(paranoia, brokenHeart, reduceMobilityNextTurn, allyDamageMultiplier, brokenHeartSelfDamageRatio);
         character.EndActionLock();
     }
 }

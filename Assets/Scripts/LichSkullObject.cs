@@ -13,6 +13,7 @@ public class LichSkullObject : SkullObject
     private GameObject assignedEnemyPrefab;
     private Enemy summoner;
 
+    public override bool AllowsTraversal => false;
     public override bool CanPlayerStandOn => false;
 
     public int CurrentHealth => currentHealth;

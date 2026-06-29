@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_assassins_rush_taste_of_blood
   rewardTitle: Taste of Blood
-  rewardDescription: After using Assassin's Rush, Pandora gains 1 bonus damage on her next attack. Max 3 stacks.
+  rewardDescription: After using Assassin's Rush, Pandora gains 1 bonus damage on her next Weapon Ability. Max 3 stacks.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 6a8e12f72b0a4c0abf0ec7fbc98b2101, type: 2}
   upgradeKey: 13

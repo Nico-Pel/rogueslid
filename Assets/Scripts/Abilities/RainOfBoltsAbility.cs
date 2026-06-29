@@ -69,6 +69,35 @@ public class RainOfBoltsAbility : AbilityDefinition
         return true;
     }
 
+    public HashSet<Vector2Int> GetPreviewAreaCells(Character character, Vector2Int centerCell)
+    {
+        HashSet<Vector2Int> cells = new HashSet<Vector2Int>();
+        if (character == null || character.Board == null || !character.Board.IsInsideBoard(centerCell))
+        {
+            return cells;
+        }
+
+        int radius = baseRadius + character.GetUpgradeStacks(AbilityUpgradeKey.RainOfBoltsCloudySky);
+        for (int offsetX = -radius; offsetX <= radius; offsetX++)
+        {
+            for (int offsetY = -radius; offsetY <= radius; offsetY++)
+            {
+                if ((offsetX * offsetX) + (offsetY * offsetY) > (radius * radius))
+                {
+                    continue;
+                }
+
+                Vector2Int candidateCell = centerCell + new Vector2Int(offsetX, offsetY);
+                if (character.Board.IsInsideBoard(candidateCell))
+                {
+                    cells.Add(candidateCell);
+                }
+            }
+        }
+
+        return cells;
+    }
+
     private IEnumerator ResolveRainSequence(Character character, Vector2Int centerCell)
     {
         if (character == null || character.Board == null)
@@ -84,6 +113,8 @@ public class RainOfBoltsAbility : AbilityDefinition
         List<Vector2Int> extraCells = GetExtraTargetCells(character, primaryCellSet);
         List<Vector2Int> allCells = new List<Vector2Int>(primaryCells);
         allCells.AddRange(extraCells);
+        int successfulTargetCount = CountSuccessfulTargetCells(character, allCells);
+        int damagePerHit = baseDamage + Mathf.Max(0, successfulTargetCount - 1) + character.GetUpgradeStacks(AbilityUpgradeKey.RainOfBoltsIronBolts);
 
         if (initialDelay > 0f)
         {
@@ -108,6 +139,7 @@ public class RainOfBoltsAbility : AbilityDefinition
                 targetPosition,
                 travelDuration,
                 playArrowShotSound,
+                damagePerHit,
                 () =>
                 {
                     hitCount++;
@@ -125,14 +157,12 @@ public class RainOfBoltsAbility : AbilityDefinition
         character.EndActionLock();
     }
 
-    private bool ResolveProjectileImpact(Character character, Vector2Int cellPosition, GameObject projectile)
+    private bool ResolveProjectileImpact(Character character, Vector2Int cellPosition, GameObject projectile, int damage)
     {
         if (character == null || character.Board == null)
         {
             return false;
         }
-
-        int damage = baseDamage + character.GetUpgradeStacks(AbilityUpgradeKey.RainOfBoltsIronBolts);
         if (character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null)
         {
             int appliedDamage = character.DealDamageToEnemy(enemy, damage, true, true, DamageSoundType.Default, this);
@@ -142,6 +172,12 @@ public class RainOfBoltsAbility : AbilityDefinition
         if (character.Board.TryGetLichSkullObject(cellPosition, out LichSkullObject skull) && skull != null)
         {
             character.DealDamageToLichSkull(skull, damage, true, DamageSoundType.Default, this);
+            return true;
+        }
+
+        if (character.Board.TryGetBarrel(cellPosition, out BarrelObstacle barrel) && barrel != null)
+        {
+            barrel.TakeHit();
             return true;
         }
 
@@ -167,6 +203,7 @@ public class RainOfBoltsAbility : AbilityDefinition
         Vector3 targetPosition,
         float travelDuration,
         bool playArrowShotSound,
+        int damage,
         System.Action onSuccessfulHit)
     {
         if (character == null || projectilePrefab == null)
@@ -199,7 +236,7 @@ public class RainOfBoltsAbility : AbilityDefinition
             ApplyRainBoltProjectilePose(projectile.transform, startPosition, targetPosition, 1f, progressCurve);
         }
 
-        bool didHit = ResolveProjectileImpact(character, cellPosition, projectile);
+        bool didHit = ResolveProjectileImpact(character, cellPosition, projectile, damage);
         if (didHit)
         {
             onSuccessfulHit?.Invoke();
@@ -220,6 +257,8 @@ public class RainOfBoltsAbility : AbilityDefinition
         }
 
         int radius = baseRadius + character.GetUpgradeStacks(AbilityUpgradeKey.RainOfBoltsCloudySky);
+        HashSet<Enemy> targetedEnemies = new HashSet<Enemy>();
+        HashSet<LichSkullObject> targetedSkulls = new HashSet<LichSkullObject>();
         for (int offsetX = -radius; offsetX <= radius; offsetX++)
         {
             for (int offsetY = -radius; offsetY <= radius; offsetY++)
@@ -235,9 +274,27 @@ public class RainOfBoltsAbility : AbilityDefinition
                     continue;
                 }
 
-                bool hasEnemyTarget = character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null;
-                bool hasSkullTarget = character.Board.TryGetLichSkullObject(cellPosition, out LichSkullObject skull) && skull != null;
-                if (hasEnemyTarget || hasSkullTarget || (cell.Walkable && !cell.IsOccupied))
+                if (character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null)
+                {
+                    if (targetedEnemies.Add(enemy))
+                    {
+                        cells.Add(cellPosition);
+                    }
+
+                    continue;
+                }
+
+                if (character.Board.TryGetLichSkullObject(cellPosition, out LichSkullObject skull) && skull != null)
+                {
+                    if (targetedSkulls.Add(skull))
+                    {
+                        cells.Add(cellPosition);
+                    }
+
+                    continue;
+                }
+
+                if (cell.Walkable && !cell.IsOccupied)
                 {
                     cells.Add(cellPosition);
                 }
@@ -245,6 +302,39 @@ public class RainOfBoltsAbility : AbilityDefinition
         }
 
         return cells;
+    }
+
+    private int CountSuccessfulTargetCells(Character character, List<Vector2Int> cells)
+    {
+        if (character == null || character.Board == null || cells == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        HashSet<Vector2Int> uniqueCells = new HashSet<Vector2Int>(cells);
+        HashSet<Enemy> targetedEnemies = new HashSet<Enemy>();
+        HashSet<LichSkullObject> targetedSkulls = new HashSet<LichSkullObject>();
+        foreach (Vector2Int cellPosition in uniqueCells)
+        {
+            if (character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null)
+            {
+                if (targetedEnemies.Add(enemy))
+                {
+                    count++;
+                }
+
+                continue;
+            }
+
+            if (character.Board.TryGetLichSkullObject(cellPosition, out LichSkullObject skull) && skull != null
+                && targetedSkulls.Add(skull))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private List<Vector2Int> GetExtraTargetCells(Character character, HashSet<Vector2Int> excludedCells)
@@ -263,6 +353,25 @@ public class RainOfBoltsAbility : AbilityDefinition
 
         List<Vector2Int> preferredCells = new List<Vector2Int>();
         List<Vector2Int> fallbackCells = new List<Vector2Int>();
+        HashSet<Enemy> excludedEnemies = new HashSet<Enemy>();
+        HashSet<LichSkullObject> excludedSkulls = new HashSet<LichSkullObject>();
+        if (excludedCells != null)
+        {
+            foreach (Vector2Int excludedCell in excludedCells)
+            {
+                if (character.Board.TryGetEnemy(excludedCell, out Enemy excludedEnemy) && excludedEnemy != null)
+                {
+                    excludedEnemies.Add(excludedEnemy);
+                }
+                else if (character.Board.TryGetLichSkullObject(excludedCell, out LichSkullObject excludedSkull) && excludedSkull != null)
+                {
+                    excludedSkulls.Add(excludedSkull);
+                }
+            }
+        }
+
+        HashSet<Enemy> candidateEnemies = new HashSet<Enemy>();
+        HashSet<LichSkullObject> candidateSkulls = new HashSet<LichSkullObject>();
         for (int x = 0; x < character.Board.Width; x++)
         {
             for (int y = 0; y < character.Board.Height; y++)
@@ -276,6 +385,21 @@ public class RainOfBoltsAbility : AbilityDefinition
                 if (!character.Board.TryGetCell(cellPosition, out BoardCell cell))
                 {
                     continue;
+                }
+
+                if (character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null)
+                {
+                    if (excludedEnemies.Contains(enemy) || !candidateEnemies.Add(enemy))
+                    {
+                        continue;
+                    }
+                }
+                else if (character.Board.TryGetLichSkullObject(cellPosition, out LichSkullObject skull) && skull != null)
+                {
+                    if (excludedSkulls.Contains(skull) || !candidateSkulls.Add(skull))
+                    {
+                        continue;
+                    }
                 }
 
                 bool isBarrel = character.Board.TryGetBarrel(cellPosition, out BarrelObstacle barrel) && barrel != null;

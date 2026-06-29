@@ -69,19 +69,40 @@ public class WhisperfangAbility : AbilityDefinition
         Vector2Int currentCell,
         bool consumedMovementPoint)
     {
-        if (character == null || runtime == null || previousCell == currentCell || !runtime.IsActive)
+        if (character == null || runtime == null || previousCell == currentCell)
         {
             return;
         }
 
         runtime.GrantBonusTurnUse(1);
         character.RefreshAbilityState();
+
+        if (!runtime.IsActive)
+        {
+            return;
+        }
+
         character.StartCoroutine(ResolveAutoReshootAfterMove(character, runtime));
     }
 
     public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
         return character != null && runtime != null;
+    }
+
+    public bool IsLuckyBoltPrimed(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (character == null
+            || runtime == null
+            || !runtime.IsActive
+            || character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangLuckyBolt) <= 0
+            || runtime.RemainingUsesThisTurn <= 0)
+        {
+            return false;
+        }
+
+        int nextShotOrdinal = runtime.UsesThisTurnCount + 1;
+        return nextShotOrdinal == 5 || nextShotOrdinal == 7;
     }
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
@@ -207,7 +228,7 @@ public class WhisperfangAbility : AbilityDefinition
         int damage = baseDamage;
         if (character != null
             && character.GetUpgradeStacks(AbilityUpgradeKey.WhisperfangLuckyBolt) > 0
-            && shotOrdinal == 5)
+            && (shotOrdinal == 5 || shotOrdinal == 7))
         {
             damage += 1;
         }

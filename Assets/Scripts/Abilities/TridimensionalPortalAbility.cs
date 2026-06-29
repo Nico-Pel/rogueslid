@@ -72,7 +72,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
         PortalState state = GetState(runtime);
         if (state.ActivePortals.Count > 0)
         {
-            return "IN";
+            return "ON";
         }
 
         return base.GetCounterText(runtime);
@@ -158,7 +158,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
             Vector2Int originCell = character.GridPosition;
             if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalImpact) > 0)
             {
-                character.DamageEnemiesAround(originCell, 1, 1, true, this);
+                DamageEnemiesAroundWithPortalImpact(character, originCell, 1);
                 PlayPortalFxAtCell(character, originCell, portalImpactDepartureFx);
             }
 
@@ -185,7 +185,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalDistortion) > 0)
         {
-            character.DamageEnemiesAround(newPortal.PortalCell, 1, 1, true, this);
+            character.DamageEnemiesAround(newPortal.PortalCell, 1, 2, true, this);
             PlayPortalFxAtCell(character, newPortal.PortalCell, portalDistortionSpawnFx);
         }
 
@@ -445,7 +445,7 @@ public class TridimensionalPortalAbility : AbilityDefinition
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.TridimensionalPortalImpact) > 0)
         {
-            character.DamageEnemiesAround(destinationPortal.PortalCell, 1, 1, true, this);
+            DamageEnemiesAroundWithPortalImpact(character, destinationPortal.PortalCell, 1);
             PlayPortalFxAtCell(character, destinationPortal.PortalCell, portalImpactArrivalFx);
         }
 
@@ -479,5 +479,42 @@ public class TridimensionalPortalAbility : AbilityDefinition
         }
 
         character.EndActionLock();
+    }
+
+    private void DamageEnemiesAroundWithPortalImpact(Character character, Vector2Int centerCell, int range)
+    {
+        if (character == null || character.Board == null)
+        {
+            return;
+        }
+
+        for (int offsetX = -range; offsetX <= range; offsetX++)
+        {
+            for (int offsetY = -range; offsetY <= range; offsetY++)
+            {
+                if (Mathf.Max(Mathf.Abs(offsetX), Mathf.Abs(offsetY)) > range)
+                {
+                    continue;
+                }
+
+                Vector2Int targetCell = centerCell + new Vector2Int(offsetX, offsetY);
+                if (character.Board.TryGetEnemy(targetCell, out Enemy enemy) && enemy != null)
+                {
+                    int appliedDamage = character.DealDamageToEnemy(enemy, 1, false, true, DamageSoundType.Default, this);
+                    if (appliedDamage > 0)
+                    {
+                        enemy.ApplyStatusEffect(CombatStatusType.Bleeding, -1, 1);
+                    }
+                }
+                else if (character.Board.TryGetLichSkullObject(targetCell, out LichSkullObject skull) && skull != null)
+                {
+                    character.DealDamageToLichSkull(skull, 1, false, DamageSoundType.Default, this);
+                }
+                else if (character.Board.TryGetBarrel(targetCell, out BarrelObstacle barrel) && barrel != null)
+                {
+                    barrel.TakeHit();
+                }
+            }
+        }
     }
 }

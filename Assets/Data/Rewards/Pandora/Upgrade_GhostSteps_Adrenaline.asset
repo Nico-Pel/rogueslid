@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_ghost_steps_adrenaline
   rewardTitle: Adrenaline
-  rewardDescription: If Pandora dealt damage to at least one enemy with Ghost Steps, she has a 5% chance to recover 1 movement point.
+  rewardDescription: If Pandora dealt damage to at least one enemy with Ghost Steps, she has a 10% chance to recover 1 movement point.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 0a7d3b5a7fee6183fb139dc39bc70067, type: 2}
   upgradeKey: 6

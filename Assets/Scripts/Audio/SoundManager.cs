@@ -26,7 +26,9 @@ public class SoundManager : MonoBehaviour
     public static SoundManager Instance { get; private set; }
 
     [Header("Music")]
+    [SerializeField] private AudioClip mainMenuMusic;
     [SerializeField] private AudioClip arenaMusic;
+    [SerializeField] private AudioClip shopMusic;
     [SerializeField] private AudioClip victoryJingle;
     [SerializeField] private AudioClip victoryChoiceMusic;
     [SerializeField] private AudioClip loseJingle;
@@ -49,6 +51,7 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip healSound;
     [SerializeField] private AudioClip dashSound;
     [SerializeField] private AudioClip clickSound;
+    [SerializeField] private AudioClip moneySound;
     [SerializeField] [Range(0f, 1f)] private float dashVolume = 0.2f;
     [SerializeField] [Range(0f, 1f)] private float clickVolume = 1f;
 
@@ -56,6 +59,8 @@ public class SoundManager : MonoBehaviour
     private AudioSource oneShotSource;
 
     public float UiVolumeMultiplier => uiVolumeMultiplier;
+    public AudioClip ShopMusic => shopMusic;
+    public AudioClip MoneySound => moneySound;
 
     private void Awake()
     {
@@ -82,27 +87,15 @@ public class SoundManager : MonoBehaviour
         PlayArenaMusic(arenaMusic);
     }
 
+    public void PlayMainMenuMusic()
+    {
+        PlayMusic(mainMenuMusic, true);
+    }
+
     public void PlayArenaMusic(AudioClip musicOverride)
     {
         AudioClip targetMusic = musicOverride != null ? musicOverride : arenaMusic;
-        if (targetMusic == null)
-        {
-            return;
-        }
-
-        EnsureAudioSources();
-
-        if (musicSource.isPlaying && musicSource.clip == targetMusic)
-        {
-            return;
-        }
-
-        oneShotSource.Stop();
-        musicSource.Stop();
-        musicSource.clip = targetMusic;
-        musicSource.loop = loopArenaMusic;
-        musicSource.volume = musicVolume;
-        musicSource.Play();
+        PlayMusic(targetMusic, loopArenaMusic);
     }
 
     public void StopArenaMusic()
@@ -132,23 +125,7 @@ public class SoundManager : MonoBehaviour
 
     public void PlayVictoryChoiceMusic()
     {
-        if (victoryChoiceMusic == null)
-        {
-            return;
-        }
-
-        EnsureAudioSources();
-
-        if (musicSource.isPlaying && musicSource.clip == victoryChoiceMusic)
-        {
-            return;
-        }
-
-        musicSource.Stop();
-        musicSource.clip = victoryChoiceMusic;
-        musicSource.loop = loopVictoryChoiceMusic;
-        musicSource.volume = musicVolume;
-        musicSource.Play();
+        PlayMusic(victoryChoiceMusic, loopVictoryChoiceMusic, false);
     }
 
     public void PlayLoseJingle()
@@ -325,6 +302,34 @@ public class SoundManager : MonoBehaviour
             oneShotSource.loop = false;
             oneShotSource.spatialBlend = 0f;
         }
+    }
+
+    private void PlayMusic(AudioClip clip, bool loop, bool stopOneShot = true)
+    {
+        if (clip == null)
+        {
+            return;
+        }
+
+        EnsureAudioSources();
+
+        if (musicSource.isPlaying && musicSource.clip == clip)
+        {
+            musicSource.loop = loop;
+            musicSource.volume = musicVolume;
+            return;
+        }
+
+        if (stopOneShot)
+        {
+            oneShotSource.Stop();
+        }
+
+        musicSource.Stop();
+        musicSource.clip = clip;
+        musicSource.loop = loop;
+        musicSource.volume = musicVolume;
+        musicSource.Play();
     }
 
     private Transform GetSoundAnchor()

@@ -14,6 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_runic_belt
   rewardTitle: Runic Belt
-  rewardDescription: Gain 2 max health and 1 bonus damage while you have full health.
+  rewardDescription: Gain 2 max health. Gain 1 bonus damage while you have full health.
   artwork: {fileID: 177667577, guid: 82815694f6d7e4eba94663ced4be4c1b, type: 3}
   itemKey: 17
+  shopPrice: 15
+  showCombatStartYesNoPrompt: 0
+  activationQuestionOverride: 
+  consumeOnYes: 0
+  yesNoEffect: 0
+  activationSound: {fileID: 0}
+  damageFxPrefab: {fileID: 0}
+  damageFxLifetime: 1
+  activationSoundVolume: 1

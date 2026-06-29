@@ -17,6 +17,7 @@ MonoBehaviour:
     to control the fight.
   portrait: {fileID: 21300000, guid: 306cf99fa94d546028d154f5458fa8aa, type: 3}
   portraitLose: {fileID: 21300000, guid: ebd33678914a444498a4471941d25ed1, type: 3}
+  pathIcon: {fileID: -931747681, guid: 0908207145742434bbee8ded68f13915, type: 3}
   maxHealth: 10
   bonusDamage: 0
   resistance: 0

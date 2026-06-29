@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_tridimensional_portal_impact
   rewardTitle: Three-dimensional impact
-  rewardDescription: Enemies near Hector take 1 damage when he disappears and reappears.
+  rewardDescription: Enemies near Hector take 1 damage and gain bleeding when he disappears and reappears.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 4c67b939bf2648578e89a5b2349b7211, type: 2}
   upgradeKey: 52

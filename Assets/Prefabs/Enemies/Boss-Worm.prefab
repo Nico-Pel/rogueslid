@@ -31,6 +31,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1163414978245039918}
   m_LocalEulerAnglesHint: {x: -8.621, y: -3.136, z: -1.976}
+--- !u!1 &4430086330255424264
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4566457679001245559}
+  m_Layer: 0
+  m_Name: ProjectileSpawnPos
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4566457679001245559
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4430086330255424264}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.128, z: -0.097}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1163414978245039918}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &319966727780548529
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -105,6 +136,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 21334465311986539, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1654653390129865545, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -203,12 +238,24 @@ PrefabInstance:
       objectReference: {fileID: 122746, guid: 2600ac3c92a32344aac7a38b64dc2f5c, type: 3}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackDamageDelay
-      value: 0.4
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: projectileSpawnPos
+      value: 
+      objectReference: {fileID: 4566457679001245559}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: projectileSpawnDelay
+      value: 0.6
       objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: attackStateSourceClip
       value: 
       objectReference: {fileID: 7400000, guid: d94e16559977b44669fb75ea29deac22, type: 2}
+    - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
+      propertyPath: projectileTravelSpeed
+      value: 12
+      objectReference: {fileID: 0}
     - target: {fileID: 3310056162485373852, guid: 4ca03a5d32d944f5ba018f60fa33d92c, type: 3}
       propertyPath: lookAtTargetWhenAttacking
       value: 1
@@ -484,6 +531,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 5034aef6c25f44772bd2950a04581bb2, type: 3}
       insertIndex: 1
       addedObject: {fileID: 324079386210819161}
+    - targetCorrespondingSourceObject: {fileID: 2763320318159668893, guid: 5034aef6c25f44772bd2950a04581bb2, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4566457679001245559}
     - targetCorrespondingSourceObject: {fileID: 2763320318159668893, guid: 5034aef6c25f44772bd2950a04581bb2, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8044795361831501133}

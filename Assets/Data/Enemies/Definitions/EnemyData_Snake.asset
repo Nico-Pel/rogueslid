@@ -19,6 +19,7 @@ MonoBehaviour:
   force: 3
   resistance: 0
   mobility: 3
+  goldReward: 5
   attackPattern: 0
   attackRange: 1
   damageSoundType: 1
@@ -46,6 +47,7 @@ MonoBehaviour:
   moveDuration: 0.16
   projectileTravelHeight: 0.5
   projectileTravelSpeed: 10
+  projectileSpawnDelay: 0
   useFlyAnimationOnObstacle: 0
   immuneToFire: 0
   specialBehavior: 1
@@ -57,6 +59,13 @@ MonoBehaviour:
   specialRecoveryDelay: 0.25
   specialMinimumDistance: 3
   specialLandingDistance: 2
+  specialImpactShakeRatio: 0.2
+  specialPerDistanceDelay: 0.05
+  specialBumpHeight: 0.12
+  specialBumpDurationPerDistance: 0.08
+  specialSelfBuffFxPrefab: {fileID: 0}
+  specialAlternateProjectilePrefab: {fileID: 0}
+  specialCompanionPrefab: {fileID: 0}
   showAttack: 1
   attackSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   showHealth: 1
@@ -65,5 +74,5 @@ MonoBehaviour:
   showRegen: 0
   regenPerTurn: 0
   showSpecial: 1
-  specialStatSprite: {fileID: 1005144073, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
+  specialStatSprite: {fileID: 85107637, guid: 842726b52a1124ad199362a6bcff4b37, type: 3}
   specialStatValue: Poison

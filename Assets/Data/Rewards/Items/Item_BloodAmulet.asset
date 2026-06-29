@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_blood_amulet
   rewardTitle: Blood Amulet
-  rewardDescription: Recover 2 health every time you kill an enemy.
+  rewardDescription: Recover 1 health every time you kill an enemy.
   artwork: {fileID: -1504326559, guid: 1e73d525c312240ef83c8996da75647e, type: 3}
   itemKey: 0

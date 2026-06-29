@@ -7,11 +7,14 @@ public class AbilityUpgradeRewardDefinition : RewardDefinition
     [SerializeField] private AbilityUpgradeKey upgradeKey;
     [SerializeField] private bool stackable;
     [SerializeField] private int maxStacks;
+    [Min(0)]
+    [SerializeField] private int shopPrice = 25;
 
     public AbilityDefinition Ability => ability;
     public AbilityUpgradeKey UpgradeKey => upgradeKey;
     public bool Stackable => stackable;
     public int MaxStacks => maxStacks;
+    public override int ShopPrice => Mathf.Max(0, shopPrice);
 
     public override RewardOfferKind Kind => RewardOfferKind.AbilityUpgrade;
     public override RewardPresentationIconKind IconKind => GetAbilityIconKind(ability != null ? ability.Category : AbilityCategory.BasicAttack);
@@ -19,7 +22,7 @@ public class AbilityUpgradeRewardDefinition : RewardDefinition
     public override bool CanOffer(PlayerRunRewardState runRewardState)
     {
         int currentStacks = runRewardState != null ? runRewardState.GetUpgradeStacks(upgradeKey) : 0;
-        if (ability == null || runRewardState == null || !runRewardState.HasAbility(ability))
+        if (ability == null || runRewardState == null || !runRewardState.KnowsAbility(ability))
         {
             return false;
         }

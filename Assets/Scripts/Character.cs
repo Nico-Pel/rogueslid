@@ -105,7 +105,12 @@ public class Character : MonoBehaviour
     private bool isDying;
     private bool attackedThisTurn;
     private bool attackedLastTurn;
+    private bool movedThisTurn;
+    private bool movedLastTurn;
+    private bool cowardScarfTriggeredThisTurn;
+    private bool corruptedBlouseTriggeredThisCombat;
     private readonly HashSet<Enemy> frostCharmedEnemiesThisTurn = new HashSet<Enemy>();
+    private readonly HashSet<Enemy> makibishiTriggeredEnemiesThisCombat = new HashSet<Enemy>();
     private int nextAttackBonusDamage;
     private int samuraiMaskBonusDamage;
     private int bonusDamageUntilEndOfTurn;
@@ -115,9 +120,9 @@ public class Character : MonoBehaviour
     private GameObject activeNextAttackBonusAuraInstance;
     private GameObject temporaryDamageAuraPrefab;
     private GameObject activeTemporaryDamageAuraInstance;
-    [SerializeField] private GameObject fxStartPoisonPrefab;
-    [SerializeField] private GameObject fxPoisonPrefab;
-    private GameObject activePoisonFxInstance;
+    [SerializeField] private GameObject fxFortuneDaggerCombatStartPrefab;
+    private readonly Dictionary<CombatStatusType, GameObject> activeStatusFxInstances = new Dictionary<CombatStatusType, GameObject>();
+    private CombatStatusFxLibrary statusFxLibrary;
     private Enemy markedEnemy;
     private LichSkullObject markedLichSkull;
     private DeathMarkAbility deathMarkAbility;
@@ -133,10 +138,11 @@ public class Character : MonoBehaviour
     public int RemainingMovementPoints => remainingMovementPoints;
     public int WolfMovementPoints => wolfMovementPoints;
     public int ExtraMovementPointsBeyondBase => Mathf.Max(0, remainingMovementPoints - wolfMovementPoints - movementPointsPerTurn);
-    public bool CanAct => remainingMovementPoints > 0 && !IsBusy;
+    public bool CanAct => (remainingMovementPoints > 0 || CanSpendHealthForExtraMovement()) && !IsBusy;
     public bool IsPoisoned => isPoisoned;
     public bool IsMoving { get; private set; }
     public bool IsBusy => IsMoving || actionLockCount > 0;
+    public bool MovedLastTurn => movedLastTurn;
     public Player Owner { get; private set; }
     public BoardManager Board { get; private set; }
     public CharacterData Data => characterData;
@@ -144,6 +150,18 @@ public class Character : MonoBehaviour
     public string CharacterDescription => characterData != null ? characterData.Description : string.Empty;
     public Sprite CharacterPortrait => characterData != null ? characterData.Portrait : null;
     public Sprite CharacterLosePortrait => characterData != null ? characterData.PortraitLose : null;
+    public Sprite CharacterPathIcon => characterData != null ? characterData.PathIcon : null;
+
+    public void SetCharacterData(CharacterData data)
+    {
+        if (data == null)
+        {
+            return;
+        }
+
+        characterData = data;
+        ApplyCharacterDataDefinition();
+    }
 
     public AbilityCategory GetAbilitySlotCategory(int slotIndex)
     {
@@ -197,7 +215,12 @@ public class Character : MonoBehaviour
         enemyTurnInProgress = false;
         attackedThisTurn = false;
         attackedLastTurn = false;
+        movedThisTurn = false;
+        movedLastTurn = false;
+        cowardScarfTriggeredThisTurn = false;
+        corruptedBlouseTriggeredThisCombat = false;
         frostCharmedEnemiesThisTurn.Clear();
+        makibishiTriggeredEnemiesThisCombat.Clear();
         ClearNextAttackBonusDamage();
         samuraiMaskBonusDamage = 0;
         ClearPoisoned(false);
@@ -250,6 +273,9 @@ public class Character : MonoBehaviour
         isFirstEnemyTurnOfArena = true;
         enemyTurnInProgress = false;
         abilityTargetsHitThisTurn.Clear();
+        cowardScarfTriggeredThisTurn = false;
+        corruptedBlouseTriggeredThisCombat = false;
+        makibishiTriggeredEnemiesThisCombat.Clear();
         markedEnemy = null;
         markedLichSkull = null;
         deathMarkAbility = null;
@@ -277,13 +303,10 @@ public class Character : MonoBehaviour
 
     public void ResetTurn()
     {
-        if (HasItem(ItemRewardKey.Sakura) && tookDamageSinceLastPlayerTurn)
-        {
-            Heal(1, ItemRewardKey.Sakura);
-        }
-
         tookDamageSinceLastPlayerTurn = false;
         attackedThisTurn = false;
+        movedThisTurn = false;
+        cowardScarfTriggeredThisTurn = false;
         RecalculateItemDrivenStats();
         wolfMovementPoints = 0;
         remainingMovementPoints = movementPointsPerTurn;
@@ -302,7 +325,11 @@ public class Character : MonoBehaviour
     public bool TrySlide(Vector2Int direction)
     {
         bool consumesMovementPoint = ShouldConsumeMovementPointForSlide();
-        if (Board == null || (remainingMovementPoints <= 0 && consumesMovementPoint) || IsBusy || direction == Vector2Int.zero)
+        bool canSpendBloodForMovement = consumesMovementPoint && remainingMovementPoints <= 0 && CanSpendHealthForExtraMovement();
+        if (Board == null
+            || (remainingMovementPoints <= 0 && consumesMovementPoint && !canSpendBloodForMovement)
+            || IsBusy
+            || direction == Vector2Int.zero)
         {
             return false;
         }
@@ -339,7 +366,7 @@ public class Character : MonoBehaviour
         gridPosition = destination;
         if (consumesMovementPoint)
         {
-            ConsumeMovementPointInternal();
+            ConsumeMovementPointInternal(true);
         }
         Board.NotifyCharacterTraversedPath(this, startCell, destination);
         NotifyAbilitiesCharacterMoved(startCell, destination, consumesMovementPoint);
@@ -409,11 +436,12 @@ public class Character : MonoBehaviour
             TriggerItemActivationPulse(ItemRewardKey.SandglassTalisman);
         }
 
-        if (nextAttackBonusDamage > 0
-            && runtime.Definition != null
-            && runtime.Definition.Category == AbilityCategory.BasicAttack)
+        if (HasItem(ItemRewardKey.CowardsScarf)
+            && !cowardScarfTriggeredThisTurn
+            && HaveAllAbilitiesBeenSpentForTurn())
         {
-            ConsumeNextAttackBonusDamage();
+            cowardScarfTriggeredThisTurn = true;
+            GainMovementPoints(1, ItemRewardKey.CowardsScarf);
         }
 
         NotifyMovementPointsChanged();
@@ -759,7 +787,9 @@ public class Character : MonoBehaviour
         }
 
         RecalculateItemDrivenStats();
+        int nextWeaponAbilityBonusDamage = GetNextWeaponAbilityBonusDamage(sourceAbility);
         int totalDamage = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
+        totalDamage += nextWeaponAbilityBonusDamage;
         totalDamage += GetAbilityItemBonusDamage(sourceAbility);
         totalDamage += GetDistanceBonusDamageAgainstEnemy(enemy);
         if (HasItem(ItemRewardKey.ThornedBracer)
@@ -769,6 +799,11 @@ public class Character : MonoBehaviour
         }
 
         int appliedDamage = enemy.TakeDamage(totalDamage, hitSoundType, isAbilityDamage);
+        if (appliedDamage > 0)
+        {
+            HandleEnemyDamagedByPlayer(enemy, isAbilityDamage);
+        }
+
         if (isAbilityDamage)
         {
             if (appliedDamage > 0)
@@ -776,7 +811,6 @@ public class Character : MonoBehaviour
                 PlayAbilityDamageFx(sourceAbility, enemy.EffectAnchor);
             }
 
-            HandleAbilityDamageSideEffects(enemy);
             if (enemy == markedEnemy && enemy.CurrentHealth > 0)
             {
                 int bonusMarkDamage = enemy.TakeDamage(1, DamageSoundType.Default, false);
@@ -790,6 +824,11 @@ public class Character : MonoBehaviour
         if (enemy.CurrentHealth <= 0)
         {
             HandleEnemyKilled(enemy);
+        }
+
+        if (nextWeaponAbilityBonusDamage > 0)
+        {
+            ConsumeNextAttackBonusDamage();
         }
 
         return appliedDamage;
@@ -871,6 +910,13 @@ public class Character : MonoBehaviour
 
         if (sourceEnemy != null)
         {
+            if (finalDamage > 0 && HasItem(ItemRewardKey.CorruptedBlouse) && !corruptedBlouseTriggeredThisCombat)
+            {
+                corruptedBlouseTriggeredThisCombat = true;
+                sourceEnemy.ApplyStatusEffect(CombatStatusType.Poisoned, -1, 1);
+                TriggerItemActivationPulse(ItemRewardKey.CorruptedBlouse);
+            }
+
             if (!wasProjectile && HasItem(ItemRewardKey.ThornArmor) && IsEnemyClose(sourceEnemy))
             {
                 DealDamageToEnemy(sourceEnemy, 1, false);
@@ -1031,12 +1077,38 @@ public class Character : MonoBehaviour
         }
 
         int bonus = includeTemporaryModifiers ? BonusDamage : GetNaturalBonusDamage();
+        if (includeTemporaryModifiers)
+        {
+            bonus += nextAttackBonusDamage;
+        }
+
+        if (HasItem(ItemRewardKey.IronGauntlets))
+        {
+            bonus += 1;
+        }
+
         return Mathf.Max(0, weaponDamage + bonus);
     }
 
     public bool HasItem(ItemRewardKey itemKey)
     {
         return runRewardState != null && runRewardState.HasItem(itemKey);
+    }
+
+    public bool TrySpendHealth(int amount)
+    {
+        if (amount <= 0 || currentHealth <= amount)
+        {
+            return false;
+        }
+
+        currentHealth = Mathf.Max(0, currentHealth - amount);
+        tookDamageSinceLastPlayerTurn = true;
+        blinkFeedback?.Blink(Color.red, 0.5f, 0.12f);
+        cam.Instance?.CamShake(amount);
+        RefreshHpBar();
+        SyncRunStateHealth();
+        return currentHealth > 0;
     }
 
     public bool IsItemActivationActive(ItemRewardKey itemKey)
@@ -1170,6 +1242,7 @@ public class Character : MonoBehaviour
     public void CommitCurrentTurnStateForNextTurn()
     {
         attackedLastTurn = attackedThisTurn;
+        movedLastTurn = movedThisTurn;
 
         for (int index = 0; index < abilities.Count; index++)
         {
@@ -1189,12 +1262,31 @@ public class Character : MonoBehaviour
     {
         enemyTurnInProgress = false;
         isFirstEnemyTurnOfArena = false;
+        if (HasItem(ItemRewardKey.Sakura) && tookDamageDuringEnemyTurn)
+        {
+            Heal(1, ItemRewardKey.Sakura);
+        }
+
         if (HasItem(ItemRewardKey.GuardMedal) && !tookDamageDuringEnemyTurn)
         {
             Heal(1, ItemRewardKey.GuardMedal);
         }
 
         RecalculateItemDrivenStats();
+    }
+
+    public void HandleCombatStarted()
+    {
+        if (!HasItem(ItemRewardKey.FortuneDagger) || currentHealth <= 0)
+        {
+            return;
+        }
+
+        int appliedDamage = TakeDamage(3);
+        if (appliedDamage > 0)
+        {
+            PlayFeedbackFx(fxFortuneDaggerCombatStartPrefab, transform, destroyAfterSeconds: 2f);
+        }
     }
 
     public void AddNextAttackBonusDamage(int amount, GameObject auraFxPrefab = null)
@@ -1277,7 +1369,7 @@ public class Character : MonoBehaviour
         }
 
         isPoisoned = true;
-        PlayFeedbackFx(fxStartPoisonPrefab, destroyAfterSeconds: 2f);
+        PlayStatusApplyFx(CombatStatusType.Poisoned);
         RefreshPoisonFx();
     }
 
@@ -1285,7 +1377,7 @@ public class Character : MonoBehaviour
     {
         bool wasPoisoned = isPoisoned;
         isPoisoned = false;
-        ClearPoisonFx();
+        ClearPersistentStatusFx(CombatStatusType.Poisoned);
         if (wasPoisoned && playHealFx)
         {
             PlayHealProcFx();
@@ -1435,7 +1527,9 @@ public class Character : MonoBehaviour
         }
 
         RecalculateItemDrivenStats();
+        int nextWeaponAbilityBonusDamage = GetNextWeaponAbilityBonusDamage(sourceAbility);
         int totalDamage = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
+        totalDamage += nextWeaponAbilityBonusDamage;
         totalDamage += GetAbilityItemBonusDamage(sourceAbility);
 
         int appliedDamage = skullObject.TakeDamage(totalDamage, hitSoundType);
@@ -1453,6 +1547,11 @@ public class Character : MonoBehaviour
         if (skullObject.IsResolving)
         {
             HandleMarkedLichSkullDestroyed(skullObject);
+        }
+
+        if (nextWeaponAbilityBonusDamage > 0)
+        {
+            ConsumeNextAttackBonusDamage();
         }
 
         return appliedDamage;
@@ -1800,7 +1899,7 @@ public class Character : MonoBehaviour
         activeTrailReplacementOwner = null;
         ClearActiveReplacementTrailInstance();
         ClearTemporaryDamageAura();
-        ClearPoisonFx();
+        ClearPersistentStatusFx(CombatStatusType.Poisoned);
         if (defaultTrailObject != null)
         {
             defaultTrailObject.SetActive(true);
@@ -1965,7 +2064,7 @@ public class Character : MonoBehaviour
 
         if (damagedEnemies.Count > 0)
         {
-            float refundChance = 0.05f * GetUpgradeStacks(AbilityUpgradeKey.GhostStepsAdrenaline);
+            float refundChance = 0.10f * GetUpgradeStacks(AbilityUpgradeKey.GhostStepsAdrenaline);
             if (refundChance > 0f && UnityEngine.Random.value < refundChance)
             {
                 GainMovementPoints(1);
@@ -2124,11 +2223,18 @@ public class Character : MonoBehaviour
         MovementPointsChanged?.Invoke(this);
     }
 
-    private bool ConsumeMovementPointInternal()
+    private bool ConsumeMovementPointInternal(bool allowBloodPayment = false)
     {
         if (remainingMovementPoints <= 0)
         {
-            return false;
+            if (!allowBloodPayment || !HasItem(ItemRewardKey.IronSpikedSandals) || !TrySpendHealth(2))
+            {
+                return false;
+            }
+
+            TriggerItemActivationPulse(ItemRewardKey.IronSpikedSandals);
+            NotifyMovementPointsChanged();
+            return true;
         }
 
         remainingMovementPoints--;
@@ -2141,6 +2247,59 @@ public class Character : MonoBehaviour
         return true;
     }
 
+    private bool CanSpendHealthForExtraMovement()
+    {
+        return HasItem(ItemRewardKey.IronSpikedSandals) && currentHealth > 2;
+    }
+
+    private bool HaveAllAbilitiesBeenSpentForTurn()
+    {
+        for (int index = 0; index < abilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = abilities[index];
+            if (runtime != null && runtime.IsUsable(this))
+            {
+                return false;
+            }
+        }
+
+        return abilities.Count > 0;
+    }
+
+    private void TriggerAdjacentDeathExplosion(Enemy killedEnemy, Vector2Int centerCell)
+    {
+        if (Board == null)
+        {
+            return;
+        }
+
+        bool hitAnyEnemy = false;
+        for (int offsetX = -1; offsetX <= 1; offsetX++)
+        {
+            for (int offsetY = -1; offsetY <= 1; offsetY++)
+            {
+                if (offsetX == 0 && offsetY == 0)
+                {
+                    continue;
+                }
+
+                Vector2Int targetCell = centerCell + new Vector2Int(offsetX, offsetY);
+                if (!Board.TryGetEnemy(targetCell, out Enemy enemy) || enemy == null || enemy == killedEnemy)
+                {
+                    continue;
+                }
+
+                int appliedDamage = DealDamageToEnemy(enemy, 1, false);
+                hitAnyEnemy |= appliedDamage > 0;
+            }
+        }
+
+        if (hitAnyEnemy)
+        {
+            TriggerItemActivationPulse(ItemRewardKey.ScrapBomb);
+        }
+    }
+
     private void NotifyMoved(Vector2Int previousCell, Vector2Int currentCell)
     {
         if (previousCell == currentCell)
@@ -2148,6 +2307,7 @@ public class Character : MonoBehaviour
             return;
         }
 
+        movedThisTurn = true;
         Moved?.Invoke(this, previousCell, currentCell);
     }
 
@@ -2438,9 +2598,11 @@ public class Character : MonoBehaviour
 
     private void HandleEnemyKilled(Enemy enemy)
     {
+        Vector2Int enemyCell = enemy != null ? enemy.GridPosition : gridPosition;
+
         if (HasItem(ItemRewardKey.BloodAmulet))
         {
-            Heal(2, ItemRewardKey.BloodAmulet);
+            Heal(1, ItemRewardKey.BloodAmulet);
         }
 
         if (HasItem(ItemRewardKey.RavenFeather))
@@ -2473,6 +2635,11 @@ public class Character : MonoBehaviour
             }
 
             ClearDeathMark();
+        }
+
+        if (HasItem(ItemRewardKey.ScrapBomb))
+        {
+            TriggerAdjacentDeathExplosion(enemy, enemyCell);
         }
 
         if (Board != null && Board.SpawnedEnemies.Count == 1)
@@ -2526,6 +2693,7 @@ public class Character : MonoBehaviour
             return;
         }
 
+        enemy.ApplyStatusEffect(CombatStatusType.Frozen, 1, 1);
         enemy.ApplyMobilityPenaltyNextTurn(1);
         TriggerItemActivationPulse(ItemRewardKey.FrostCharm);
     }
@@ -2545,7 +2713,42 @@ public class Character : MonoBehaviour
             return 1;
         }
 
+        if (HasItem(ItemRewardKey.IronGauntlets) && sourceAbility.Category == AbilityCategory.BasicAttack)
+        {
+            TriggerItemActivationPulse(ItemRewardKey.IronGauntlets);
+            return 1;
+        }
+
         return 0;
+    }
+
+    private int GetNextWeaponAbilityBonusDamage(AbilityDefinition sourceAbility)
+    {
+        if (nextAttackBonusDamage <= 0 || sourceAbility == null || sourceAbility.Category != AbilityCategory.BasicAttack)
+        {
+            return 0;
+        }
+
+        return nextAttackBonusDamage;
+    }
+
+    private void HandleEnemyDamagedByPlayer(Enemy enemy, bool isAbilityDamage)
+    {
+        if (enemy == null)
+        {
+            return;
+        }
+
+        if (HasItem(ItemRewardKey.Makibishi) && makibishiTriggeredEnemiesThisCombat.Add(enemy))
+        {
+            enemy.ApplyMobilityPenaltyNextTurn(1);
+            TriggerItemActivationPulse(ItemRewardKey.Makibishi);
+        }
+
+        if (isAbilityDamage)
+        {
+            HandleAbilityDamageSideEffects(enemy);
+        }
     }
 
     private int GetDistanceBonusDamageAgainstEnemy(Enemy enemy)
@@ -2743,7 +2946,7 @@ public class Character : MonoBehaviour
         int remainingEnemies = GetRemainingEnemyCount();
 
         int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
-        int dynamicBonusDamage = nextAttackBonusDamage + samuraiMaskBonusDamage + bonusDamageUntilEndOfTurn + bonusDamageUntilNextMovement;
+        int dynamicBonusDamage = samuraiMaskBonusDamage + bonusDamageUntilEndOfTurn + bonusDamageUntilNextMovement;
         int dynamicResistance = 0;
         int dynamicMovementPoints = 0;
 
@@ -2764,7 +2967,7 @@ public class Character : MonoBehaviour
 
         if (HasItem(ItemRewardKey.IronGreaves) && isAtBaseFullHealth)
         {
-            dynamicResistance += 2;
+            dynamicResistance += 1;
         }
 
         if (HasItem(ItemRewardKey.MoonLantern) && adjacentEnemyCount >= 2)
@@ -2901,34 +3104,13 @@ public class Character : MonoBehaviour
 
     private void RefreshPoisonFx()
     {
-        if (!isPoisoned || fxPoisonPrefab == null)
+        if (!isPoisoned)
         {
-            ClearPoisonFx();
+            ClearPersistentStatusFx(CombatStatusType.Poisoned);
             return;
         }
 
-        if (activePoisonFxInstance != null
-            && activePoisonFxInstance.name.StartsWith(fxPoisonPrefab.name, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        ClearPoisonFx();
-        Quaternion defaultFxRotation = fxPoisonPrefab.transform.rotation;
-        Vector3 defaultFxScale = fxPoisonPrefab.transform.localScale;
-        activePoisonFxInstance = Instantiate(fxPoisonPrefab, transform.position, defaultFxRotation);
-        activePoisonFxInstance.transform.SetParent(transform, true);
-        activePoisonFxInstance.transform.rotation = defaultFxRotation;
-        activePoisonFxInstance.transform.localScale = defaultFxScale;
-    }
-
-    private void ClearPoisonFx()
-    {
-        if (activePoisonFxInstance != null)
-        {
-            Destroy(activePoisonFxInstance);
-            activePoisonFxInstance = null;
-        }
+        RefreshPersistentStatusFx(CombatStatusType.Poisoned);
     }
 
     private void ApplyPoisonTickAtEndOfTurn()
@@ -2938,8 +3120,51 @@ public class Character : MonoBehaviour
             return;
         }
 
-        PlayFeedbackFx(fxStartPoisonPrefab, destroyAfterSeconds: 2f);
+        PlayStatusApplyFx(CombatStatusType.Poisoned);
         TakeDamage(1, null, false, DamageSoundType.MagicHit);
+    }
+
+    private CombatStatusFxLibrary GetStatusFxLibrary()
+    {
+        if (statusFxLibrary == null)
+        {
+            statusFxLibrary = CombatStatusFxLibrary.LoadDefault();
+        }
+
+        return statusFxLibrary;
+    }
+
+    private void PlayStatusApplyFx(CombatStatusType statusType)
+    {
+        GetStatusFxLibrary()?.SpawnApplyFx(statusType, transform, Vector3.zero);
+    }
+
+    private void RefreshPersistentStatusFx(CombatStatusType statusType)
+    {
+        if (activeStatusFxInstances.TryGetValue(statusType, out GameObject existingInstance) && existingInstance != null)
+        {
+            return;
+        }
+
+        GameObject spawnedFx = GetStatusFxLibrary()?.SpawnPersistentFx(statusType, transform, Vector3.zero);
+        if (spawnedFx != null)
+        {
+            activeStatusFxInstances[statusType] = spawnedFx;
+        }
+    }
+
+    private void ClearPersistentStatusFx(CombatStatusType statusType)
+    {
+        if (!activeStatusFxInstances.TryGetValue(statusType, out GameObject existingInstance))
+        {
+            return;
+        }
+
+        activeStatusFxInstances.Remove(statusType);
+        if (existingInstance != null)
+        {
+            Destroy(existingInstance);
+        }
     }
 
     private void ConsumeTemporaryBonusDamageOnMovement()

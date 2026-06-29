@@ -14,6 +14,7 @@ public class CharacterAbilityRuntime
     public bool IsActive { get; private set; }
     public int BonusUsesThisTurn { get; private set; }
     public int UsesThisTurnCount => UsesThisTurn;
+    public int BonusTurnUseGainVersion { get; private set; }
     public float NextReusableTime { get; private set; }
     private bool hasPreparedActivationPendingConsumption;
     private int pendingBaseDamageModifierForNextUse;
@@ -35,6 +36,7 @@ public class CharacterAbilityRuntime
         RemainingCooldown = 0;
         IsActive = false;
         BonusUsesThisTurn = 0;
+        BonusTurnUseGainVersion = 0;
         definitionBonusUsesThisTurn = 0;
         NextReusableTime = 0f;
         hasPreparedActivationPendingConsumption = false;
@@ -217,6 +219,7 @@ public class CharacterAbilityRuntime
         }
 
         BonusUsesThisTurn += amount;
+        BonusTurnUseGainVersion++;
     }
 
     public void QueueActivationUseDelta(int amount)
@@ -256,6 +259,7 @@ public class CharacterAbilityRuntime
     {
         UsesThisTurn = 0;
         BonusUsesThisTurn = 0;
+        BonusTurnUseGainVersion = 0;
         RemainingCooldown = 0;
         NextReusableTime = 0f;
         hasPreparedActivationPendingConsumption = false;

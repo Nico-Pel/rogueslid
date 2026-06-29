@@ -68,6 +68,8 @@ public class RewardButtonUI : MonoBehaviour
     private static readonly Color ItemSubtitleTextColor = new Color32(0xF5, 0xD6, 0xB1, 0xFF);
     private static readonly Color NewPowerSubtitleBackgroundColor = new Color32(0x17, 0x0B, 0x15, 0xFF);
     private static readonly Color NewPowerSubtitleTextColor = new Color32(0xFF, 0xBB, 0x00, 0xFF);
+    private static readonly Color ShopPriceAffordableColor = Color.white;
+    private static readonly Color ShopPriceUnaffordableColor = new Color32(0xFF, 0x4A, 0x4A, 0xFF);
 
     [SerializeField] private Button button;
     [SerializeField] private Image background;
@@ -82,6 +84,11 @@ public class RewardButtonUI : MonoBehaviour
     [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private Image typeContainerBackground;
     [SerializeField] private Image typeIcon;
+    [SerializeField] private Button buyButton;
+    [SerializeField] private TMP_Text priceText;
+    [SerializeField] private GameObject boughtOverlay;
+    private Action shopBuyAction;
+    private bool buyButtonListenerBound;
 
     public Button Button => button;
     public Sprite CurrentTypeSprite => typeIcon != null ? typeIcon.sprite : null;
@@ -186,10 +193,76 @@ public class RewardButtonUI : MonoBehaviour
         {
             button.onClick.AddListener(() =>
             {
+                if (IsPointerOverBuyButton())
+                {
+                    Debug.Log("[Pouet Shop] Root reward card click detected over BBuy area. Forwarding to buy.", this);
+                    HandleBuyButtonClicked();
+                    return;
+                }
+
                 SoundManager.Instance?.PlayClick();
                 onClicked?.Invoke(rewardOffer);
             });
         }
+    }
+
+    public void SetShopPurchaseState(bool showShopPurchase, int price, bool isBought, bool canBuy, Action onBuyClicked)
+    {
+        CacheReferences();
+        shopBuyAction = showShopPurchase && !isBought && canBuy ? onBuyClicked : null;
+
+        if (buyButton != null)
+        {
+            buyButton.gameObject.SetActive(showShopPurchase && !isBought);
+            buyButton.interactable = showShopPurchase && !isBought && canBuy;
+            buyButton.transform.SetAsLastSibling();
+        }
+
+        if (priceText != null)
+        {
+            priceText.text = Mathf.Max(0, price).ToString();
+            priceText.color = canBuy || isBought
+                ? ShopPriceAffordableColor
+                : ShopPriceUnaffordableColor;
+        }
+
+        if (boughtOverlay != null)
+        {
+            boughtOverlay.SetActive(showShopPurchase && isBought);
+        }
+    }
+
+    private void HandleBuyButtonClicked()
+    {
+        if (shopBuyAction == null)
+        {
+            Debug.Log("[Pouet Shop] BBuy clicked but shopBuyAction is null.", this);
+            return;
+        }
+
+        Debug.Log("[Pouet Shop] BBuy clicked. Invoking shopBuyAction.", this);
+        SoundManager.Instance?.PlayClick();
+        shopBuyAction.Invoke();
+    }
+
+    private bool IsPointerOverBuyButton()
+    {
+        if (buyButton == null || !buyButton.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        RectTransform buyRect = buyButton.transform as RectTransform;
+        if (buyRect == null)
+        {
+            return false;
+        }
+
+        Canvas parentCanvas = GetComponentInParent<Canvas>();
+        Camera eventCamera = parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? parentCanvas.worldCamera
+            : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(buyRect, Input.mousePosition, eventCamera);
     }
 
     private void ApplyStyle(RewardButtonStyle style)
@@ -299,6 +372,31 @@ public class RewardButtonUI : MonoBehaviour
         if (typeIcon == null)
         {
             typeIcon = transform.Find("MaskIcon/iPowerPlace/icon")?.GetComponent<Image>();
+        }
+
+        if (buyButton == null)
+        {
+            buyButton = transform.Find("BBuy")?.GetComponent<Button>();
+        }
+
+        if (buyButton != null && !buyButtonListenerBound)
+        {
+            buyButton.onClick.AddListener(HandleBuyButtonClicked);
+            buyButtonListenerBound = true;
+        }
+
+        if (priceText == null)
+        {
+            priceText = transform.Find("BBuy/tPrice")?.GetComponent<TMP_Text>();
+        }
+
+        if (boughtOverlay == null)
+        {
+            Transform boughtTransform = transform.Find("iBought");
+            if (boughtTransform != null)
+            {
+                boughtOverlay = boughtTransform.gameObject;
+            }
         }
     }
 

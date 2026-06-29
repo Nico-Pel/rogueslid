@@ -19,6 +19,7 @@ MonoBehaviour:
   force: 3
   resistance: 0
   mobility: 3
+  goldReward: 5
   attackPattern: 1
   attackRange: 1
   damageSoundType: 0

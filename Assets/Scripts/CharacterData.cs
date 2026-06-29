@@ -64,6 +64,7 @@ public class CharacterData : ScriptableObject
     [SerializeField] private string description;
     [SerializeField] private Sprite portrait;
     [SerializeField] private Sprite portraitLose;
+    [SerializeField] private Sprite pathIcon;
 
     [Header("Base Stats")]
     [Min(1)]
@@ -86,6 +87,7 @@ public class CharacterData : ScriptableObject
     public string Description => description;
     public Sprite Portrait => portrait;
     public Sprite PortraitLose => portraitLose != null ? portraitLose : portrait;
+    public Sprite PathIcon => pathIcon;
     public int MaxHealth => Mathf.Max(1, maxHealth);
     public int BonusDamage => Mathf.Max(0, bonusDamage);
     public int Resistance => Mathf.Max(0, resistance);

@@ -1,9 +1,17 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class FooterUI : MonoBehaviour
 {
+    private static readonly Color PathFutureColor = new Color(1f, 1f, 1f, 0.35f);
+    private static readonly Color PathCompletedColor = new Color(0f, 0f, 0f, 0.65f);
+    private const int ShopStepIndex = 7;
+    private const float PathBounceDuration = 8f;
+    private const float PathBounceCycleDuration = 0.3f;
+    private static readonly Vector3 PathBounceScale = new Vector3(1.16f, 1.16f, 1f);
+
     [SerializeField] private RectTransform abilitiesBar;
     [SerializeField] private AbilityButtonUI abilityButton1;
     [SerializeField] private AbilityButtonUI abilityButton2;
@@ -13,6 +21,13 @@ public class FooterUI : MonoBehaviour
     [SerializeField] private Image characterPortraitImage;
     [SerializeField] private Button portraitButton;
     [SerializeField] private TMP_Text arenaCountLabel;
+    [SerializeField] private RectTransform travelContainer;
+
+    private readonly List<Image> travelStepImages = new List<Image>();
+    private readonly List<Sprite> travelStepSprites = new List<Sprite>();
+    private int lastTravelStepIndex = -1;
+    private RectTransform activeTravelStepRect;
+    private Coroutine travelStepBounceCoroutine;
 
     public RectTransform AbilitiesBar => abilitiesBar;
     public AbilityButtonUI AbilityButton1 => abilityButton1;
@@ -32,6 +47,11 @@ public class FooterUI : MonoBehaviour
     private void OnValidate()
     {
         CacheReferences();
+    }
+
+    private void OnDisable()
+    {
+        ResetActiveTravelStepScale();
     }
 
     public void RefreshCharacter(Character character)
@@ -58,6 +78,73 @@ public class FooterUI : MonoBehaviour
         {
             arenaCountLabel.text = $"ARENA {Mathf.Max(1, arenaCount)}";
         }
+    }
+
+    public void ShowShopLabel()
+    {
+        CacheReferences();
+        if (arenaCountLabel != null)
+        {
+            arenaCountLabel.text = "SHOP";
+        }
+    }
+
+    public void RefreshTravelPath(Character character, int arenaCount, bool isShopOpen)
+    {
+        CacheReferences();
+        CacheTravelSteps();
+
+        if (travelStepImages.Count == 0)
+        {
+            return;
+        }
+
+        int currentStepIndex = ResolveTravelStepIndex(arenaCount, isShopOpen, travelStepImages.Count);
+        Sprite characterPathIcon = character != null ? character.CharacterPathIcon : null;
+
+        for (int index = 0; index < travelStepImages.Count; index++)
+        {
+            Image stepImage = travelStepImages[index];
+            if (stepImage == null)
+            {
+                continue;
+            }
+
+            Sprite originalSprite = index < travelStepSprites.Count ? travelStepSprites[index] : stepImage.sprite;
+            stepImage.sprite = originalSprite;
+            stepImage.color = index < currentStepIndex ? PathCompletedColor : PathFutureColor;
+        }
+
+        if (currentStepIndex < 0 || currentStepIndex >= travelStepImages.Count)
+        {
+            return;
+        }
+
+        Image currentStepImage = travelStepImages[currentStepIndex];
+        if (currentStepImage == null)
+        {
+            return;
+        }
+
+        currentStepImage.sprite = characterPathIcon != null ? characterPathIcon : travelStepSprites[currentStepIndex];
+        currentStepImage.color = Color.white;
+
+        RectTransform currentStepRect = currentStepImage.rectTransform;
+        if (lastTravelStepIndex != currentStepIndex)
+        {
+            ResetActiveTravelStepScale();
+            activeTravelStepRect = currentStepRect;
+            if (activeTravelStepRect != null && gameObject.activeInHierarchy)
+            {
+                travelStepBounceCoroutine = StartCoroutine(BounceTravelStep(activeTravelStepRect));
+            }
+        }
+        else if (activeTravelStepRect == null)
+        {
+            activeTravelStepRect = currentStepRect;
+        }
+
+        lastTravelStepIndex = currentStepIndex;
     }
 
     private void CacheReferences()
@@ -121,6 +208,106 @@ public class FooterUI : MonoBehaviour
             {
                 arenaCountLabel = transform.Find("tArenaCount")?.GetComponent<TMP_Text>();
             }
+        }
+
+        if (travelContainer == null)
+        {
+            travelContainer = transform.Find("Travel") as RectTransform;
+        }
+    }
+
+    private void CacheTravelSteps()
+    {
+        if (travelContainer == null)
+        {
+            travelStepImages.Clear();
+            travelStepSprites.Clear();
+            return;
+        }
+
+        if (travelStepImages.Count == travelContainer.childCount
+            && travelStepSprites.Count == travelContainer.childCount)
+        {
+            return;
+        }
+
+        travelStepImages.Clear();
+        travelStepSprites.Clear();
+
+        for (int index = 0; index < travelContainer.childCount; index++)
+        {
+            Image stepImage = travelContainer.GetChild(index).GetComponent<Image>();
+            if (stepImage == null)
+            {
+                continue;
+            }
+
+            travelStepImages.Add(stepImage);
+            travelStepSprites.Add(stepImage.sprite);
+        }
+    }
+
+    private static int ResolveTravelStepIndex(int arenaCount, bool isShopOpen, int stepCount)
+    {
+        if (stepCount <= 0)
+        {
+            return 0;
+        }
+
+        if (isShopOpen)
+        {
+            return Mathf.Clamp(ShopStepIndex, 0, stepCount - 1);
+        }
+
+        int normalizedArenaCount = Mathf.Max(1, arenaCount);
+        int stepIndex = normalizedArenaCount <= ShopStepIndex
+            ? normalizedArenaCount - 1
+            : normalizedArenaCount;
+
+        return Mathf.Clamp(stepIndex, 0, stepCount - 1);
+    }
+
+    private System.Collections.IEnumerator BounceTravelStep(RectTransform targetRect)
+    {
+        if (targetRect == null)
+        {
+            yield break;
+        }
+
+        float elapsed = 0f;
+        Vector3 baseScale = Vector3.one;
+
+        while (elapsed < PathBounceDuration && targetRect == activeTravelStepRect)
+        {
+            float cycleProgress = Mathf.PingPong(elapsed / PathBounceCycleDuration, 1f);
+            float easedProgress = Mathf.SmoothStep(0f, 1f, cycleProgress);
+            targetRect.localScale = Vector3.Lerp(baseScale, PathBounceScale, easedProgress);
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (targetRect != null)
+        {
+            targetRect.localScale = baseScale;
+        }
+
+        if (travelStepBounceCoroutine != null && targetRect == activeTravelStepRect)
+        {
+            travelStepBounceCoroutine = null;
+        }
+    }
+
+    private void ResetActiveTravelStepScale()
+    {
+        if (travelStepBounceCoroutine != null)
+        {
+            StopCoroutine(travelStepBounceCoroutine);
+            travelStepBounceCoroutine = null;
+        }
+
+        if (activeTravelStepRect != null)
+        {
+            activeTravelStepRect.localScale = Vector3.one;
         }
     }
 

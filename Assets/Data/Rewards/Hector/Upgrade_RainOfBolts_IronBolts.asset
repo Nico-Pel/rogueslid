@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: upgrade_rain_of_bolts_iron_bolts
   rewardTitle: Iron Bolts
-  rewardDescription: Increase Rain of Bolts damage by 1. Max 3 stacks.
+  rewardDescription: Increase Rain of Bolts base damage by 1. Max 3 stacks.
   artwork: {fileID: 0}
   ability: {fileID: 11400000, guid: 3eac7f2bb5d14d1da5e2f4c98ab07b02, type: 2}
   upgradeKey: 71
   stackable: 1
   maxStacks: 3
+  shopPrice: 25

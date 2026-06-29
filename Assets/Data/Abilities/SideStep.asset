@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: SideStep
   m_EditorClassIdentifier: 
   abilityName: Side Step
+  description: Move to an adjacent tile, using a mobility point.
   icon: {fileID: 485811783, guid: c197f5166538a4f4494e44a8222986e0, type: 3}
   category: 1
   attackAnimationClip: {fileID: 0}
@@ -20,6 +21,7 @@ MonoBehaviour:
   usesPerTurn: 1
   usesPerCombat: 0
   cooldownTurns: 1
+  reuseDelaySeconds: 0.75
   consumesMovementPoint: 0
   isToggle: 1
   fxSpawns: []

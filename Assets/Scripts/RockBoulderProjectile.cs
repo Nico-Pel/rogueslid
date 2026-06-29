@@ -4,6 +4,8 @@ using UnityEngine;
 public class RockBoulderProjectile : MonoBehaviour
 {
     [SerializeField] private Transform fractures;
+    [Range(0f, 1f)]
+    [SerializeField] private float keptFragmentsRatio = 0.5f;
     [SerializeField] private float fractureForce = 3.5f;
     [SerializeField] private float upwardForce = 1.25f;
     [SerializeField] private float freezeDelay = 0.4f;
@@ -24,6 +26,7 @@ public class RockBoulderProjectile : MonoBehaviour
         fracturesRoot.gameObject.SetActive(true);
 
         List<Rigidbody> rigidbodies = new List<Rigidbody>(fracturesRoot.GetComponentsInChildren<Rigidbody>(true));
+        TrimFracturePieces(rigidbodies);
         for (int index = 0; index < rigidbodies.Count; index++)
         {
             Rigidbody body = rigidbodies[index];
@@ -54,5 +57,27 @@ public class RockBoulderProjectile : MonoBehaviour
 
         cleanup.Begin(rigidbodies, freezeDelay, shrinkDelayRange, shrinkDuration, finalScale);
         Destroy(gameObject);
+    }
+
+    private void TrimFracturePieces(List<Rigidbody> rigidbodies)
+    {
+        if (rigidbodies == null || rigidbodies.Count <= 1)
+        {
+            return;
+        }
+
+        int keptCount = Mathf.Clamp(Mathf.RoundToInt(rigidbodies.Count * keptFragmentsRatio), 1, rigidbodies.Count);
+        int fragmentsToRemove = rigidbodies.Count - keptCount;
+        for (int index = 0; index < fragmentsToRemove; index++)
+        {
+            int removeIndex = Random.Range(0, rigidbodies.Count);
+            Rigidbody removedBody = rigidbodies[removeIndex];
+            rigidbodies.RemoveAt(removeIndex);
+
+            if (removedBody != null)
+            {
+                Destroy(removedBody.gameObject);
+            }
+        }
     }
 }
