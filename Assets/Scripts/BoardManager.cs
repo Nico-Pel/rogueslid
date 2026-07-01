@@ -135,6 +135,8 @@ public class BoardManager : MonoBehaviour
 
     [Header("Rewards")]
     [SerializeField] private List<ItemRewardDefinition> itemRewardDefinitions = new List<ItemRewardDefinition>();
+    [SerializeField] private UnlockItemsData unlockItemsData;
+    [SerializeField] private List<TourmentData> tourmentDefinitions = new List<TourmentData>();
 
     [Header("Special Encounters")]
     [SerializeField] private GameObject defaultEnemySpawnFxPrefab;
@@ -165,6 +167,7 @@ public class BoardManager : MonoBehaviour
     private bool combatStartEnemyActionsResolved;
     private bool shopShownForCurrentBiome;
     private bool forceShopAfterCurrentArena;
+    private int selectedTourmentLevel = 1;
     private static readonly int ColorShaderProperty = Shader.PropertyToID("_Color");
     private static readonly string[] DragoonTwinsLayoutRows =
     {
@@ -195,12 +198,14 @@ public class BoardManager : MonoBehaviour
     public float DefaultSpawnFxLifetime => Mathf.Max(0f, defaultEnemySpawnFxLifetime);
     public Transform ObstaclesRoot => obstaclesRoot;
     public bool GenerateOnStart => generateOnStart;
+    public int CurrentTourmentLevel => Mathf.Max(1, selectedTourmentLevel);
     public event Action AllEnemiesDefeated;
     public event Action<int> GoldChanged;
+    public event Action<Vector3, int> EnemyGoldRewardRequested;
 
-    public void SetPlayerCharacterSetup(GameObject prefab, CharacterData characterData)
+    public void SetPlayerCharacterSetup(GameObject prefab, CharacterData characterData, int tourmentLevel = 1)
     {
-        Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup called. prefab={(prefab != null ? prefab.name : "null")} characterData={(characterData != null ? characterData.CharacterName : "null")}", this);
+        Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup called. prefab={(prefab != null ? prefab.name : "null")} characterData={(characterData != null ? characterData.CharacterName : "null")} tourmentLevel={tourmentLevel}", this);
 
         if (prefab != null)
         {
@@ -208,7 +213,8 @@ public class BoardManager : MonoBehaviour
         }
 
         selectedCharacterDataOverride = characterData;
-        Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup applied. playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+        selectedTourmentLevel = Mathf.Clamp(tourmentLevel, 1, 5);
+        Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup applied. playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")} selectedTourmentLevel={selectedTourmentLevel}", this);
     }
 
 #if UNITY_EDITOR
@@ -400,6 +406,61 @@ public class BoardManager : MonoBehaviour
         }
 
         GenerateBoard();
+    }
+
+    public TourmentData GetTourmentData(int level)
+    {
+        int clampedLevel = Mathf.Max(1, level);
+        TourmentData fallback = null;
+        for (int index = 0; index < tourmentDefinitions.Count; index++)
+        {
+            TourmentData candidate = tourmentDefinitions[index];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (fallback == null || candidate.Level < fallback.Level)
+            {
+                fallback = candidate;
+            }
+
+            if (candidate.Level == clampedLevel)
+            {
+                return candidate;
+            }
+        }
+
+        return fallback;
+    }
+
+    public bool IsCurrentArenaFinalBossBattle()
+    {
+        return IsCurrentArenaBossBattle() && currentBiomeIndex >= Mathf.Max(0, GetValidBiomeCount() - 1);
+    }
+
+    public List<TourmentUnlockResult> EvaluateAndApplyFinalVictoryUnlocks(CharacterData characterData)
+    {
+        List<TourmentUnlockResult> results = new List<TourmentUnlockResult>();
+        if (characterData == null || string.IsNullOrWhiteSpace(characterData.CharacterId))
+        {
+            return results;
+        }
+
+        int clearedTourmentLevel = CurrentTourmentLevel;
+        if (CharacterProgressionSaveManager.TryUnlockNextTourment(characterData.CharacterId, clearedTourmentLevel, out int unlockedTourmentLevel))
+        {
+            results.Add(new TourmentUnlockResult
+            {
+                Kind = TourmentUnlockResultKind.Tourment,
+                TourmentLevel = unlockedTourmentLevel,
+                CharacterData = characterData
+            });
+        }
+
+        TryAppendCharacterRewardUnlocks(results, characterData, clearedTourmentLevel);
+        TryAppendGlobalRewardUnlocks(results, characterData, clearedTourmentLevel);
+        return results;
     }
 
     public bool TryGetCell(Vector2Int gridPosition, out BoardCell cell)
@@ -2393,7 +2454,25 @@ public class BoardManager : MonoBehaviour
             return;
         }
 
-        AwardGold(GetEnemyGoldReward(enemy));
+        int goldReward = GetEnemyGoldReward(enemy);
+        if (goldReward <= 0)
+        {
+            return;
+        }
+
+        if (EnemyGoldRewardRequested == null)
+        {
+            AwardGold(goldReward);
+            return;
+        }
+
+        Vector3 rewardOrigin = enemy.EffectAnchor != null ? enemy.EffectAnchor.position : enemy.transform.position;
+        if (TryGetCell(enemy.GridPosition, out BoardCell enemyCell))
+        {
+            rewardOrigin = enemyCell.WorldPosition;
+        }
+
+        EnemyGoldRewardRequested?.Invoke(rewardOrigin, goldReward);
     }
 
     public void HandleSkeletonSkullRemoved(SkeletonEnemyData skeletonData)
@@ -2558,7 +2637,7 @@ public class BoardManager : MonoBehaviour
     {
         Character character = player != null ? player.ControlledCharacter : null;
         CharacterData characterData = character != null ? character.Data : null;
-        return characterData != null ? characterData.name : string.Empty;
+        return characterData != null ? characterData.CharacterId : string.Empty;
     }
 
     public EquipmentBuildData CreateEquipmentBuildSnapshot(string buildName)
@@ -2579,7 +2658,7 @@ public class BoardManager : MonoBehaviour
         EquipmentBuildData buildData = new EquipmentBuildData
         {
             BuildName = string.IsNullOrWhiteSpace(buildName) ? "Build" : buildName.Trim(),
-            CharacterId = characterData.name,
+            CharacterId = characterData.CharacterId,
             BasicAttackAbilityId = GetAbilityId(runRewardState.GetEquippedAbility(AbilityCategory.BasicAttack)),
             MobilityAbilityId = GetAbilityId(runRewardState.GetEquippedAbility(AbilityCategory.MobilitySkill)),
             SpecialAbilityId = GetAbilityId(runRewardState.GetEquippedAbility(AbilityCategory.SpecialPower))
@@ -2619,14 +2698,14 @@ public class BoardManager : MonoBehaviour
         }
 
         if (!string.IsNullOrWhiteSpace(buildData.CharacterId)
-            && !string.Equals(buildData.CharacterId, characterData.name, StringComparison.Ordinal))
+            && !string.Equals(buildData.CharacterId, characterData.CharacterId, StringComparison.Ordinal))
         {
             return false;
         }
 
         int preservedGold = runRewardState != null ? runRewardState.CurrentGold : 0;
         PlayerRunRewardState loadedState = new PlayerRunRewardState();
-        loadedState.InitializeFrom(characterData.StartingAbilities, character.CurrentHealth);
+        loadedState.InitializeFrom(characterData.GetStartingAbilitiesWithPersistentUpgrades(), character.CurrentHealth);
         loadedState.SetCurrentGold(preservedGold);
 
         Dictionary<string, AbilityDefinition> potentialAbilitiesById = BuildPotentialAbilityLookup(characterData);
@@ -2753,7 +2832,10 @@ public class BoardManager : MonoBehaviour
             for (int index = 0; index < unlockableAbilityRewards.Count; index++)
             {
                 AbilityRewardDefinition unlockDefinition = unlockableAbilityRewards[index];
-                if (unlockDefinition == null || unlockDefinition.Ability == null || unlockDefinitionsByAbility.ContainsKey(unlockDefinition.Ability))
+                if (unlockDefinition == null
+                    || unlockDefinition.Ability == null
+                    || unlockDefinitionsByAbility.ContainsKey(unlockDefinition.Ability)
+                    || !IsRewardDefinitionUnlockedForCharacter(unlockDefinition, characterData))
                 {
                     continue;
                 }
@@ -2806,6 +2888,7 @@ public class BoardManager : MonoBehaviour
             if (unlockDefinition == null
                 || unlockDefinition.Ability == null
                 || unlockDefinition.Ability.Category != category
+                || !IsRewardDefinitionUnlockedForCharacter(unlockDefinition, characterData)
                 || runRewardState.KnowsAbility(unlockDefinition.Ability))
             {
                 continue;
@@ -2925,7 +3008,7 @@ public class BoardManager : MonoBehaviour
         for (int index = 0; index < rewardDefinitions.Count; index++)
         {
             RewardDefinition rewardDefinition = rewardDefinitions[index];
-            if (rewardDefinition == null || !rewardDefinition.CanOffer(runRewardState))
+            if (rewardDefinition == null || !rewardDefinition.CanOffer(runRewardState) || !IsRewardDefinitionUnlockedForCurrentCharacter(rewardDefinition))
             {
                 continue;
             }
@@ -2983,6 +3066,169 @@ public class BoardManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool IsRewardDefinitionUnlockedForCurrentCharacter(RewardDefinition rewardDefinition)
+    {
+        Character character = player != null ? player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        return IsRewardDefinitionUnlockedForCharacter(rewardDefinition, characterData);
+    }
+
+    private bool IsRewardDefinitionUnlockedForCharacter(RewardDefinition rewardDefinition, CharacterData characterData)
+    {
+        if (rewardDefinition == null)
+        {
+            return false;
+        }
+
+        if (characterData != null
+            && TryFindCharacterSpecificUnlockDefinition(characterData, rewardDefinition, out _))
+        {
+            return CharacterProgressionSaveManager.IsCharacterRewardUnlocked(characterData.CharacterId, rewardDefinition.RewardId);
+        }
+
+        if (TryFindCharacterSpecificUnlockOwner(rewardDefinition, out _, out _))
+        {
+            return false;
+        }
+
+        if (TryFindGlobalUnlockDefinition(rewardDefinition, out _))
+        {
+            return CharacterProgressionSaveManager.IsGlobalRewardUnlocked(rewardDefinition.RewardId);
+        }
+
+        return !rewardDefinition.LockByDefault;
+    }
+
+    private void TryAppendCharacterRewardUnlocks(List<TourmentUnlockResult> results, CharacterData characterData, int clearedTourmentLevel)
+    {
+        IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions = characterData != null ? characterData.TourmentRewardUnlocks : null;
+        if (unlockDefinitions == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < unlockDefinitions.Count; index++)
+        {
+            TourmentRewardUnlockDefinition unlockDefinition = unlockDefinitions[index];
+            RewardDefinition rewardDefinition = unlockDefinition != null ? unlockDefinition.RewardDefinition : null;
+            if (!CanUnlockRewardDefinition(unlockDefinition, rewardDefinition, clearedTourmentLevel))
+            {
+                continue;
+            }
+
+            if (!CharacterProgressionSaveManager.UnlockCharacterReward(characterData.CharacterId, rewardDefinition.RewardId))
+            {
+                continue;
+            }
+
+            results.Add(new TourmentUnlockResult
+            {
+                Kind = GetUnlockResultKind(rewardDefinition),
+                TourmentLevel = unlockDefinition.RequiredTourmentLevel,
+                RewardDefinition = rewardDefinition,
+                CharacterData = characterData
+            });
+        }
+    }
+
+    private void TryAppendGlobalRewardUnlocks(List<TourmentUnlockResult> results, CharacterData characterData, int clearedTourmentLevel)
+    {
+        IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions = unlockItemsData != null ? unlockItemsData.RewardUnlocks : null;
+        if (unlockDefinitions == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < unlockDefinitions.Count; index++)
+        {
+            TourmentRewardUnlockDefinition unlockDefinition = unlockDefinitions[index];
+            RewardDefinition rewardDefinition = unlockDefinition != null ? unlockDefinition.RewardDefinition : null;
+            if (!CanUnlockRewardDefinition(unlockDefinition, rewardDefinition, clearedTourmentLevel))
+            {
+                continue;
+            }
+
+            if (!CharacterProgressionSaveManager.UnlockGlobalReward(rewardDefinition.RewardId))
+            {
+                continue;
+            }
+
+            results.Add(new TourmentUnlockResult
+            {
+                Kind = GetUnlockResultKind(rewardDefinition),
+                TourmentLevel = unlockDefinition.RequiredTourmentLevel,
+                RewardDefinition = rewardDefinition,
+                CharacterData = characterData
+            });
+        }
+    }
+
+    private static bool CanUnlockRewardDefinition(TourmentRewardUnlockDefinition unlockDefinition, RewardDefinition rewardDefinition, int clearedTourmentLevel)
+    {
+        return unlockDefinition != null
+            && rewardDefinition != null
+            && clearedTourmentLevel >= unlockDefinition.RequiredTourmentLevel
+            && unlockDefinition.RequiredBoss <= TourmentBossUnlockTier.Boss3;
+    }
+
+    private bool TryFindCharacterSpecificUnlockDefinition(CharacterData characterData, RewardDefinition rewardDefinition, out TourmentRewardUnlockDefinition unlockDefinition)
+    {
+        IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions = characterData != null ? characterData.TourmentRewardUnlocks : null;
+        return TryFindUnlockDefinition(unlockDefinitions, rewardDefinition, out unlockDefinition);
+    }
+
+    private bool TryFindCharacterSpecificUnlockOwner(RewardDefinition rewardDefinition, out CharacterData ownerCharacterData, out TourmentRewardUnlockDefinition unlockDefinition)
+    {
+        CharacterData[] loadedCharacters = Resources.FindObjectsOfTypeAll<CharacterData>();
+        for (int index = 0; index < loadedCharacters.Length; index++)
+        {
+            CharacterData candidate = loadedCharacters[index];
+            if (candidate == null || !TryFindCharacterSpecificUnlockDefinition(candidate, rewardDefinition, out unlockDefinition))
+            {
+                continue;
+            }
+
+            ownerCharacterData = candidate;
+            return true;
+        }
+
+        ownerCharacterData = null;
+        unlockDefinition = null;
+        return false;
+    }
+
+    private bool TryFindGlobalUnlockDefinition(RewardDefinition rewardDefinition, out TourmentRewardUnlockDefinition unlockDefinition)
+    {
+        IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions = unlockItemsData != null ? unlockItemsData.RewardUnlocks : null;
+        return TryFindUnlockDefinition(unlockDefinitions, rewardDefinition, out unlockDefinition);
+    }
+
+    private static bool TryFindUnlockDefinition(IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions, RewardDefinition rewardDefinition, out TourmentRewardUnlockDefinition unlockDefinition)
+    {
+        if (unlockDefinitions != null)
+        {
+            for (int index = 0; index < unlockDefinitions.Count; index++)
+            {
+                TourmentRewardUnlockDefinition candidate = unlockDefinitions[index];
+                if (candidate != null && candidate.RewardDefinition == rewardDefinition)
+                {
+                    unlockDefinition = candidate;
+                    return true;
+                }
+            }
+        }
+
+        unlockDefinition = null;
+        return false;
+    }
+
+    private static TourmentUnlockResultKind GetUnlockResultKind(RewardDefinition rewardDefinition)
+    {
+        return rewardDefinition != null && rewardDefinition.Kind == RewardOfferKind.Item
+            ? TourmentUnlockResultKind.Item
+            : TourmentUnlockResultKind.Ability;
     }
 
     private bool IsForcedRewardsModeEnabled()
@@ -3164,6 +3410,7 @@ public class BoardManager : MonoBehaviour
             cell.WorldPosition + Vector3.up * spawnHeight);
         enemy = GetOrAddComponent<Enemy>(enemyObject);
         enemy.Assign(spawnPoint, this);
+        enemy.ApplyTourment(GetTourmentData(CurrentTourmentLevel));
         spawnedEnemies.Add(enemy);
         cell.SetOccupant(enemyObject, BoardOccupantKind.Enemy);
         return true;

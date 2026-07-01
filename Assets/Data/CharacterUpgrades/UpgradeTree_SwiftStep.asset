@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f4db04765c84d42ab976d7261d4c7d1, type: 3}
+  m_Name: UpgradeTree_SwiftStep
+  m_EditorClassIdentifier: 
+  upgradeId: upgrade_tree_swift_step
+  upgradeName: Swift Step
+  description: Replace Side Step with Swift Step. Swift Step no longer costs mobility.
+  icon: {fileID: -214234343, guid: cd2b327624f3f4e37a6582bb949578f9, type: 3}
+  color: {r: 0.21176471, g: 0.8745098, b: 1, a: 1}
+  orbPrice: 45
+  maxUnlockCount: 1
+  bonusMaxHealthPerUnlock: 0
+  bonusDamagePerUnlock: 0
+  bonusResistancePerUnlock: 0
+  bonusMovementPointsPerUnlock: 0
+  bonusRegenPerUnlock: 0
+  bonusWeaponAbilityDamagePerUnlock: 0
+  bonusMobilityAbilityDamagePerUnlock: 0
+  bonusSpecialAbilityDamagePerUnlock: 0
+  replaceStartingAbility: {fileID: 11400000, guid: 364ec113b09a42ffb823f413bdad6b22, type: 2}
+  replacementStartingAbility: {fileID: 11400000, guid: 4ee87733baf349589791f59cde54c349, type: 2}

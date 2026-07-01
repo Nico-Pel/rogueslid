@@ -12,12 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d02f0bf041b945de98527b357a172fa3, type: 3}
   m_Name: Zhuang
   m_EditorClassIdentifier: 
+  characterId: zhuang
   characterName: Zhuang
-  description: A relentless ranged hunter who bleeds enemies dry and bends space
-    to control the fight.
+  description: Zhuang is a powerful hero and protector of Nature. Enemies tremble
+    at the mere mention of this formidable warrior, whom no one has ever managed
+    to defeat in single combat. Now that his youth is behind him, he seems to be
+    seeking one last thrill before laying down his arms.
   portrait: {fileID: 21300000, guid: 4041c81f2e34f486586b79a2a6b23867, type: 3}
   portraitLose: {fileID: 21300000, guid: 6cf5189b24a274ed1a5291a6710c9a19, type: 3}
+  portraitWin: {fileID: 21300000, guid: b1381609cf20f4fa689dfa58c9031a5f, type: 3}
   pathIcon: {fileID: 2067174058, guid: 0908207145742434bbee8ded68f13915, type: 3}
+  orbIcon: {fileID: -1827651883, guid: 2599b1159b03e41b495c4883757525a6, type: 3}
   maxHealth: 10
   bonusDamage: 0
   resistance: 0
@@ -36,6 +41,20 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2ac1f4e9bf4d48a0a12c31d5f77b3d11, type: 2}
   - {fileID: 11400000, guid: 7b5a6d3c15ee47d0a81fd0f43b0f8d12, type: 2}
   - {fileID: 11400000, guid: c31e6a419a8d4f1cb4d10e5fd76a7013, type: 2}
+  tourmentRewardUnlocks: []
+  persistentUpgrades:
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a001, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a002, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a007, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a004, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a005, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a006, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a003, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00f, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a010, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a008, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a009, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00a, type: 2}
   uiColors:
   - key: 0
     color: {r: 0.11764706, g: 0.23921569, b: 0.17254902, a: 1}

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public abstract class RewardDefinition : ScriptableObject
 {
@@ -10,11 +11,14 @@ public abstract class RewardDefinition : ScriptableObject
     [TextArea(3, 6)]
     [SerializeField] private string rewardDescription;
     [SerializeField] private Sprite artwork;
+    [FormerlySerializedAs("unlockByDefault")]
+    [SerializeField] private bool lockByDefault;
 
     public string RewardId => string.IsNullOrWhiteSpace(rewardId) ? name : rewardId;
     public string RewardTitle => string.IsNullOrWhiteSpace(rewardTitle) ? name : rewardTitle;
     public string RewardDescription => rewardDescription;
     public Sprite Artwork => artwork;
+    public bool LockByDefault => lockByDefault;
     public virtual int ShopPrice => 0;
 
     public abstract RewardOfferKind Kind { get; }

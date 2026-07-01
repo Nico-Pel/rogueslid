@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f4db04765c84d42ab976d7261d4c7d1, type: 3}
+  m_Name: UpgradeTree_Pandora_AssassinsSoul
+  m_EditorClassIdentifier: 
+  upgradeId: upgrade_tree_pandora_assassins_soul
+  upgradeName: Assassin's Soul
+  description: All enemies take 1 damage at the start of each combat.
+  icon: {fileID: 972249096, guid: cd2b327624f3f4e37a6582bb949578f9, type: 3}
+  color: {r: 0.74742913, g: 0.3160377, b: 1, a: 1}
+  orbPrice: 250
+  maxUnlockCount: 3
+  bonusMaxHealthPerUnlock: 0
+  bonusDamagePerUnlock: 0
+  bonusResistancePerUnlock: 0
+  bonusMovementPointsPerUnlock: 0
+  bonusRegenPerUnlock: 0
+  bonusWeaponAbilityDamagePerUnlock: 0
+  bonusMobilityAbilityDamagePerUnlock: 0
+  bonusSpecialAbilityDamagePerUnlock: 0
+  replaceStartingAbility: {fileID: 0}
+  replacementStartingAbility: {fileID: 0}

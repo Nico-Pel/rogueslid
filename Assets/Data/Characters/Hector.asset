@@ -12,12 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d02f0bf041b945de98527b357a172fa3, type: 3}
   m_Name: Hector
   m_EditorClassIdentifier: 
+  characterId: hector
   characterName: Hector
-  description: A relentless ranged hunter who bleeds enemies dry and bends space
-    to control the fight.
+  description: Hector is a bounty hunter who has eyes only for women and money. Relentless,
+    he takes down his enemies from a distance and warps space to control the battle.
+    Rejected by all the guilds because of his arrogance, he now operates solo to
+    make his mark on history.
   portrait: {fileID: 21300000, guid: 306cf99fa94d546028d154f5458fa8aa, type: 3}
   portraitLose: {fileID: 21300000, guid: ebd33678914a444498a4471941d25ed1, type: 3}
+  portraitWin: {fileID: 21300000, guid: b7363740f6c084188a27fe506f33fe85, type: 3}
   pathIcon: {fileID: -931747681, guid: 0908207145742434bbee8ded68f13915, type: 3}
+  orbIcon: {fileID: -509131178, guid: 2599b1159b03e41b495c4883757525a6, type: 3}
   maxHealth: 10
   bonusDamage: 0
   resistance: 0
@@ -36,6 +41,20 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2ac1f4e9bf4d48a0a12c31d5f77b3d11, type: 2}
   - {fileID: 11400000, guid: 7b5a6d3c15ee47d0a81fd0f43b0f8d12, type: 2}
   - {fileID: 11400000, guid: c31e6a419a8d4f1cb4d10e5fd76a7013, type: 2}
+  tourmentRewardUnlocks: []
+  persistentUpgrades:
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a001, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a002, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a007, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a004, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a005, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a006, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a003, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00d, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00e, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a008, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a009, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00a, type: 2}
   uiColors:
   - key: 0
     color: {r: 0.29803923, g: 0.08235294, b: 0.08627451, a: 1}

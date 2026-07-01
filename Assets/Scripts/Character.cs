@@ -2273,6 +2273,18 @@ public class Character : MonoBehaviour
             return;
         }
 
+        ItemRewardDefinition scrapBombDefinition = Board.GetItemRewardDefinition(ItemRewardKey.ScrapBomb);
+        if (scrapBombDefinition != null
+            && scrapBombDefinition.DamageFxPrefab != null
+            && Board.TryGetCell(centerCell, out BoardCell centerBoardCell))
+        {
+            PlayFeedbackFx(
+                scrapBombDefinition.DamageFxPrefab,
+                transform,
+                centerBoardCell.WorldPosition - transform.position,
+                destroyAfterSeconds: scrapBombDefinition.DamageFxLifetime);
+        }
+
         bool hitAnyEnemy = false;
         for (int offsetX = -1; offsetX <= 1; offsetX++)
         {
@@ -2388,7 +2400,7 @@ public class Character : MonoBehaviour
 
     private IReadOnlyList<AbilityDefinition> GetStartingAbilityDefinitions()
     {
-        return characterData != null ? characterData.StartingAbilities : Array.Empty<AbilityDefinition>();
+        return characterData != null ? characterData.GetStartingAbilitiesWithPersistentUpgrades() : Array.Empty<AbilityDefinition>();
     }
 
     private void CacheBody()

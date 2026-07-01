@@ -352,6 +352,31 @@ public class Enemy : MonoBehaviour
         PlayBodySpawnTween();
     }
 
+    public void ApplyTourment(TourmentData tourmentData)
+    {
+        if (tourmentData == null)
+        {
+            return;
+        }
+
+        int previousMaxHealth = maxHealth;
+        maxHealth = Mathf.Max(1, Mathf.RoundToInt(maxHealth * tourmentData.EnemyHealthMultiplier));
+        force = Mathf.Max(0, force + tourmentData.EnemyForceBonus);
+        resistance = Mathf.Max(0, resistance + tourmentData.EnemyResistanceBonus);
+        regenPerTurn = Mathf.Max(0, regenPerTurn + tourmentData.EnemyRegenBonus);
+
+        if (currentHealth >= previousMaxHealth)
+        {
+            currentHealth = maxHealth;
+        }
+        else
+        {
+            currentHealth = Mathf.Clamp(currentHealth + Mathf.Max(0, maxHealth - previousMaxHealth), 0, maxHealth);
+        }
+
+        RefreshHpBar();
+    }
+
     public void SetLinkedSummoner(Enemy summoner)
     {
         linkedSummoner = summoner;

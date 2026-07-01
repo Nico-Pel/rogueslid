@@ -5,8 +5,8 @@ using UnityEngine.UI;
 
 public class FooterUI : MonoBehaviour
 {
-    private static readonly Color PathFutureColor = new Color(1f, 1f, 1f, 0.35f);
-    private static readonly Color PathCompletedColor = new Color(0f, 0f, 0f, 0.65f);
+    private static readonly Color PathFutureColor = Color.white;
+    private static readonly Color PathCompletedColor = new Color(1f, 1f, 1f, 0f);
     private const int ShopStepIndex = 7;
     private const float PathBounceDuration = 8f;
     private const float PathBounceCycleDuration = 0.3f;

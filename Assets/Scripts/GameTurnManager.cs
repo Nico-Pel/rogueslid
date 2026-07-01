@@ -281,6 +281,8 @@ public class GameTurnManager : MonoBehaviour
         uiGame?.HideShop();
         uiGame?.HideYesNoPrompt();
         uiGame?.HideLoseMenu();
+        uiGame?.HideWinMenu();
+        uiGame?.HideUnlockMenu();
         soundManager?.PlayArenaMusic(board != null ? board.CurrentCombatMusic : null);
         BindToCurrentCharacter();
         StartCombatEntryFlow();
@@ -1301,6 +1303,8 @@ public class GameTurnManager : MonoBehaviour
         uiGame?.HideShop();
         uiGame?.HideYesNoPrompt();
         uiGame?.HideLoseMenu();
+        uiGame?.HideWinMenu();
+        uiGame?.HideUnlockMenu();
         if (homeMenu != null)
         {
             CharacterData currentCharacterData = trackedCharacter != null ? trackedCharacter.Data : null;
@@ -1381,6 +1385,8 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
+        AwardArenaCompletionOrbs();
+
         isArenaTransitionRunning = true;
         isRewardMenuOpen = false;
         isPointerTracking = false;
@@ -1395,7 +1401,28 @@ public class GameTurnManager : MonoBehaviour
             StopCoroutine(nextArenaCoroutine);
         }
 
+        if (board.IsCurrentArenaFinalBossBattle())
+        {
+            nextArenaCoroutine = StartCoroutine(ShowFinalVictorySequenceAfterDelay());
+            return;
+        }
+
         nextArenaCoroutine = StartCoroutine(LoadNextArenaAfterDelay());
+    }
+
+    private void AwardArenaCompletionOrbs()
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        CharacterData characterData = character != null ? character.Data : null;
+        if (characterData == null || string.IsNullOrWhiteSpace(characterData.CharacterId))
+        {
+            return;
+        }
+
+        int tourmentLevel = board != null ? Mathf.Max(1, board.CurrentTourmentLevel) : 1;
+        int orbReward = board.IsCurrentArenaBossBattle() ? tourmentLevel * 10 : tourmentLevel;
+        CharacterProgressionSaveManager.AddOrbs(characterData.CharacterId, orbReward);
+        uiGame?.RefreshOrbDisplay();
     }
 
     public void RequestDebugRewardChoices(int rewardChoiceCount)
@@ -1619,6 +1646,71 @@ public class GameTurnManager : MonoBehaviour
         if (board != null)
         {
             board.GenerateNextArena();
+        }
+    }
+
+    private IEnumerator ShowFinalVictorySequenceAfterDelay()
+    {
+        yield return new WaitForSeconds(rewardMenuDelay);
+        nextArenaCoroutine = null;
+
+        if (board == null || uiGame == null)
+        {
+            yield break;
+        }
+
+        Character currentCharacter = board.Player != null ? board.Player.ControlledCharacter : null;
+        CharacterData characterData = currentCharacter != null ? currentCharacter.Data : null;
+        TourmentData currentTourment = board.GetTourmentData(board.CurrentTourmentLevel);
+        List<TourmentUnlockResult> unlockResults = board.EvaluateAndApplyFinalVictoryUnlocks(characterData);
+
+        uiGame.ShowWinMenu(characterData, currentTourment, () => HandleVictoryMenuAdvanced(characterData, unlockResults));
+    }
+
+    private void HandleVictoryMenuAdvanced(CharacterData characterData, List<TourmentUnlockResult> unlockResults)
+    {
+        if (unlockResults != null && unlockResults.Count > 0)
+        {
+            uiGame?.ShowUnlockSequence(unlockResults, characterData, ReturnToHomeAfterVictory);
+            return;
+        }
+
+        ReturnToHomeAfterVictory();
+    }
+
+    private void ReturnToHomeAfterVictory()
+    {
+        StopAllCoroutines();
+        isEnemyTurnRunning = false;
+        isPointerTracking = false;
+        isArenaTransitionRunning = false;
+        isRewardMenuOpen = false;
+        isLoseMenuOpen = false;
+        nextArenaCoroutine = null;
+        combatStartSequenceCoroutine = null;
+        enemyTurnCoroutine = null;
+        loseMenuCoroutine = null;
+        activeCombatStartPrompt = null;
+        combatStartChoiceResolved = false;
+        combatStartChoiceAccepted = false;
+        loadedDieRefreshUsedForCurrentRewards = false;
+        combatStartRelocationSelectionActive = false;
+        combatStartRelocationResolved = false;
+        combatStartRelocationMoved = false;
+        currentRewardMenuIsDebug = false;
+        ClearPendingAbility();
+        soundManager?.StopArenaMusic();
+        uiGame?.HideRewards();
+        uiGame?.HideShop();
+        uiGame?.HideYesNoPrompt();
+        uiGame?.HideLoseMenu();
+        uiGame?.HideWinMenu();
+        uiGame?.HideUnlockMenu();
+        if (homeMenu != null)
+        {
+            homeMenu.ShowForCharacter(board != null && board.Player != null && board.Player.ControlledCharacter != null
+                ? board.Player.ControlledCharacter.Data
+                : null);
         }
     }
 }

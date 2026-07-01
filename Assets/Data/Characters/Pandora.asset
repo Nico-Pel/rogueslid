@@ -12,11 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d02f0bf041b945de98527b357a172fa3, type: 3}
   m_Name: Pandora
   m_EditorClassIdentifier: 
+  characterId: pandora
   characterName: Pandora
-  description: A ruthless assassin who dances across the board with deadly precision.
+  description: "Pandora is a ruthless assassin who moves across the chessboard with
+    formidable precision. She has left her dark past as a killer behind to become
+    the protector of the Queen of Saham\xE2n."
   portrait: {fileID: 21300000, guid: 61fbbdf05e257431eb248c172b416f8e, type: 3}
   portraitLose: {fileID: 21300000, guid: 78803390e616e4ce5acbcc1ab79a11a4, type: 3}
+  portraitWin: {fileID: 21300000, guid: cbe46bf64c8b840718e006bef93c8fa2, type: 3}
   pathIcon: {fileID: 552667749, guid: 0908207145742434bbee8ded68f13915, type: 3}
+  orbIcon: {fileID: 336610217, guid: 2599b1159b03e41b495c4883757525a6, type: 3}
   maxHealth: 10
   bonusDamage: 0
   resistance: 0
@@ -37,6 +42,20 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c2010000000000000000000000000008, type: 2}
   - {fileID: 11400000, guid: c2010000000000000000000000000009, type: 2}
   - {fileID: 11400000, guid: c2010000000000000000000000000010, type: 2}
+  tourmentRewardUnlocks: []
+  persistentUpgrades:
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a001, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a002, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a007, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a004, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a005, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a006, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a003, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00b, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00c, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a008, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a009, type: 2}
+  - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a00a, type: 2}
   uiColors:
   - key: 0
     color: {r: 0.25490198, g: 0.07450981, b: 0.29803923, a: 1}

@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System;
 using UnityEngine.EventSystems;
+using DG.Tweening;
 
 public class UIGame : MonoBehaviour
 {
@@ -41,9 +42,11 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button yesNoYesButton;
     [SerializeField] private Button yesNoNoButton;
     [SerializeField] private GameObject loseMenu;
-    [SerializeField] private Image loseCharacterPortraitImage;
-    [SerializeField] private TMP_Text loseCharacterNameText;
-    [SerializeField] private Button retryButton;
+    [SerializeField] private MenuLose loseMenuView;
+    [SerializeField] private GameObject winMenu;
+    [SerializeField] private MenuWin winMenuView;
+    [SerializeField] private GameObject unlockMenu;
+    [SerializeField] private MenuUnlock unlockMenuView;
     [SerializeField] private GameObject abilityCheckMenu;
     [SerializeField] private Button abilityCheckBackgroundButton;
     [SerializeField] private RewardButtonUI abilityCheckCard;
@@ -59,6 +62,10 @@ public class UIGame : MonoBehaviour
     [SerializeField] private GameObject toolsMenu;
     [SerializeField] private UIShop uiShop;
     [SerializeField] private TMP_Text moneyText;
+    [SerializeField] private GameObject coinTrailFxPrefab;
+    [SerializeField] private GameObject orbRoot;
+    [SerializeField] private Image orbIconImage;
+    [SerializeField] private TMP_Text orbCountText;
     [SerializeField] private Button toolsMenuBackdropButton;
     [SerializeField] private TMP_InputField toolsBuildNameInput;
     [SerializeField] private TMP_Text toolsSelectedBuildLabel;
@@ -71,6 +78,8 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button toolsLoadBuildButton;
     [SerializeField] private Button toolsDeleteBuildButton;
     [SerializeField] private Button toolsCloseButton;
+    [SerializeField] private float coinTrailDurationMin = 0.5f;
+    [SerializeField] private float coinTrailDurationMax = 1f;
     [SerializeField] private float statsMenuClickThreshold = 16f;
     [SerializeField] private bool disableAbilityButtonsWithoutValidTargets = false;
     [SerializeField] private float targetedAreaIndicatorReleaseDelay = 0.25f;
@@ -110,15 +119,17 @@ public class UIGame : MonoBehaviour
     private readonly List<RewardOffer> currentAbilityCheckOffers = new List<RewardOffer>();
     private Action onYesNoAccepted;
     private Action onYesNoDeclined;
-    private Action onRetryRequested;
-    private Action onLoseMenuRequested;
     private BoardManager observedBoardForGold;
+    private BoardManager observedBoardForCoinRewards;
     private float targetableOnlyCellIndicatorDuration = 0.75f;
     private Coroutine clearTargetableOnlyIndicatorsCoroutine;
     private readonly List<EquipmentBuildData> availableEquipmentBuilds = new List<EquipmentBuildData>();
     private int selectedEquipmentBuildIndex = -1;
     private float targetableOnlyCellIndicatorObstacleHeightOffset = 0.7f;
     private bool isShopOpen;
+    private Action onUnlockSequenceCompleted;
+    private readonly List<TourmentUnlockResult> pendingUnlockSequence = new List<TourmentUnlockResult>();
+    private int pendingUnlockSequenceIndex = -1;
     private Vector2Int? activeAreaPreviewCenterCell;
     private static readonly Color DefaultTargetIndicatorColor = new Color32(0xFF, 0xE4, 0x00, 0xA3);
     private static readonly Color AreaPreviewIndicatorColor = new Color32(0x00, 0xCD, 0xFF, 0xDD);
@@ -218,6 +229,16 @@ public class UIGame : MonoBehaviour
             }
         }
 
+        if (coinTrailFxPrefab == null)
+        {
+            GameObject sceneCoinTrail = FindSceneObjectByName("CoinTrail");
+            if (sceneCoinTrail != null)
+            {
+                coinTrailFxPrefab = sceneCoinTrail;
+                coinTrailFxPrefab.SetActive(false);
+            }
+        }
+
         if (endTurnButton != null)
         {
             endTurnButton.onClick.RemoveListener(HandleEndTurnClicked);
@@ -230,6 +251,8 @@ public class UIGame : MonoBehaviour
         CacheRewardCheckMenu();
         CacheYesNoMenu();
         CacheLoseMenu();
+        CacheWinMenu();
+        CacheUnlockMenu();
         CacheAbilityCheckMenu();
         CacheSwitchAbilityMenu();
         EnsureToolsUI();
@@ -242,6 +265,8 @@ public class UIGame : MonoBehaviour
         HideRewardCheck();
         HideYesNoPrompt();
         HideLoseMenu();
+        HideWinMenu();
+        HideUnlockMenu();
         HideAbilityCheck();
         HideSwitchAbilityMenu();
         HideToolsMenu();
@@ -259,8 +284,10 @@ public class UIGame : MonoBehaviour
         }
 
         RebindGoldEvents();
+        RebindCoinRewardEvents();
         BindToCurrentCharacter();
         RefreshMoneyDisplay();
+        RefreshOrbDisplay();
     }
 
     private void OnDisable()
@@ -274,6 +301,7 @@ public class UIGame : MonoBehaviour
         }
 
         RebindGoldEvents(null);
+        RebindCoinRewardEvents(null);
         ClearTargetCellIndicators();
         ClearTargetableOnlyCellIndicators();
         HideToolsMenu();
@@ -396,30 +424,90 @@ public class UIGame : MonoBehaviour
             return;
         }
 
-        onRetryRequested = retryCallback;
-        onLoseMenuRequested = menuCallback;
-        if (loseCharacterPortraitImage != null)
-        {
-            loseCharacterPortraitImage.sprite = losePortrait;
-            loseCharacterPortraitImage.enabled = losePortrait != null;
-        }
-
-        if (loseCharacterNameText != null)
-        {
-            loseCharacterNameText.text = characterName ?? string.Empty;
-        }
-
+        loseMenuView?.Bind(characterName, losePortrait, retryCallback, menuCallback);
         loseMenu.SetActive(true);
         UpdateEndTurnButtonVisibility();
     }
 
     public void HideLoseMenu()
     {
-        onRetryRequested = null;
-        onLoseMenuRequested = null;
         if (loseMenu != null)
         {
             loseMenu.SetActive(false);
+        }
+
+        UpdateEndTurnButtonVisibility();
+    }
+
+    public void ShowWinMenu(CharacterData characterData, TourmentData tourmentData, Action nextCallback)
+    {
+        CacheWinMenu();
+        HideStatsMenus();
+        HideRewardCheck();
+        HideYesNoPrompt();
+        HideLoseMenu();
+        HideUnlockMenu();
+        HideAbilityCheck();
+        HideSwitchAbilityMenu();
+
+        if (winMenu == null)
+        {
+            nextCallback?.Invoke();
+            return;
+        }
+
+        winMenuView?.Bind(characterData, tourmentData, nextCallback);
+        winMenu.SetActive(true);
+        UpdateEndTurnButtonVisibility();
+    }
+
+    public void HideWinMenu()
+    {
+        if (winMenu != null)
+        {
+            winMenu.SetActive(false);
+        }
+
+        UpdateEndTurnButtonVisibility();
+    }
+
+    public void ShowUnlockSequence(List<TourmentUnlockResult> unlockResults, CharacterData characterData, Action completedCallback)
+    {
+        CacheUnlockMenu();
+        HideStatsMenus();
+        HideRewardCheck();
+        HideYesNoPrompt();
+        HideLoseMenu();
+        HideWinMenu();
+        HideAbilityCheck();
+        HideSwitchAbilityMenu();
+
+        pendingUnlockSequence.Clear();
+        if (unlockResults != null)
+        {
+            pendingUnlockSequence.AddRange(unlockResults);
+        }
+
+        onUnlockSequenceCompleted = completedCallback;
+        pendingUnlockSequenceIndex = 0;
+        if (pendingUnlockSequence.Count == 0)
+        {
+            HideUnlockMenu();
+            completedCallback?.Invoke();
+            return;
+        }
+
+        ShowUnlockEntry(pendingUnlockSequence[pendingUnlockSequenceIndex], characterData);
+    }
+
+    public void HideUnlockMenu()
+    {
+        pendingUnlockSequence.Clear();
+        pendingUnlockSequenceIndex = -1;
+        onUnlockSequenceCompleted = null;
+        if (unlockMenu != null)
+        {
+            unlockMenu.SetActive(false);
         }
 
         UpdateEndTurnButtonVisibility();
@@ -484,6 +572,7 @@ public class UIGame : MonoBehaviour
         HideStatsMenus();
         HideAbilityCheck();
         RebindGoldEvents();
+        RebindCoinRewardEvents();
 
         if (endTurnButton != null)
         {
@@ -502,6 +591,7 @@ public class UIGame : MonoBehaviour
         RefreshItemsList();
         RefreshFooterCharacterInfo();
         RefreshTargetCellIndicators();
+        RefreshOrbDisplay();
     }
 
     private void BindToCurrentCharacter()
@@ -539,6 +629,7 @@ public class UIGame : MonoBehaviour
         RefreshFooterCharacterInfo();
         RefreshTargetCellIndicators();
         RefreshAvailableEquipmentBuilds();
+        RefreshOrbDisplay();
     }
 
     private void UnbindCharacter()
@@ -572,6 +663,11 @@ public class UIGame : MonoBehaviour
         RebindGoldEvents(gameTurnManager != null ? gameTurnManager.Board : null);
     }
 
+    private void RebindCoinRewardEvents()
+    {
+        RebindCoinRewardEvents(gameTurnManager != null ? gameTurnManager.Board : null);
+    }
+
     private void RebindGoldEvents(BoardManager targetBoard)
     {
         if (observedBoardForGold == targetBoard)
@@ -589,6 +685,26 @@ public class UIGame : MonoBehaviour
         if (observedBoardForGold != null)
         {
             observedBoardForGold.GoldChanged += HandleGoldChanged;
+        }
+    }
+
+    private void RebindCoinRewardEvents(BoardManager targetBoard)
+    {
+        if (observedBoardForCoinRewards == targetBoard)
+        {
+            return;
+        }
+
+        if (observedBoardForCoinRewards != null)
+        {
+            observedBoardForCoinRewards.EnemyGoldRewardRequested -= HandleEnemyGoldRewardRequested;
+        }
+
+        observedBoardForCoinRewards = targetBoard;
+
+        if (observedBoardForCoinRewards != null)
+        {
+            observedBoardForCoinRewards.EnemyGoldRewardRequested += HandleEnemyGoldRewardRequested;
         }
     }
 
@@ -610,6 +726,154 @@ public class UIGame : MonoBehaviour
 
         int currentGold = gameTurnManager != null && gameTurnManager.Board != null ? gameTurnManager.Board.CurrentGold : 0;
         moneyText.text = currentGold.ToString();
+    }
+
+    private void HandleEnemyGoldRewardRequested(Vector3 originWorldPosition, int goldAmount)
+    {
+        if (gameTurnManager == null || gameTurnManager.Board == null || goldAmount <= 0)
+        {
+            return;
+        }
+
+        if (coinTrailFxPrefab == null)
+        {
+            gameTurnManager.Board.AwardGold(goldAmount);
+            return;
+        }
+
+        for (int index = 0; index < goldAmount; index++)
+        {
+            SpawnCoinTrail(originWorldPosition);
+        }
+    }
+
+    private void SpawnCoinTrail(Vector3 originWorldPosition)
+    {
+        if (gameTurnManager == null || gameTurnManager.Board == null)
+        {
+            return;
+        }
+
+        Camera targetCamera = Camera.main;
+        if (targetCamera == null)
+        {
+            gameTurnManager.Board.AwardGold(1);
+            return;
+        }
+
+        GameObject coinTrailInstance = Instantiate(coinTrailFxPrefab, originWorldPosition, coinTrailFxPrefab.transform.rotation);
+        coinTrailInstance.SetActive(true);
+
+        Vector3 targetWorldPosition = GetMoneyTargetWorldPosition(targetCamera, originWorldPosition);
+        float duration = UnityEngine.Random.Range(
+            Mathf.Min(coinTrailDurationMin, coinTrailDurationMax),
+            Mathf.Max(coinTrailDurationMin, coinTrailDurationMax));
+
+        coinTrailInstance.transform
+            .DOMove(targetWorldPosition, duration)
+            .SetEase(Ease.InOutQuad)
+            .OnComplete(() =>
+            {
+                if (gameTurnManager != null && gameTurnManager.Board != null)
+                {
+                    gameTurnManager.Board.AwardGold(1);
+                }
+
+                if (coinTrailInstance != null)
+                {
+                    Destroy(coinTrailInstance);
+                }
+            });
+    }
+
+    private Vector3 GetMoneyTargetWorldPosition(Camera targetCamera, Vector3 originWorldPosition)
+    {
+        Vector3 screenTarget = moneyText != null
+            ? RectTransformUtility.WorldToScreenPoint(null, moneyText.rectTransform.position)
+            : new Vector3(Screen.width, Screen.height, 0f);
+        float depth = Mathf.Max(0.01f, Vector3.Dot(originWorldPosition - targetCamera.transform.position, targetCamera.transform.forward));
+        screenTarget.z = depth;
+        return targetCamera.ScreenToWorldPoint(screenTarget);
+    }
+
+    private static GameObject FindSceneObjectByName(string objectName)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+        {
+            return null;
+        }
+
+        Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int index = 0; index < transforms.Length; index++)
+        {
+            Transform candidate = transforms[index];
+            if (candidate == null
+                || candidate.hideFlags != HideFlags.None
+                || candidate.gameObject.scene.rootCount == 0
+                || !string.Equals(candidate.name, objectName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return candidate.gameObject;
+        }
+
+        return null;
+    }
+
+    public void RefreshOrbDisplay()
+    {
+        if (orbRoot == null)
+        {
+            Transform orbTransform = transform.Find("UIOrb");
+            orbRoot = orbTransform != null ? orbTransform.gameObject : null;
+        }
+
+        Transform orbRootTransform = orbRoot != null ? orbRoot.transform : null;
+        if (orbIconImage == null && orbRootTransform != null)
+        {
+            Transform iconTransform = orbRootTransform.Find("iOrb");
+            if (iconTransform != null)
+            {
+                orbIconImage = iconTransform.GetComponent<Image>();
+            }
+        }
+
+        if (orbCountText == null && orbRootTransform != null)
+        {
+            Transform countTransform = orbRootTransform.Find("tOrb");
+            if (countTransform != null)
+            {
+                orbCountText = countTransform.GetComponent<TMP_Text>();
+            }
+        }
+
+        CharacterData characterData = observedCharacter != null ? observedCharacter.Data : null;
+        if (characterData == null)
+        {
+            if (orbCountText != null)
+            {
+                orbCountText.text = "0";
+            }
+
+            if (orbIconImage != null)
+            {
+                orbIconImage.enabled = false;
+            }
+
+            return;
+        }
+
+        if (orbIconImage != null)
+        {
+            orbIconImage.sprite = characterData.OrbIcon;
+            orbIconImage.enabled = characterData.OrbIcon != null;
+        }
+
+        if (orbCountText != null)
+        {
+            orbCountText.text = CharacterProgressionSaveManager.GetOrbCount(characterData.CharacterId).ToString();
+        }
     }
 
     public Sprite GetRewardTypeIconSprite(RewardPresentationIconKind iconKind)
@@ -841,17 +1105,24 @@ public class UIGame : MonoBehaviour
     private void HandleRetryClicked()
     {
         SoundManager.Instance?.PlayClick();
-        Action retryCallback = onRetryRequested;
         HideLoseMenu();
-        retryCallback?.Invoke();
     }
 
     private void HandleLoseMenuClicked()
     {
         SoundManager.Instance?.PlayClick();
-        Action menuCallback = onLoseMenuRequested;
         HideLoseMenu();
-        menuCallback?.Invoke();
+    }
+
+    private void HandleWinNextClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        HideWinMenu();
+    }
+
+    private void HandleUnlockNextClicked()
+    {
+        SoundManager.Instance?.PlayClick();
     }
 
     private bool HandleAbilityButtonPrimaryClick(AbilityButtonUI button)
@@ -909,7 +1180,9 @@ public class UIGame : MonoBehaviour
             && gameTurnManager.CanEndTurn
             && !gameTurnManager.IsRewardMenuOpen
             && !gameTurnManager.IsArenaTransitionRunning
-            && !gameTurnManager.IsLoseMenuOpen;
+            && !gameTurnManager.IsLoseMenuOpen
+            && (winMenu == null || !winMenu.activeSelf)
+            && (unlockMenu == null || !unlockMenu.activeSelf);
         if (endTurnButton.gameObject.activeSelf != shouldShow)
         {
             endTurnButton.gameObject.SetActive(shouldShow);
@@ -1631,37 +1904,72 @@ public class UIGame : MonoBehaviour
             return;
         }
 
-        if (loseCharacterPortraitImage == null)
+        if (loseMenuView == null)
         {
-            loseCharacterPortraitImage = FindComponentByName<Image>(loseMenu.transform, "iChara");
-        }
-
-        if (loseCharacterNameText == null)
-        {
-            loseCharacterNameText = FindComponentByName<TMP_Text>(loseMenu.transform, "Chara-Name");
-            if (loseCharacterNameText == null)
+            loseMenuView = loseMenu.GetComponent<MenuLose>();
+            if (loseMenuView == null)
             {
-                loseCharacterNameText = FindComponentByName<TMP_Text>(loseMenu.transform, "tTitle");
+                loseMenuView = loseMenu.AddComponent<MenuLose>();
             }
         }
 
-        if (retryButton == null)
+        loseMenuView.CacheReferences();
+    }
+
+    private void CacheWinMenu()
+    {
+        if (winMenu == null)
         {
-            retryButton = FindComponentByName<Button>(loseMenu.transform, "BRetry");
+            Transform winTransform = transform.Find("MenuWin");
+            if (winTransform != null)
+            {
+                winMenu = winTransform.gameObject;
+            }
         }
 
-        if (retryButton != null)
+        if (winMenu == null)
         {
-            retryButton.onClick.RemoveListener(HandleRetryClicked);
-            retryButton.onClick.AddListener(HandleRetryClicked);
+            return;
         }
 
-        Button menuButton = FindComponentByName<Button>(loseMenu.transform, "BMenu");
-        if (menuButton != null)
+        if (winMenuView == null)
         {
-            menuButton.onClick.RemoveListener(HandleLoseMenuClicked);
-            menuButton.onClick.AddListener(HandleLoseMenuClicked);
+            winMenuView = winMenu.GetComponent<MenuWin>();
+            if (winMenuView == null)
+            {
+                winMenuView = winMenu.AddComponent<MenuWin>();
+            }
         }
+
+        winMenuView.CacheReferences();
+    }
+
+    private void CacheUnlockMenu()
+    {
+        if (unlockMenu == null)
+        {
+            Transform unlockTransform = transform.Find("MenuUnlock");
+            if (unlockTransform != null)
+            {
+                unlockMenu = unlockTransform.gameObject;
+            }
+        }
+
+        if (unlockMenu == null)
+        {
+            return;
+        }
+
+        if (unlockMenuView == null)
+        {
+            unlockMenuView = unlockMenu.GetComponent<MenuUnlock>();
+            if (unlockMenuView == null)
+            {
+                unlockMenuView = unlockMenu.AddComponent<MenuUnlock>();
+            }
+        }
+
+        unlockMenuView.CacheReferences();
     }
 
     private void CacheAbilityCheckMenu()
@@ -3651,6 +3959,56 @@ public class UIGame : MonoBehaviour
         HideRewardCheck();
         HideSwitchAbilityMenu();
         HandleRewardSelected(rewardToConfirm);
+    }
+
+    private void ShowUnlockEntry(TourmentUnlockResult unlockResult, CharacterData fallbackCharacterData)
+    {
+        CacheUnlockMenu();
+        if (unlockMenu == null || unlockResult == null)
+        {
+            HideUnlockMenu();
+            return;
+        }
+
+        unlockMenu.SetActive(true);
+
+        TourmentData tourmentData = gameTurnManager != null && gameTurnManager.Board != null
+            ? gameTurnManager.Board.GetTourmentData(unlockResult.TourmentLevel)
+            : null;
+        unlockMenuView?.Bind(
+            unlockResult,
+            fallbackCharacterData,
+            tourmentData,
+            powerRewardStyle,
+            powerRewardTheme,
+            itemRewardStyle,
+            itemRewardTheme,
+            ResolveTypeIconSprite,
+            HandleAdvanceUnlockSequence);
+
+        UpdateEndTurnButtonVisibility();
+    }
+
+    private void HandleAdvanceUnlockSequence()
+    {
+        if (pendingUnlockSequence.Count == 0)
+        {
+            Action completedCallback = onUnlockSequenceCompleted;
+            HideUnlockMenu();
+            completedCallback?.Invoke();
+            return;
+        }
+
+        pendingUnlockSequenceIndex++;
+        if (pendingUnlockSequenceIndex >= pendingUnlockSequence.Count)
+        {
+            Action completedCallback = onUnlockSequenceCompleted;
+            HideUnlockMenu();
+            completedCallback?.Invoke();
+            return;
+        }
+
+        ShowUnlockEntry(pendingUnlockSequence[pendingUnlockSequenceIndex], observedCharacter != null ? observedCharacter.Data : null);
     }
 
     private Sprite ResolveTypeIconSprite(RewardPresentationIconKind iconKind)
