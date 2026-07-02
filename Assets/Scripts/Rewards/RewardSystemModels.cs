@@ -13,7 +13,26 @@ public enum RewardPresentationIconKind
     BasicAttack,
     MobilitySkill,
     SpecialPower,
-    Item
+    Item,
+    Potion
+}
+
+public enum RewardSubtitleKind
+{
+    Weapon,
+    Mobility,
+    Power,
+    Passive,
+    BonusAbility,
+    Potion
+}
+
+public enum RewardVisualKind
+{
+    Power,
+    Item,
+    BonusAbility,
+    Potion
 }
 
 public enum AbilityUpgradeKey
@@ -191,15 +210,20 @@ public sealed class RewardOffer
     public bool IsStackable;
     public ItemRewardKey ItemKey;
     public int ShopPrice;
+    public RewardSubtitleKind SubtitleKind;
+    public RewardVisualKind VisualKind;
 }
 
 public sealed class PlayerRunRewardState
 {
+    public const int MaxBonusAbilitySlots = 3;
     private readonly Dictionary<AbilityCategory, AbilityDefinition> equippedAbilities = new Dictionary<AbilityCategory, AbilityDefinition>();
     private readonly List<AbilityDefinition> knownAbilities = new List<AbilityDefinition>();
     private readonly HashSet<AbilityCategory> rewardChosenCategories = new HashSet<AbilityCategory>();
     private readonly Dictionary<AbilityUpgradeKey, int> upgradeStacks = new Dictionary<AbilityUpgradeKey, int>();
     private readonly HashSet<ItemRewardKey> ownedItems = new HashSet<ItemRewardKey>();
+    private readonly List<AbilityDefinition> bonusAbilitySlots = new List<AbilityDefinition>(MaxBonusAbilitySlots);
+    private readonly Dictionary<string, int> bonusAbilityPersistentValues = new Dictionary<string, int>();
 
     public bool IsInitialized { get; private set; }
     public int CurrentHealth { get; private set; } = -1;
@@ -235,7 +259,16 @@ public sealed class PlayerRunRewardState
         }
 
         CurrentHealth = Mathf.Max(1, currentHealth);
+        EnsureBonusAbilitySlots();
         IsInitialized = true;
+    }
+
+    private void EnsureBonusAbilitySlots()
+    {
+        while (bonusAbilitySlots.Count < MaxBonusAbilitySlots)
+        {
+            bonusAbilitySlots.Add(null);
+        }
     }
 
     public List<AbilityDefinition> GetEquippedAbilities()
@@ -355,6 +388,143 @@ public sealed class PlayerRunRewardState
     public List<ItemRewardKey> GetOwnedItems()
     {
         return new List<ItemRewardKey>(ownedItems);
+    }
+
+    public IReadOnlyList<AbilityDefinition> GetBonusAbilitySlots()
+    {
+        EnsureBonusAbilitySlots();
+        return bonusAbilitySlots;
+    }
+
+    public AbilityDefinition GetBonusAbilityAt(int slotIndex)
+    {
+        EnsureBonusAbilitySlots();
+        return slotIndex >= 0 && slotIndex < bonusAbilitySlots.Count
+            ? bonusAbilitySlots[slotIndex]
+            : null;
+    }
+
+    public bool HasEmptyBonusAbilitySlot()
+    {
+        EnsureBonusAbilitySlots();
+        for (int index = 0; index < bonusAbilitySlots.Count; index++)
+        {
+            if (bonusAbilitySlots[index] == null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool HasBonusAbility(AbilityDefinition ability)
+    {
+        if (ability == null)
+        {
+            return false;
+        }
+
+        EnsureBonusAbilitySlots();
+        for (int index = 0; index < bonusAbilitySlots.Count; index++)
+        {
+            if (bonusAbilitySlots[index] == ability)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool TryAddBonusAbility(AbilityDefinition ability, bool allowDuplicate)
+    {
+        if (ability == null)
+        {
+            return false;
+        }
+
+        EnsureBonusAbilitySlots();
+        if (!allowDuplicate && HasBonusAbility(ability))
+        {
+            return false;
+        }
+
+        for (int index = 0; index < bonusAbilitySlots.Count; index++)
+        {
+            if (bonusAbilitySlots[index] != null)
+            {
+                continue;
+            }
+
+            bonusAbilitySlots[index] = ability;
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool ClearBonusAbilityAt(int slotIndex)
+    {
+        EnsureBonusAbilitySlots();
+        if (slotIndex < 0 || slotIndex >= bonusAbilitySlots.Count || bonusAbilitySlots[slotIndex] == null)
+        {
+            return false;
+        }
+
+        bonusAbilitySlots[slotIndex] = null;
+        return true;
+    }
+
+    public void CompactBonusAbilitiesLeft()
+    {
+        EnsureBonusAbilitySlots();
+        int writeIndex = 0;
+        for (int readIndex = 0; readIndex < bonusAbilitySlots.Count; readIndex++)
+        {
+            AbilityDefinition ability = bonusAbilitySlots[readIndex];
+            if (ability == null)
+            {
+                continue;
+            }
+
+            if (writeIndex != readIndex)
+            {
+                bonusAbilitySlots[writeIndex] = ability;
+                bonusAbilitySlots[readIndex] = null;
+            }
+
+            writeIndex++;
+        }
+    }
+
+    public int GetBonusAbilityPersistentValue(string key)
+    {
+        return !string.IsNullOrWhiteSpace(key) && bonusAbilityPersistentValues.TryGetValue(key, out int value)
+            ? value
+            : 0;
+    }
+
+    public void SetBonusAbilityPersistentValue(string key, int value)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
+
+        bonusAbilityPersistentValues[key] = value;
+    }
+
+    public int AddBonusAbilityPersistentValue(string key, int delta)
+    {
+        if (string.IsNullOrWhiteSpace(key) || delta == 0)
+        {
+            return GetBonusAbilityPersistentValue(key);
+        }
+
+        int nextValue = GetBonusAbilityPersistentValue(key) + delta;
+        bonusAbilityPersistentValues[key] = nextValue;
+        return nextValue;
     }
 
     public void SetCurrentHealth(int currentHealth)

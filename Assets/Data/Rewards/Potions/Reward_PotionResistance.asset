@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4eb645f597444fca8b87c2dadb4f7001, type: 3}
+  m_Name: Reward_PotionResistance
+  m_EditorClassIdentifier: 
+  rewardId: reward_potion_resistance
+  rewardTitle: Resistance Potion
+  rewardDescription: Adds a consumable bonus ability that grants 3 resistance until
+    the end of the next enemy turn.
+  artwork: {fileID: 0}
+  lockByDefault: 0
+  bonusAbility: {fileID: 11400000, guid: 18d478d275c3417f90b7738bbfe5790e, type: 2}
+  consumablePotion: 1
+  shopPrice: 10

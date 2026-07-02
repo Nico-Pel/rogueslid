@@ -407,25 +407,20 @@ public class RewardButtonUI : MonoBehaviour
             return string.Empty;
         }
 
-        if (rewardOffer.Kind == RewardOfferKind.Item)
-        {
-            return "Passive";
-        }
-
         if (rewardOffer.Kind == RewardOfferKind.AbilityUpgrade)
         {
             return "Upgrade";
         }
 
-        switch (rewardOffer.IconKind)
+        return rewardOffer.SubtitleKind switch
         {
-            case RewardPresentationIconKind.MobilitySkill:
-                return "Mobility";
-            case RewardPresentationIconKind.SpecialPower:
-                return "Power";
-            default:
-                return "Weapon";
-        }
+            RewardSubtitleKind.Mobility => "Mobility",
+            RewardSubtitleKind.Power => "Power",
+            RewardSubtitleKind.Passive => "Passive",
+            RewardSubtitleKind.BonusAbility => "Bonus Ability",
+            RewardSubtitleKind.Potion => "Potion",
+            _ => "Weapon"
+        };
     }
 
     private static Color GetSubtitleBackgroundColor(RewardOffer rewardOffer, RewardButtonTheme theme)

@@ -15,6 +15,7 @@ public class UIGame : MonoBehaviour
     [SerializeField] private RectTransform mobilityBar;
     [SerializeField] private GameObject mobilityIconPrefab;
     [SerializeField] private RectTransform abilitiesBar;
+    [SerializeField] private RectTransform bonusAbilitiesBar;
     [SerializeField] private RectTransform itemsList;
     [SerializeField] private GameObject itemIconPrefab;
     [SerializeField] private Color mobilityAvailableColor = Color.white;
@@ -33,6 +34,8 @@ public class UIGame : MonoBehaviour
     [SerializeField] private Button rewardCheckChooseButton;
     [SerializeField] private Button rewardCheckBackButton;
     [SerializeField] private RewardButtonUI rewardCheckCard;
+    [SerializeField] private TMP_Text rewardCheckChooseLabel;
+    [SerializeField] private GameObject rewardCheckBarrelLootLabel;
     [SerializeField] private GameObject yesNoMenu;
     [SerializeField] private Image yesNoArtworkImage;
     [SerializeField] private TMP_Text yesNoTitleText;
@@ -90,6 +93,7 @@ public class UIGame : MonoBehaviour
     private readonly Dictionary<ItemRewardKey, ItemIconUI> itemIconsByKey = new Dictionary<ItemRewardKey, ItemIconUI>();
     private readonly Dictionary<ItemRewardKey, float> itemActivationPulseEndTimes = new Dictionary<ItemRewardKey, float>();
     private readonly List<AbilityButtonUI> abilityButtons = new List<AbilityButtonUI>();
+    private readonly List<AbilityButtonUI> bonusAbilityButtons = new List<AbilityButtonUI>();
     private readonly List<RewardButtonUI> rewardCards = new List<RewardButtonUI>();
     private readonly List<GameObject> targetCellIndicators = new List<GameObject>();
     private readonly Dictionary<Vector2Int, GameObject> targetCellIndicatorsByCell = new Dictionary<Vector2Int, GameObject>();
@@ -102,16 +106,22 @@ public class UIGame : MonoBehaviour
     private RewardButtonStyle baseItemRewardStyle;
     private RewardButtonStyle powerRewardStyle;
     private RewardButtonStyle itemRewardStyle;
+    private RewardButtonStyle bonusAbilityRewardStyle;
+    private RewardButtonStyle potionRewardStyle;
     private RewardButtonTheme powerRewardTheme = RewardButtonUI.DefaultPowerTheme;
     private RewardButtonTheme itemRewardTheme = RewardButtonUI.DefaultItemTheme;
+    private RewardButtonTheme bonusAbilityRewardTheme = RewardButtonUI.DefaultItemTheme;
+    private RewardButtonTheme potionRewardTheme = RewardButtonUI.DefaultItemTheme;
     private ItemIconTheme itemIconTheme = ItemIconUI.DefaultTheme;
     private Sprite basicAttackRewardIcon;
     private Sprite mobilityRewardIcon;
     private Sprite specialRewardIcon;
     private Sprite objectRewardIcon;
+    private Sprite potionRewardIcon;
     private bool isStatsPointerTracking;
     private Vector2 statsPointerStartPosition;
     private RewardOffer pendingRewardConfirmation;
+    private Action<RewardOffer> rewardCheckSelectionCallback;
     private ItemRewardDefinition currentPreviewedItemDefinition;
     private bool rewardCheckOpenedFromShop;
     private AbilityDefinition pendingAbilityReplacementOldAbility;
@@ -216,6 +226,15 @@ public class UIGame : MonoBehaviour
                 {
                     itemsList = itemsListTransform as RectTransform;
                 }
+            }
+        }
+
+        if (bonusAbilitiesBar == null)
+        {
+            Transform bonusAbilitiesTransform = transform.Find("AbilitiesBonus");
+            if (bonusAbilitiesTransform != null)
+            {
+                bonusAbilitiesBar = bonusAbilitiesTransform as RectTransform;
             }
         }
 
@@ -345,8 +364,8 @@ public class UIGame : MonoBehaviour
         for (int index = 0; index < rewardCards.Count; index++)
         {
             RewardOffer rewardOffer = rewardOffers != null && index < rewardOffers.Count ? rewardOffers[index] : null;
-            RewardButtonStyle style = rewardOffer != null && rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
-            RewardButtonTheme theme = rewardOffer != null && rewardOffer.Kind == RewardOfferKind.Item ? itemRewardTheme : powerRewardTheme;
+            RewardButtonStyle style = GetRewardStyle(rewardOffer);
+            RewardButtonTheme theme = GetRewardTheme(rewardOffer);
             Sprite typeSprite = rewardOffer != null ? ResolveTypeIconSprite(rewardOffer.IconKind) : null;
             rewardCards[index].Bind(rewardOffer, style, theme, typeSprite, HandleRewardPreviewRequested);
         }
@@ -554,6 +573,48 @@ public class UIGame : MonoBehaviour
         if (yesNoQuestionText != null)
         {
             yesNoQuestionText.text = itemRewardDefinition.GetActivationQuestion();
+        }
+
+        yesNoMenu.SetActive(true);
+        UpdateEndTurnButtonVisibility();
+    }
+
+    public void ShowYesNoPromptForBonusAbility(AbilityDefinition abilityDefinition, Action acceptedCallback, Action declinedCallback)
+    {
+        CacheYesNoMenu();
+        HideStatsMenus();
+        HideRewardCheck();
+        HideAbilityCheck();
+        HideSwitchAbilityMenu();
+
+        onYesNoAccepted = acceptedCallback;
+        onYesNoDeclined = declinedCallback;
+
+        if (yesNoMenu == null || abilityDefinition == null)
+        {
+            acceptedCallback?.Invoke();
+            return;
+        }
+
+        if (yesNoArtworkImage != null)
+        {
+            yesNoArtworkImage.sprite = abilityDefinition.Icon;
+            yesNoArtworkImage.enabled = abilityDefinition.Icon != null;
+        }
+
+        if (yesNoTitleText != null)
+        {
+            yesNoTitleText.text = abilityDefinition.GetDisplayName(observedCharacter, FindObservedAbilityRuntime(abilityDefinition));
+        }
+
+        if (yesNoDescriptionText != null)
+        {
+            yesNoDescriptionText.text = ResolveAbilityDescription(abilityDefinition);
+        }
+
+        if (yesNoQuestionText != null)
+        {
+            yesNoQuestionText.text = "Drink this potion?";
         }
 
         yesNoMenu.SetActive(true);
@@ -1054,6 +1115,17 @@ public class UIGame : MonoBehaviour
             return;
         }
 
+        if (rewardCheckSelectionCallback != null)
+        {
+            RewardOffer rewardToConfirm = pendingRewardConfirmation;
+            Action<RewardOffer> selectionCallback = rewardCheckSelectionCallback;
+            pendingRewardConfirmation = null;
+            rewardCheckSelectionCallback = null;
+            HideRewardCheck();
+            selectionCallback.Invoke(rewardToConfirm);
+            return;
+        }
+
         if (TryPrepareAbilityReplacementConfirmation(pendingRewardConfirmation))
         {
             HideRewardCheck();
@@ -1068,6 +1140,7 @@ public class UIGame : MonoBehaviour
     {
         SoundManager.Instance?.PlayClick();
         pendingRewardConfirmation = null;
+        rewardCheckSelectionCallback = null;
         HideRewardCheck();
     }
 
@@ -1075,6 +1148,7 @@ public class UIGame : MonoBehaviour
     {
         SoundManager.Instance?.PlayClick();
         pendingRewardConfirmation = null;
+        rewardCheckSelectionCallback = null;
         HideRewardCheck();
     }
 
@@ -1151,6 +1225,17 @@ public class UIGame : MonoBehaviour
                 ShowAbilityCheck(button, 0);
             }
 
+            return true;
+        }
+
+        AbilityDefinition boundDefinition = button.BoundDefinition;
+        if (button.IsBonusSlot && boundDefinition != null && boundDefinition.IsConsumableBonusAbility)
+        {
+            SoundManager.Instance?.PlayClick();
+            ShowYesNoPromptForBonusAbility(
+                boundDefinition,
+                () => gameTurnManager?.RequestBonusAbilityUse(button.AbilityIndex),
+                null);
             return true;
         }
 
@@ -1354,6 +1439,12 @@ public class UIGame : MonoBehaviour
             return observedCharacter.GetAbility(pendingAbilityIndex);
         }
 
+        int pendingBonusSlot = gameTurnManager.PendingBonusAbilitySlot;
+        if (pendingBonusSlot >= 0)
+        {
+            return observedCharacter.GetBonusAbility(pendingBonusSlot);
+        }
+
         for (int index = 0; index < observedCharacter.Abilities.Count; index++)
         {
             CharacterAbilityRuntime runtime = observedCharacter.GetAbility(index);
@@ -1375,7 +1466,7 @@ public class UIGame : MonoBehaviour
         }
 
         BoardManager board = gameTurnManager.Board;
-        bool isPendingTargetedAbility = gameTurnManager.PendingCellTargetAbilityIndex >= 0;
+        bool isPendingTargetedAbility = gameTurnManager.PendingCellTargetAbilityIndex >= 0 || gameTurnManager.PendingBonusAbilitySlot >= 0;
 
         for (int x = 0; x < board.Width; x++)
         {
@@ -1563,7 +1654,7 @@ public class UIGame : MonoBehaviour
             return false;
         }
 
-        if (gameTurnManager == null || gameTurnManager.PendingCellTargetAbilityIndex < 0)
+        if (gameTurnManager == null || (gameTurnManager.PendingCellTargetAbilityIndex < 0 && gameTurnManager.PendingBonusAbilitySlot < 0))
         {
             return false;
         }
@@ -1640,23 +1731,44 @@ public class UIGame : MonoBehaviour
             Button[] buttons = abilitiesBar.GetComponentsInChildren<Button>(true);
             for (int index = 0; index < buttons.Length; index++)
             {
-                if (!buttons[index].name.StartsWith("BAbility", StringComparison.Ordinal))
+                if (!buttons[index].name.StartsWith("BAbility", StringComparison.Ordinal)
+                    || buttons[index].name.StartsWith("BAbilityBonus", StringComparison.Ordinal))
                 {
                     continue;
                 }
 
                 AbilityButtonUI abilityButton = buttons[index].GetComponent<AbilityButtonUI>();
-                if (abilityButton == null)
+                if (abilityButton != null)
                 {
-                    abilityButton = buttons[index].gameObject.AddComponent<AbilityButtonUI>();
+                    abilityButtons.Add(abilityButton);
                 }
-
-                abilityButtons.Add(abilityButton);
             }
         }
 
         abilityButtons.RemoveAll(button => button == null);
         abilityButtons.Sort((left, right) => string.CompareOrdinal(left.name, right.name));
+
+        bonusAbilityButtons.Clear();
+        if (bonusAbilitiesBar != null)
+        {
+            Button[] buttons = bonusAbilitiesBar.GetComponentsInChildren<Button>(true);
+            for (int index = 0; index < buttons.Length; index++)
+            {
+                if (!buttons[index].name.StartsWith("BAbilityBonus", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                AbilityButtonUI abilityButton = buttons[index].GetComponent<AbilityButtonUI>();
+                if (abilityButton != null)
+                {
+                    bonusAbilityButtons.Add(abilityButton);
+                }
+            }
+        }
+
+        bonusAbilityButtons.RemoveAll(button => button == null);
+        bonusAbilityButtons.Sort((left, right) => string.CompareOrdinal(left.name, right.name));
     }
 
     private void CacheRewardsMenu()
@@ -1804,6 +1916,20 @@ public class UIGame : MonoBehaviour
         if (rewardCheckCard == null)
         {
             rewardCheckCard = rewardCheckMenu.GetComponentInChildren<RewardButtonUI>(true);
+        }
+
+        if (rewardCheckChooseLabel == null && rewardCheckChooseButton != null)
+        {
+            rewardCheckChooseLabel = rewardCheckChooseButton.transform.Find("tChoose")?.GetComponent<TMP_Text>();
+        }
+
+        if (rewardCheckBarrelLootLabel == null)
+        {
+            Transform barrelLootTransform = rewardCheckMenu.transform.Find("tBarrelLoot");
+            if (barrelLootTransform != null)
+            {
+                rewardCheckBarrelLootLabel = barrelLootTransform.gameObject;
+            }
         }
 
         if (rewardCheckBackgroundButton != null)
@@ -2097,7 +2223,7 @@ public class UIGame : MonoBehaviour
 
     private void CacheRewardTypeIcons()
     {
-        if (basicAttackRewardIcon != null && mobilityRewardIcon != null && specialRewardIcon != null)
+        if (basicAttackRewardIcon != null && mobilityRewardIcon != null && specialRewardIcon != null && potionRewardIcon != null)
         {
             return;
         }
@@ -2125,9 +2251,32 @@ public class UIGame : MonoBehaviour
                 specialRewardIcon = button.GetTypeSpriteForCategory(AbilityCategory.SpecialPower);
             }
 
-            if (basicAttackRewardIcon != null && mobilityRewardIcon != null && specialRewardIcon != null)
+            if (potionRewardIcon == null)
+            {
+                potionRewardIcon = button.GetTypeSpriteForKind(AbilityButtonTypeIconKind.Potion);
+            }
+
+            if (basicAttackRewardIcon != null && mobilityRewardIcon != null && specialRewardIcon != null && potionRewardIcon != null)
             {
                 break;
+            }
+        }
+
+        if (potionRewardIcon == null)
+        {
+            for (int index = 0; index < bonusAbilityButtons.Count; index++)
+            {
+                AbilityButtonUI button = bonusAbilityButtons[index];
+                if (button == null)
+                {
+                    continue;
+                }
+
+                potionRewardIcon = button.GetTypeSpriteForKind(AbilityButtonTypeIconKind.Potion);
+                if (potionRewardIcon != null)
+                {
+                    break;
+                }
             }
         }
     }
@@ -2209,6 +2358,31 @@ public class UIGame : MonoBehaviour
                 || gameTurnManager.HasAnyUsableTarget(observedCharacter, runtime);
             button.SetHasAnyValidTarget(hasValidTarget);
             button.ApplyTheme(abilityButtonBackgroundColor, abilityButtonOutlineColor, abilityButtonCountBackgroundColor, abilityButtonTypeIconColor, abilityButtonTypeOutlineColor);
+        }
+
+        Color bonusBackgroundColor = new Color32(0xC5, 0xA5, 0x7E, 0xFF);
+        Color bonusOutlineColor = new Color32(0x96, 0x7F, 0x62, 0xFF);
+        Color bonusCountBackgroundColor = new Color32(0xCB, 0xA3, 0x72, 0xFF);
+        Color bonusTypeIconColor = new Color32(0xF5, 0xD6, 0xB1, 0xFF);
+        Color bonusTypeOutlineColor = new Color32(0x96, 0x7F, 0x62, 0xFF);
+
+        for (int index = 0; index < bonusAbilityButtons.Count; index++)
+        {
+            AbilityButtonUI button = bonusAbilityButtons[index];
+            if (button == null)
+            {
+                continue;
+            }
+
+            button.SetupBonus(gameTurnManager, observedCharacter, index, HandleAbilityButtonPrimaryClick, HandleAbilityButtonLongPress);
+
+            CharacterAbilityRuntime runtime = observedCharacter != null ? observedCharacter.GetBonusAbility(index) : null;
+            bool hasValidTarget = !disableAbilityButtonsWithoutValidTargets
+                || runtime == null
+                || gameTurnManager == null
+                || gameTurnManager.HasAnyUsableTarget(observedCharacter, runtime);
+            button.SetHasAnyValidTarget(hasValidTarget);
+            button.ApplyTheme(bonusBackgroundColor, bonusOutlineColor, bonusCountBackgroundColor, bonusTypeIconColor, bonusTypeOutlineColor);
         }
     }
 
@@ -2374,6 +2548,8 @@ public class UIGame : MonoBehaviour
             CharacterUIColorKey.PowerRewardTypeIcon);
 
         itemRewardStyle = baseItemRewardStyle;
+        bonusAbilityRewardStyle = BuildTintedRewardStyle(baseItemRewardStyle, new Color32(0xBE, 0x6C, 0x28, 0xFF));
+        potionRewardStyle = BuildTintedRewardStyle(baseItemRewardStyle, new Color32(0xD4, 0x92, 0x73, 0xFF));
 
         powerRewardTheme = new RewardButtonTheme(
             GetCharacterThemeColor(CharacterUIColorKey.PowerRewardOutline, RewardButtonUI.DefaultPowerTheme.OutlineColor),
@@ -2383,6 +2559,8 @@ public class UIGame : MonoBehaviour
             GetCharacterThemeColor(CharacterUIColorKey.PowerRewardNewSubtitleText, RewardButtonUI.DefaultPowerTheme.NewSubtitleTextColor));
 
         itemRewardTheme = RewardButtonUI.DefaultItemTheme;
+        bonusAbilityRewardTheme = BuildTintedRewardTheme(RewardButtonUI.DefaultItemTheme, new Color32(0xBE, 0x6C, 0x28, 0xFF));
+        potionRewardTheme = BuildTintedRewardTheme(RewardButtonUI.DefaultItemTheme, new Color32(0xD4, 0x92, 0x73, 0xFF));
 
         itemIconTheme = new ItemIconTheme(
             GetCharacterThemeColor(CharacterUIColorKey.ItemIconBackground, ItemIconUI.DefaultTheme.BackgroundColor),
@@ -3607,7 +3785,7 @@ public class UIGame : MonoBehaviour
             return false;
         }
 
-        if (gameTurnManager.PendingCellTargetAbilityIndex >= 0)
+        if (gameTurnManager.PendingCellTargetAbilityIndex >= 0 || gameTurnManager.PendingBonusAbilitySlot >= 0)
         {
             return true;
         }
@@ -3634,8 +3812,8 @@ public class UIGame : MonoBehaviour
             return;
         }
 
-        RewardButtonStyle style = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
-        RewardButtonTheme theme = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardTheme : powerRewardTheme;
+        RewardButtonStyle style = GetRewardStyle(rewardOffer);
+        RewardButtonTheme theme = GetRewardTheme(rewardOffer);
         Sprite typeSprite = ResolveTypeIconSprite(rewardOffer.IconKind);
         rewardCheckCard.Bind(rewardOffer, style, theme, typeSprite, null);
 
@@ -3644,18 +3822,62 @@ public class UIGame : MonoBehaviour
             rewardCheckChooseButton.gameObject.SetActive(canChoose);
         }
 
+        if (rewardCheckChooseLabel != null)
+        {
+            rewardCheckChooseLabel.text = "Choose";
+        }
+
         if (rewardCheckBackButton != null)
         {
             rewardCheckBackButton.gameObject.SetActive(rewardCheckOpenedFromShop);
         }
 
+        if (rewardCheckBarrelLootLabel != null)
+        {
+            rewardCheckBarrelLootLabel.SetActive(false);
+        }
+
         rewardCheckMenu.SetActive(true);
     }
 
-    private void HideRewardCheck()
+    public void ShowBarrelPotionRewardCheck(RewardOffer rewardOffer, Action<RewardOffer> onChosen)
+    {
+        pendingRewardConfirmation = rewardOffer;
+        rewardCheckSelectionCallback = onChosen;
+        rewardCheckOpenedFromShop = false;
+        ShowRewardCheck(rewardOffer, true);
+
+        if (rewardCheckChooseLabel != null)
+        {
+            rewardCheckChooseLabel.text = "Cool!";
+        }
+
+        if (rewardCheckBackButton != null)
+        {
+            rewardCheckBackButton.gameObject.SetActive(false);
+        }
+
+        if (rewardCheckBarrelLootLabel != null)
+        {
+            rewardCheckBarrelLootLabel.SetActive(true);
+        }
+    }
+
+    public void HideRewardCheck()
     {
         currentPreviewedItemDefinition = null;
         rewardCheckOpenedFromShop = false;
+        rewardCheckSelectionCallback = null;
+        if (rewardCheckChooseLabel != null)
+        {
+            rewardCheckChooseLabel.text = "Choose";
+        }
+
+        if (rewardCheckBarrelLootLabel != null)
+        {
+            rewardCheckBarrelLootLabel.SetActive(false);
+        }
+
         if (rewardCheckMenu != null)
         {
             rewardCheckMenu.SetActive(false);
@@ -3671,7 +3893,7 @@ public class UIGame : MonoBehaviour
             return;
         }
 
-        RewardOffer baseOffer = BuildAbilityBaseOffer(sourceButton.BoundDefinition);
+        RewardOffer baseOffer = BuildAbilityBaseOffer(sourceButton);
         if (baseOffer == null)
         {
             return;
@@ -3705,8 +3927,8 @@ public class UIGame : MonoBehaviour
 
         int clampedIndex = Mathf.Clamp(selectedIndex, 0, currentAbilityCheckOffers.Count - 1);
         RewardOffer rewardOffer = currentAbilityCheckOffers[clampedIndex];
-        RewardButtonStyle style = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardStyle : powerRewardStyle;
-        RewardButtonTheme theme = rewardOffer.Kind == RewardOfferKind.Item ? itemRewardTheme : powerRewardTheme;
+        RewardButtonStyle style = GetRewardStyle(rewardOffer);
+        RewardButtonTheme theme = GetRewardTheme(rewardOffer);
         abilityCheckCard.Bind(rewardOffer, style, theme, ResolveTypeIconSprite(rewardOffer.IconKind), null);
 
         for (int index = 0; index < abilityCheckOptionButtons.Count; index++)
@@ -3724,23 +3946,52 @@ public class UIGame : MonoBehaviour
         }
     }
 
-    private RewardOffer BuildAbilityBaseOffer(AbilityDefinition abilityDefinition)
+    private RewardOffer BuildAbilityBaseOffer(AbilityButtonUI sourceButton)
     {
+        AbilityDefinition abilityDefinition = sourceButton != null ? sourceButton.BoundDefinition : null;
         if (abilityDefinition == null)
         {
             return null;
         }
 
+        CharacterAbilityRuntime runtime = FindObservedAbilityRuntime(abilityDefinition);
+        AbilityButtonTypeIconKind iconKind = abilityDefinition.GetButtonTypeIconKind(observedCharacter, runtime);
+        RewardPresentationIconKind rewardIconKind = iconKind switch
+        {
+            AbilityButtonTypeIconKind.Mobility => RewardPresentationIconKind.MobilitySkill,
+            AbilityButtonTypeIconKind.Power => RewardPresentationIconKind.SpecialPower,
+            AbilityButtonTypeIconKind.Potion => RewardPresentationIconKind.Potion,
+            _ => RewardPresentationIconKind.BasicAttack
+        };
+
+        bool isPotion = iconKind == AbilityButtonTypeIconKind.Potion;
+        bool isBonusAbility = sourceButton != null ? sourceButton.IsBonusSlot : abilityDefinition.IsBonusAbility;
+
         return new RewardOffer
         {
             Id = $"ability_preview_{abilityDefinition.name}",
-            Title = abilityDefinition.GetDisplayName(observedCharacter, FindObservedAbilityRuntime(abilityDefinition)),
+            Title = abilityDefinition.GetDisplayName(observedCharacter, runtime),
             Description = ResolveAbilityDescription(abilityDefinition),
             Artwork = abilityDefinition.Icon,
             Kind = RewardOfferKind.AbilityUnlock,
-            IconKind = GetIconKindForAbilityCategory(abilityDefinition.Category),
+            IconKind = rewardIconKind,
             ShowPowerStroke = false,
-            Ability = abilityDefinition
+            Ability = abilityDefinition,
+            SubtitleKind = isPotion
+                ? RewardSubtitleKind.Potion
+                : isBonusAbility
+                    ? RewardSubtitleKind.BonusAbility
+                    : rewardIconKind switch
+                    {
+                        RewardPresentationIconKind.MobilitySkill => RewardSubtitleKind.Mobility,
+                        RewardPresentationIconKind.SpecialPower => RewardSubtitleKind.Power,
+                        _ => RewardSubtitleKind.Weapon
+                    },
+            VisualKind = isPotion
+                ? RewardVisualKind.Potion
+                : isBonusAbility
+                    ? RewardVisualKind.BonusAbility
+                    : RewardVisualKind.Power
         };
     }
 
@@ -3784,6 +4035,16 @@ public class UIGame : MonoBehaviour
         for (int index = 0; index < abilityRuntimes.Count; index++)
         {
             CharacterAbilityRuntime runtime = abilityRuntimes[index];
+            if (runtime != null && runtime.Definition == abilityDefinition)
+            {
+                return runtime;
+            }
+        }
+
+        IReadOnlyList<CharacterAbilityRuntime> bonusAbilityRuntimes = observedCharacter.BonusAbilities;
+        for (int index = 0; index < bonusAbilityRuntimes.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = bonusAbilityRuntimes[index];
             if (runtime != null && runtime.Definition == abilityDefinition)
             {
                 return runtime;
@@ -4042,6 +4303,8 @@ public class UIGame : MonoBehaviour
                 return mobilityRewardIcon;
             case RewardPresentationIconKind.SpecialPower:
                 return specialRewardIcon;
+            case RewardPresentationIconKind.Potion:
+                return potionRewardIcon != null ? potionRewardIcon : objectRewardIcon;
             default:
                 return objectRewardIcon;
         }
@@ -4050,6 +4313,61 @@ public class UIGame : MonoBehaviour
     public RewardButtonStyle GetItemRewardStyle()
     {
         return itemRewardStyle;
+    }
+
+    private RewardButtonStyle GetRewardStyle(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null)
+        {
+            return powerRewardStyle;
+        }
+
+        return rewardOffer.VisualKind switch
+        {
+            RewardVisualKind.Item => itemRewardStyle,
+            RewardVisualKind.BonusAbility => bonusAbilityRewardStyle,
+            RewardVisualKind.Potion => potionRewardStyle,
+            _ => powerRewardStyle
+        };
+    }
+
+    private RewardButtonTheme GetRewardTheme(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null)
+        {
+            return powerRewardTheme;
+        }
+
+        return rewardOffer.VisualKind switch
+        {
+            RewardVisualKind.BonusAbility => bonusAbilityRewardTheme,
+            RewardVisualKind.Potion => potionRewardTheme,
+            RewardVisualKind.Power => powerRewardTheme,
+            _ => itemRewardTheme
+        };
+    }
+
+    private static RewardButtonStyle BuildTintedRewardStyle(RewardButtonStyle baseStyle, Color backgroundColor)
+    {
+        return new RewardButtonStyle(
+            baseStyle.ArtworkSprite,
+            backgroundColor,
+            baseStyle.TitleBackgroundColor,
+            baseStyle.TitleTextColor,
+            baseStyle.DescriptionBackgroundColor,
+            baseStyle.DescriptionTextColor,
+            baseStyle.TypeContainerColor,
+            baseStyle.TypeIconColor);
+    }
+
+    private static RewardButtonTheme BuildTintedRewardTheme(RewardButtonTheme baseTheme, Color subtitleBackgroundColor)
+    {
+        return new RewardButtonTheme(
+            baseTheme.OutlineColor,
+            subtitleBackgroundColor,
+            baseTheme.SubtitleTextColor,
+            subtitleBackgroundColor,
+            baseTheme.NewSubtitleTextColor);
     }
 
     private static RewardPresentationIconKind GetIconKindForAbilityCategory(AbilityCategory category)

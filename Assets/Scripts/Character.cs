@@ -76,6 +76,7 @@ public class Character : MonoBehaviour
     private int remainingMovementPoints;
     private int wolfMovementPoints;
     private readonly List<CharacterAbilityRuntime> abilities = new List<CharacterAbilityRuntime>();
+    private readonly List<CharacterAbilityRuntime> bonusAbilities = new List<CharacterAbilityRuntime>();
     private readonly List<Enemy> traversedEnemiesBuffer = new List<Enemy>();
     private RendererBlinkFeedback blinkFeedback;
     private AnimatorOverrideController animatorOverrideController;
@@ -114,7 +115,9 @@ public class Character : MonoBehaviour
     private int nextAttackBonusDamage;
     private int samuraiMaskBonusDamage;
     private int bonusDamageUntilEndOfTurn;
+    private int bonusDamageUntilNextEnemyTurn;
     private int bonusDamageUntilNextMovement;
+    private int bonusResistanceUntilNextEnemyTurn;
     private bool isPoisoned;
     private GameObject nextAttackBonusAuraPrefab;
     private GameObject activeNextAttackBonusAuraInstance;
@@ -184,6 +187,7 @@ public class Character : MonoBehaviour
     public event Action<Character, Vector2Int, Vector2Int> Moved;
     public event Action<Character> Died;
     public IReadOnlyList<CharacterAbilityRuntime> Abilities => abilities;
+    public IReadOnlyList<CharacterAbilityRuntime> BonusAbilities => bonusAbilities;
     public PlayerRunRewardState RunRewardState => runRewardState;
     private float itemActivationPulseDuration = 2.5f;
     private readonly Dictionary<ItemRewardKey, bool> activeItemStates = new Dictionary<ItemRewardKey, bool>();
@@ -209,6 +213,7 @@ public class Character : MonoBehaviour
         blinkFeedback = GetComponent<RendererBlinkFeedback>();
         CacheHpBar();
         InitializeAbilities();
+        InitializeBonusAbilities();
         isFirstPlayerTurnOfArena = true;
         luckyCoinUsedThisCombat = false;
         sandglassTalismanTriggeredThisCombat = false;
@@ -287,6 +292,7 @@ public class Character : MonoBehaviour
         wolfMovementPoints = 0;
 
         InitializeAbilities(runRewardState != null ? runRewardState.GetEquippedAbilities() : GetStartingAbilityDefinitions());
+        InitializeBonusAbilities(runRewardState != null ? runRewardState.GetBonusAbilitySlots() : null);
 
         int targetHealth = runRewardState != null && runRewardState.CurrentHealth >= 0
             ? runRewardState.CurrentHealth
@@ -321,6 +327,11 @@ public class Character : MonoBehaviour
         for (int index = 0; index < abilities.Count; index++)
         {
             abilities[index].BeginTurn(this);
+        }
+
+        for (int index = 0; index < bonusAbilities.Count; index++)
+        {
+            bonusAbilities[index]?.BeginTurn(this);
         }
 
         NotifyMovementPointsChanged();
@@ -387,6 +398,11 @@ public class Character : MonoBehaviour
         return abilityIndex >= 0 && abilityIndex < abilities.Count ? abilities[abilityIndex] : null;
     }
 
+    public CharacterAbilityRuntime GetBonusAbility(int slotIndex)
+    {
+        return slotIndex >= 0 && slotIndex < bonusAbilities.Count ? bonusAbilities[slotIndex] : null;
+    }
+
     public CharacterAbilityRuntime GetAbilityForSlot(int slotIndex)
     {
         AbilityCategory slotCategory = GetAbilitySlotCategory(slotIndex);
@@ -447,6 +463,30 @@ public class Character : MonoBehaviour
         {
             cowardScarfTriggeredThisTurn = true;
             GainMovementPoints(1, ItemRewardKey.CowardsScarf);
+        }
+
+        NotifyMovementPointsChanged();
+        NotifyAbilitiesChanged();
+        return true;
+    }
+
+    public bool TryUseBonusAbility(int slotIndex, Vector2Int? targetCell = null)
+    {
+        CharacterAbilityRuntime runtime = GetBonusAbility(slotIndex);
+        if (runtime == null || IsBusy)
+        {
+            return false;
+        }
+
+        bool success = runtime.TryUse(this, targetCell);
+        if (!success)
+        {
+            return false;
+        }
+
+        if (runtime.Definition != null && runtime.Definition.IsConsumableBonusAbility)
+        {
+            RemoveBonusAbilityAt(slotIndex, compactImmediately: false);
         }
 
         NotifyMovementPointsChanged();
@@ -1268,6 +1308,7 @@ public class Character : MonoBehaviour
         ClearBonusDamageUntilEndOfTurn();
         samuraiMaskBonusDamage = 0;
         RecalculateItemDrivenStats();
+        CompactBonusAbilitiesLeft();
     }
 
     public void CommitCurrentTurnStateForNextTurn()
@@ -1278,6 +1319,12 @@ public class Character : MonoBehaviour
         for (int index = 0; index < abilities.Count; index++)
         {
             CharacterAbilityRuntime runtime = abilities[index];
+            runtime?.Definition?.OnTurnEnded(this, runtime);
+        }
+
+        for (int index = 0; index < bonusAbilities.Count; index++)
+        {
+            CharacterAbilityRuntime runtime = bonusAbilities[index];
             runtime?.Definition?.OnTurnEnded(this, runtime);
         }
     }
@@ -1303,6 +1350,8 @@ public class Character : MonoBehaviour
             Heal(1, ItemRewardKey.GuardMedal);
         }
 
+        bonusDamageUntilNextEnemyTurn = 0;
+        bonusResistanceUntilNextEnemyTurn = 0;
         RecalculateItemDrivenStats();
     }
 
@@ -1389,6 +1438,52 @@ public class Character : MonoBehaviour
 
         RefreshTemporaryDamageAura();
         RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    public void AddBonusDamageUntilNextEnemyTurn(
+        int amount,
+        GameObject boostFxPrefab = null,
+        GameObject auraFxPrefab = null,
+        float boostFxDuration = 1f)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        bonusDamageUntilNextEnemyTurn += amount;
+        if (auraFxPrefab != null)
+        {
+            temporaryDamageAuraPrefab = auraFxPrefab;
+        }
+
+        if (boostFxPrefab != null)
+        {
+            PlayFeedbackFx(boostFxPrefab, destroyAfterSeconds: boostFxDuration);
+        }
+
+        RefreshTemporaryDamageAura();
+        RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    public void AddResistanceUntilNextEnemyTurn(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        bonusResistanceUntilNextEnemyTurn += amount;
+        RecalculateItemDrivenStats();
+        NotifyAbilitiesChanged();
+    }
+
+    public void RestoreMovementPointsToFull()
+    {
+        remainingMovementPoints = movementPointsPerTurn + wolfMovementPoints;
+        NotifyMovementPointsChanged();
         NotifyAbilitiesChanged();
     }
 
@@ -1992,6 +2087,89 @@ public class Character : MonoBehaviour
         }
 
         RefreshBasicAttackVisuals();
+    }
+
+    private void InitializeBonusAbilities(IReadOnlyList<AbilityDefinition> abilityDefinitions = null)
+    {
+        bonusAbilities.Clear();
+
+        IReadOnlyList<AbilityDefinition> sourceAbilities = abilityDefinitions ?? runRewardState?.GetBonusAbilitySlots();
+        int slotCount = Mathf.Max(PlayerRunRewardState.MaxBonusAbilitySlots, sourceAbilities != null ? sourceAbilities.Count : 0);
+        for (int index = 0; index < slotCount; index++)
+        {
+            AbilityDefinition definition = sourceAbilities != null && index < sourceAbilities.Count
+                ? sourceAbilities[index]
+                : null;
+            CharacterAbilityRuntime runtime = definition != null ? new CharacterAbilityRuntime(definition) : null;
+            runtime?.ResetCombat();
+            bonusAbilities.Add(runtime);
+        }
+    }
+
+    public bool HasEmptyBonusAbilitySlot()
+    {
+        return runRewardState != null && runRewardState.HasEmptyBonusAbilitySlot();
+    }
+
+    public bool HasBonusAbilityDefinition(AbilityDefinition abilityDefinition)
+    {
+        return runRewardState != null && runRewardState.HasBonusAbility(abilityDefinition);
+    }
+
+    public bool TryAddBonusAbility(AbilityDefinition abilityDefinition, bool allowDuplicate)
+    {
+        if (runRewardState == null || abilityDefinition == null || !runRewardState.TryAddBonusAbility(abilityDefinition, allowDuplicate))
+        {
+            return false;
+        }
+
+        InitializeBonusAbilities(runRewardState.GetBonusAbilitySlots());
+        NotifyAbilitiesChanged();
+        return true;
+    }
+
+    public bool RemoveBonusAbilityAt(int slotIndex, bool compactImmediately)
+    {
+        if (runRewardState == null || !runRewardState.ClearBonusAbilityAt(slotIndex))
+        {
+            return false;
+        }
+
+        if (compactImmediately)
+        {
+            runRewardState.CompactBonusAbilitiesLeft();
+        }
+
+        InitializeBonusAbilities(runRewardState.GetBonusAbilitySlots());
+        NotifyAbilitiesChanged();
+        return true;
+    }
+
+    public void CompactBonusAbilitiesLeft()
+    {
+        if (runRewardState == null)
+        {
+            return;
+        }
+
+        runRewardState.CompactBonusAbilitiesLeft();
+        InitializeBonusAbilities(runRewardState.GetBonusAbilitySlots());
+        NotifyAbilitiesChanged();
+    }
+
+    public int GetBonusAbilityPersistentValue(string key)
+    {
+        return runRewardState != null ? runRewardState.GetBonusAbilityPersistentValue(key) : 0;
+    }
+
+    public void SetBonusAbilityPersistentValue(string key, int value)
+    {
+        runRewardState?.SetBonusAbilityPersistentValue(key, value);
+    }
+
+    public int AddBonusAbilityPersistentValue(string key, int delta)
+    {
+        return runRewardState != null ? runRewardState.AddBonusAbilityPersistentValue(key, delta) : 0;
     }
 
     private bool CanTraverseUnits()
@@ -3015,8 +3193,8 @@ public class Character : MonoBehaviour
         int remainingEnemies = GetRemainingEnemyCount();
 
         int dynamicMaxHealth = HasItem(ItemRewardKey.RunicBelt) && isAtBaseFullHealth ? 2 : 0;
-        int dynamicBonusDamage = samuraiMaskBonusDamage + bonusDamageUntilEndOfTurn + bonusDamageUntilNextMovement;
-        int dynamicResistance = 0;
+        int dynamicBonusDamage = samuraiMaskBonusDamage + bonusDamageUntilEndOfTurn + bonusDamageUntilNextEnemyTurn + bonusDamageUntilNextMovement;
+        int dynamicResistance = bonusResistanceUntilNextEnemyTurn;
         int dynamicMovementPoints = 0;
 
         if (HasItem(ItemRewardKey.DuelistsSpur) && remainingEnemies == 1)

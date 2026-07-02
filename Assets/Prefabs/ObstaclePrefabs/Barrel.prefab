@@ -56,6 +56,7 @@ MonoBehaviour:
   shrinkDuration: 0.25
   finalScale: 0.1
   breakSound: {fileID: 880140001001001002}
+  potionDropChance: 0.075
 --- !u!114 &880140001001001002
 MonoBehaviour:
   m_ObjectHideFlags: 0

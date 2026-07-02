@@ -14,6 +14,7 @@ public class BarrelObstacle : MonoBehaviour
     [SerializeField] private float shrinkDuration = 0.25f;
     [SerializeField] private float finalScale = 0.1f;
     [SerializeField] private SoundParameters breakSound;
+    [SerializeField] [Range(0f, 1f)] private float potionDropChance = 0.05f;
 
     private BoardManager board;
     private Vector2Int gridPosition;
@@ -86,7 +87,7 @@ public class BarrelObstacle : MonoBehaviour
 
         breakSound?.PlaySound(transform.position);
         board?.ClearStaticObstacle(gridPosition, gameObject);
-        board?.HandleBarrelDestroyed(gridPosition);
+        board?.HandleBarrelDestroyed(gridPosition, potionDropChance);
 
         if (fracturesRoot != null)
         {

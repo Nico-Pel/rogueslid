@@ -135,6 +135,8 @@ public class BoardManager : MonoBehaviour
 
     [Header("Rewards")]
     [SerializeField] private List<ItemRewardDefinition> itemRewardDefinitions = new List<ItemRewardDefinition>();
+    [SerializeField] private List<BonusAbilityRewardDefinition> bonusAbilityRewardDefinitions = new List<BonusAbilityRewardDefinition>();
+    [SerializeField] private List<BonusAbilityRewardDefinition> barrelPotionRewardDefinitions = new List<BonusAbilityRewardDefinition>();
     [SerializeField] private UnlockItemsData unlockItemsData;
     [SerializeField] private List<TourmentData> tourmentDefinitions = new List<TourmentData>();
 
@@ -202,6 +204,7 @@ public class BoardManager : MonoBehaviour
     public event Action AllEnemiesDefeated;
     public event Action<int> GoldChanged;
     public event Action<Vector3, int> EnemyGoldRewardRequested;
+    public event Action<RewardOffer> BarrelPotionRewardOffered;
 
     public void SetPlayerCharacterSetup(GameObject prefab, CharacterData characterData, int tourmentLevel = 1)
     {
@@ -2251,7 +2254,9 @@ public class BoardManager : MonoBehaviour
             UpgradeKey = source.UpgradeKey,
             IsStackable = source.IsStackable,
             ItemKey = source.ItemKey,
-            ShopPrice = source.ShopPrice
+            ShopPrice = source.ShopPrice,
+            SubtitleKind = source.SubtitleKind,
+            VisualKind = source.VisualKind
         };
     }
 
@@ -2496,7 +2501,7 @@ public class BoardManager : MonoBehaviour
         AwardGold(Mathf.Max(0, skeletonData.GoldReward));
     }
 
-    public void HandleBarrelDestroyed(Vector2Int gridPosition)
+    public void HandleBarrelDestroyed(Vector2Int gridPosition, float potionDropChance = 0.05f)
     {
         float roll = UnityEngine.Random.value;
         int goldReward = roll < 0.70f
@@ -2511,6 +2516,33 @@ public class BoardManager : MonoBehaviour
         {
             AwardGold(goldReward);
         }
+
+        TryOfferBarrelPotionReward(potionDropChance);
+    }
+
+    private void TryOfferBarrelPotionReward(float potionDropChance)
+    {
+        Character character = player != null ? player.ControlledCharacter : null;
+        EnsureRunRewardStateInitialized(character);
+        if (character == null || runRewardState == null || !runRewardState.HasEmptyBonusAbilitySlot())
+        {
+            return;
+        }
+
+        if (UnityEngine.Random.value > Mathf.Clamp01(potionDropChance))
+        {
+            return;
+        }
+
+        List<RewardOffer> candidates = new List<RewardOffer>();
+        AddRewardOffers(candidates, barrelPotionRewardDefinitions);
+        if (candidates.Count <= 0)
+        {
+            return;
+        }
+
+        RewardOffer rewardOffer = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+        BarrelPotionRewardOffered?.Invoke(CloneRewardOffer(rewardOffer));
     }
 
     public List<RewardOffer> GenerateShopAbilityUnlockOffers()
@@ -2879,6 +2911,7 @@ public class BoardManager : MonoBehaviour
     {
         List<RewardOffer> offers = new List<RewardOffer>();
         AddRewardOffers(offers, itemRewardDefinitions);
+        AddRewardOffers(offers, bonusAbilityRewardDefinitions);
         return offers;
     }
 

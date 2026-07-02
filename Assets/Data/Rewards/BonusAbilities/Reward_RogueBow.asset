@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4eb645f597444fca8b87c2dadb4f7001, type: 3}
+  m_Name: Reward_RogueBow
+  m_EditorClassIdentifier: 
+  rewardId: reward_bonus_rogue_bow
+  rewardTitle: Rogue Bow
+  rewardDescription: Adds a persistent bonus ability that shoots in a straight line
+    and grows stronger with kills during the run.
+  artwork: {fileID: 0}
+  lockByDefault: 0
+  bonusAbility: {fileID: 11400000, guid: a4ae3e20f748426fa9f5a16aa2e3a76f, type: 2}
+  consumablePotion: 0
+  shopPrice: 15

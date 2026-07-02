@@ -30,6 +30,15 @@ public abstract class RewardDefinition : ScriptableObject
 
     public virtual RewardOffer CreateOffer()
     {
+        RewardSubtitleKind subtitleKind = Kind == RewardOfferKind.Item
+            ? RewardSubtitleKind.Passive
+            : IconKind switch
+            {
+                RewardPresentationIconKind.MobilitySkill => RewardSubtitleKind.Mobility,
+                RewardPresentationIconKind.SpecialPower => RewardSubtitleKind.Power,
+                _ => RewardSubtitleKind.Weapon
+            };
+
         return new RewardOffer
         {
             Id = RewardId,
@@ -40,7 +49,9 @@ public abstract class RewardDefinition : ScriptableObject
             IconKind = IconKind,
             ShowPowerStroke = ShowPowerStroke,
             Definition = this,
-            ShopPrice = ShopPrice
+            ShopPrice = ShopPrice,
+            SubtitleKind = subtitleKind,
+            VisualKind = Kind == RewardOfferKind.Item ? RewardVisualKind.Item : RewardVisualKind.Power
         };
     }
 

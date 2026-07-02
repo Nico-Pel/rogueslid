@@ -46,8 +46,10 @@ public class GameTurnManager : MonoBehaviour
     private Coroutine enemyTurnCoroutine;
     private Coroutine loseMenuCoroutine;
     private Coroutine debugRewardSequenceCoroutine;
+    private Coroutine barrelPotionRewardCoroutine;
     private Vector2 pointerStartPosition;
     private int pendingCellTargetAbilityIndex = -1;
+    private int pendingBonusAbilitySlot = -1;
     private ItemRewardDefinition activeCombatStartPrompt;
     private Character trackedCharacter;
     private bool loadedDieRefreshUsedForCurrentRewards;
@@ -62,6 +64,7 @@ public class GameTurnManager : MonoBehaviour
     public TurnSide CurrentTurn { get; private set; } = TurnSide.Player;
     public BoardManager Board => board;
     public int PendingCellTargetAbilityIndex => pendingCellTargetAbilityIndex;
+    public int PendingBonusAbilitySlot => pendingBonusAbilitySlot;
     public bool CanEndTurn => canEndTurn;
     public bool IsRewardMenuOpen => isRewardMenuOpen;
     public bool IsArenaTransitionRunning => isArenaTransitionRunning;
@@ -97,6 +100,7 @@ public class GameTurnManager : MonoBehaviour
         if (board != null)
         {
             board.AllEnemiesDefeated += HandleAllEnemiesDefeated;
+            board.BarrelPotionRewardOffered += HandleBarrelPotionRewardOffered;
         }
 
         hasStarted = true;
@@ -132,6 +136,7 @@ public class GameTurnManager : MonoBehaviour
         if (board != null)
         {
             board.AllEnemiesDefeated -= HandleAllEnemiesDefeated;
+            board.BarrelPotionRewardOffered -= HandleBarrelPotionRewardOffered;
         }
 
         UnbindTrackedCharacter();
@@ -363,6 +368,79 @@ public class GameTurnManager : MonoBehaviour
         return used;
     }
 
+    public bool RequestBonusAbilityUse(int slotIndex)
+    {
+        Character character = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (CurrentTurn != TurnSide.Player || isEnemyTurnRunning || isArenaTransitionRunning || character == null)
+        {
+            return false;
+        }
+
+        CharacterAbilityRuntime ability = character.GetBonusAbility(slotIndex);
+        if (ability == null || (!ability.IsActive && !ability.IsUsable(character)))
+        {
+            return false;
+        }
+
+        if (ability.TargetingMode == AbilityTargetingMode.FreeCell && !ability.IsActive)
+        {
+            if (ability.Definition != null && ability.Definition.TryGetAutomaticTargetCell(character, ability, out Vector2Int automaticTargetCell))
+            {
+                bool automaticTargetUsed = character.TryUseBonusAbility(slotIndex, automaticTargetCell);
+                if (automaticTargetUsed)
+                {
+                    RegisterPlayerAction();
+                    ClearPendingAbility();
+                }
+
+                return automaticTargetUsed;
+            }
+
+            bool canAutoUseSingleTarget = ability.Definition != null && ability.Definition.ShouldAutoUseWhenOnlyOneValidTarget(character, ability);
+            if (canAutoUseSingleTarget
+                && TryGetSingleValidTargetCell(character, ability, out Vector2Int singleTargetCell)
+                && ShouldAutoUseSingleTargetCell(character, ability, singleTargetCell))
+            {
+                bool singleTargetUsed = character.TryUseBonusAbility(slotIndex, singleTargetCell);
+                if (singleTargetUsed)
+                {
+                    RegisterPlayerAction();
+                    ClearPendingAbility();
+                }
+
+                return singleTargetUsed;
+            }
+
+            if (!HasAnyValidTargetCell(character, ability))
+            {
+                NoValidTargetFeedbackRequested?.Invoke(ability);
+                return false;
+            }
+
+            if (pendingBonusAbilitySlot == slotIndex)
+            {
+                ClearPendingAbility();
+            }
+            else
+            {
+                pendingCellTargetAbilityIndex = -1;
+                pendingBonusAbilitySlot = slotIndex;
+                PendingAbilityChanged?.Invoke(0);
+            }
+
+            return true;
+        }
+
+        bool used = character.TryUseBonusAbility(slotIndex);
+        if (used)
+        {
+            RegisterPlayerAction();
+            ClearPendingAbility();
+        }
+
+        return used;
+    }
+
     private bool TryGetSingleValidTargetCell(Character character, CharacterAbilityRuntime ability, out Vector2Int targetCell)
     {
         targetCell = default;
@@ -555,7 +633,7 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
-        if (pendingCellTargetAbilityIndex >= 0)
+        if (pendingCellTargetAbilityIndex >= 0 || pendingBonusAbilitySlot >= 0)
         {
             return;
         }
@@ -641,7 +719,7 @@ public class GameTurnManager : MonoBehaviour
                     break;
                 case TouchPhase.Moved:
                 case TouchPhase.Stationary:
-                    if (isPointerTracking && pendingCellTargetAbilityIndex >= 0)
+                    if (isPointerTracking && HasPendingTargetedAbility())
                     {
                         uiGame?.UpdateTargetedAbilityPreview(touch.position);
                     }
@@ -672,12 +750,12 @@ public class GameTurnManager : MonoBehaviour
 
             isPointerTracking = true;
             pointerStartPosition = Input.mousePosition;
-            if (pendingCellTargetAbilityIndex >= 0)
+            if (HasPendingTargetedAbility())
             {
                 uiGame?.UpdateTargetedAbilityPreview(Input.mousePosition);
             }
         }
-        else if (Input.GetMouseButton(0) && isPointerTracking && pendingCellTargetAbilityIndex >= 0)
+        else if (Input.GetMouseButton(0) && isPointerTracking && HasPendingTargetedAbility())
         {
             uiGame?.UpdateTargetedAbilityPreview(Input.mousePosition);
         }
@@ -691,7 +769,7 @@ public class GameTurnManager : MonoBehaviour
     private void TryHandlePointerRelease(Character character, Vector2 pointerEndPosition)
     {
         Vector2 delta = pointerEndPosition - pointerStartPosition;
-        if (pendingCellTargetAbilityIndex >= 0)
+        if (HasPendingTargetedAbility())
         {
             TryUseTargetedAbility(character, pointerEndPosition);
             return;
@@ -824,6 +902,19 @@ public class GameTurnManager : MonoBehaviour
             return;
         }
 
+        if (pendingBonusAbilitySlot >= 0)
+        {
+            CharacterAbilityRuntime bonusRuntime = character.GetBonusAbility(pendingBonusAbilitySlot);
+            if (character.TryUseBonusAbility(pendingBonusAbilitySlot, targetCell))
+            {
+                uiGame?.HandleTargetedAbilityCommitted(bonusRuntime, targetCell);
+                RegisterPlayerAction();
+                ClearPendingAbility();
+            }
+
+            return;
+        }
+
         CharacterAbilityRuntime runtime = character.GetAbility(pendingCellTargetAbilityIndex);
         if (character.TryUseAbility(pendingCellTargetAbilityIndex, targetCell))
         {
@@ -896,7 +987,7 @@ public class GameTurnManager : MonoBehaviour
 
     private bool IsTargetingModeActive(Character character)
     {
-        return combatStartRelocationSelectionActive || pendingCellTargetAbilityIndex >= 0 || GetActiveCellSelectableAbilityIndex(character) >= 0;
+        return combatStartRelocationSelectionActive || HasPendingTargetedAbility() || GetActiveCellSelectableAbilityIndex(character) >= 0;
     }
 
     public bool CanSelectCombatStartRelocationCell(Vector2Int targetCell)
@@ -1352,13 +1443,19 @@ public class GameTurnManager : MonoBehaviour
 
     private void ClearPendingAbility()
     {
-        if (pendingCellTargetAbilityIndex < 0)
+        if (pendingCellTargetAbilityIndex < 0 && pendingBonusAbilitySlot < 0)
         {
             return;
         }
 
         pendingCellTargetAbilityIndex = -1;
-        PendingAbilityChanged?.Invoke(pendingCellTargetAbilityIndex);
+        pendingBonusAbilitySlot = -1;
+        PendingAbilityChanged?.Invoke(-1);
+    }
+
+    private bool HasPendingTargetedAbility()
+    {
+        return pendingCellTargetAbilityIndex >= 0 || pendingBonusAbilitySlot >= 0;
     }
 
     private void RegisterPlayerAction()
@@ -1641,6 +1738,60 @@ public class GameTurnManager : MonoBehaviour
         }
 
         CompleteArenaTransition();
+    }
+
+    private void HandleBarrelPotionRewardOffered(RewardOffer rewardOffer)
+    {
+        if (rewardOffer == null || uiGame == null)
+        {
+            return;
+        }
+
+        if (barrelPotionRewardCoroutine != null)
+        {
+            StopCoroutine(barrelPotionRewardCoroutine);
+        }
+
+        barrelPotionRewardCoroutine = StartCoroutine(ShowBarrelPotionRewardAfterDelay(rewardOffer));
+    }
+
+    private IEnumerator ShowBarrelPotionRewardAfterDelay(RewardOffer rewardOffer)
+    {
+        yield return new WaitForSeconds(0.25f);
+        isRewardMenuOpen = true;
+        PlayTemporaryUiRewardSound("UnlockCharaSound");
+        uiGame.ShowBarrelPotionRewardCheck(rewardOffer, HandleBarrelPotionRewardChosen);
+        barrelPotionRewardCoroutine = null;
+    }
+
+    private void HandleBarrelPotionRewardChosen(RewardOffer rewardOffer)
+    {
+        if (board != null && rewardOffer != null)
+        {
+            board.ApplyReward(rewardOffer);
+        }
+
+        isRewardMenuOpen = false;
+        uiGame?.HideRewardCheck();
+    }
+
+    private static void PlayTemporaryUiRewardSound(string clipName)
+    {
+        if (string.IsNullOrWhiteSpace(clipName))
+        {
+            return;
+        }
+
+        AudioClip[] clips = Resources.FindObjectsOfTypeAll<AudioClip>();
+        for (int index = 0; index < clips.Length; index++)
+        {
+            AudioClip clip = clips[index];
+            if (clip != null && clip.name == clipName)
+            {
+                SoundManager.Instance?.Play2DSound(clip, 1f, 1f);
+                return;
+            }
+        }
     }
 
     private void HandleRewardsIgnored()

@@ -899,7 +899,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   button: {fileID: 4088837295338675714}
-  backgroundImage: {fileID: 0}
+  backgroundImage: {fileID: 713073976650846318}
   abilityImage: {fileID: 5420263284988316735}
   outlineImage: {fileID: 0}
   typeOutlineImage: {fileID: 0}
@@ -927,6 +927,10 @@ MonoBehaviour:
   basicAttackTypeSprite: {fileID: 21300000, guid: ce43f5d190aa747b6b532a5ca32127a7, type: 3}
   mobilityTypeSprite: {fileID: 21300000, guid: 72b786abb410a4596835d99f437c2ee1, type: 3}
   specialPowerTypeSprite: {fileID: 21300000, guid: b888433dfb21a48d7a9942deb55740de, type: 3}
+  potionTypeSprite: {fileID: 21300000, guid: 548664a8c8e274c2dbc1f330b3cfe061, type: 3}
+  occupiedBackgroundSprite: {fileID: 21300000, guid: 586920bfb5276481e9cecfac7a8e52a1, type: 3}
+  emptyBackgroundSprite: {fileID: 21300000, guid: 2949ae14e472d477d8034a087a4192c8, type: 3}
+  emptyBonusBackgroundAlpha: 0.15
 --- !u!1 &6320062051575072774
 GameObject:
   m_ObjectHideFlags: 0

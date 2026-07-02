@@ -34,6 +34,14 @@ public enum AbilityCategory
     SpecialPower
 }
 
+public enum AbilityButtonTypeIconKind
+{
+    Weapon,
+    Mobility,
+    Power,
+    Potion
+}
+
 [System.Serializable]
 public class AbilityFxSpawnConfig
 {
@@ -138,6 +146,8 @@ public abstract class AbilityDefinition : ScriptableObject
     public bool HasDamageFxOverride => damageFxOverridePrefab != null;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
     public virtual bool IsRangedAttack => false;
+    public virtual bool IsBonusAbility => false;
+    public virtual bool IsConsumableBonusAbility => false;
     public virtual bool KeepsActiveStateBetweenTurns => true;
     public virtual bool RefundUseIfDeactivatedWithoutConsumption => false;
     public virtual bool DeactivateAfterSelectedCellActivation => true;
@@ -145,6 +155,15 @@ public abstract class AbilityDefinition : ScriptableObject
     public virtual string GetDisplayName(Character character, CharacterAbilityRuntime runtime) => AbilityName;
     public virtual Sprite GetIcon(CharacterAbilityRuntime runtime) => icon;
     public virtual AbilityDefinition GetPresentationDefinition(Character character, CharacterAbilityRuntime runtime) => this;
+    public virtual AbilityButtonTypeIconKind GetButtonTypeIconKind(Character character, CharacterAbilityRuntime runtime)
+    {
+        return category switch
+        {
+            AbilityCategory.MobilitySkill => AbilityButtonTypeIconKind.Mobility,
+            AbilityCategory.SpecialPower => AbilityButtonTypeIconKind.Power,
+            _ => AbilityButtonTypeIconKind.Weapon
+        };
+    }
 
     public virtual bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {

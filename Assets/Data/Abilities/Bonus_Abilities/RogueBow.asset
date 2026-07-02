@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15b6caafdc51343dc87e65c08d018eb2, type: 3}
+  m_Name: RogueBow
+  m_EditorClassIdentifier: 
+  abilityName: Rogue Bow
+  description: Shoot an enemy in a straight line for 1 damage. This bonus ability
+    gains +1 damage for the rest of the run when it lands a killing blow, up to 5.
+  icon: {fileID: -711993937, guid: 2b03fd21095bc489095fb9cf2cd1a628, type: 3}
+  category: 0
+  attackAnimationClip: {fileID: 7400000, guid: bdeda82d9ca524e368195c9a05c658d7, type: 2}
+  linkedUpgradeRewards: []
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 0
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 1
+  maxDamage: 5
+  projectilePrefab: {fileID: 4669369967587303769, guid: 8b93cc05c0db74f3f9682ac9c13e103d, type: 3}
+  projectileSpeed: 18
+  projectileDelay: 0.08
+  projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
+  projectileImpactOffset: {x: 0, y: 0.2, z: 0}

@@ -7,6 +7,12 @@ using UnityEngine.EventSystems;
 
 public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
+    private enum BoundAbilityMode
+    {
+        Standard,
+        Bonus
+    }
+
     [SerializeField] private Button button;
     [SerializeField] private Image backgroundImage;
     [SerializeField] private Image abilityImage;
@@ -36,6 +42,10 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     [SerializeField] private Sprite basicAttackTypeSprite;
     [SerializeField] private Sprite mobilityTypeSprite;
     [SerializeField] private Sprite specialPowerTypeSprite;
+    [SerializeField] private Sprite potionTypeSprite;
+    [SerializeField] private Sprite occupiedBackgroundSprite;
+    [SerializeField] private Sprite emptyBackgroundSprite;
+    [SerializeField] private float emptyBonusBackgroundAlpha = 0.15f;
     private float abilityCheckLongPressDuration = 0.5f;
 
     private GameTurnManager gameTurnManager;
@@ -54,13 +64,17 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private Tween countBounceTween;
     private Color currentFadePulseColor;
     private int lastSeenBonusTurnUseGainVersion = -1;
+    private BoundAbilityMode boundAbilityMode = BoundAbilityMode.Standard;
+    private static Sprite cachedDefaultBonusEmptySprite;
+    private static Sprite cachedDefaultBonusOccupiedSprite;
+    private static Sprite cachedPotionTypeSprite;
 
     public int AbilityIndex => abilitySlotIndex;
     public AbilityDefinition BoundDefinition
     {
         get
         {
-            CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
+            CharacterAbilityRuntime runtime = GetBoundRuntime();
             if (runtime?.Definition == null)
             {
                 return null;
@@ -73,6 +87,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     public Sprite BasicAttackTypeSprite => basicAttackTypeSprite;
     public Sprite MobilityTypeSprite => mobilityTypeSprite;
     public Sprite SpecialPowerTypeSprite => specialPowerTypeSprite;
+    public bool IsBonusSlot => boundAbilityMode == BoundAbilityMode.Bonus;
 
     private void Awake()
     {
@@ -87,7 +102,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
     private void Update()
     {
-        CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
+        CharacterAbilityRuntime runtime = GetBoundRuntime();
         bool isWaitingForReuseDelay = runtime != null && Time.time < runtime.NextReusableTime;
         if (wasWaitingForReuseDelay && !isWaitingForReuseDelay)
         {
@@ -116,6 +131,20 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         gameTurnManager = turnManager;
         character = boundCharacter;
         abilitySlotIndex = index;
+        boundAbilityMode = BoundAbilityMode.Standard;
+        clickInterceptor = onPrimaryClick;
+        longPressCallback = onLongPress;
+        wasWaitingForReuseDelay = false;
+        lastSeenBonusTurnUseGainVersion = -1;
+        Refresh();
+    }
+
+    public void SetupBonus(GameTurnManager turnManager, Character boundCharacter, int index, Func<AbilityButtonUI, bool> onPrimaryClick = null, Action<AbilityButtonUI> onLongPress = null)
+    {
+        gameTurnManager = turnManager;
+        character = boundCharacter;
+        abilitySlotIndex = index;
+        boundAbilityMode = BoundAbilityMode.Bonus;
         clickInterceptor = onPrimaryClick;
         longPressCallback = onLongPress;
         wasWaitingForReuseDelay = false;
@@ -138,6 +167,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         isPointerDown = false;
         longPressTriggered = false;
         suppressNextClick = false;
+        boundAbilityMode = BoundAbilityMode.Standard;
         wasWaitingForReuseDelay = false;
         lastSeenBonusTurnUseGainVersion = -1;
         StopCountBounce();
@@ -148,8 +178,10 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     {
         CacheReferences();
 
-        CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
-        int runtimeIndex = character != null ? character.GetRuntimeIndexForSlot(abilitySlotIndex) : -1;
+        CharacterAbilityRuntime runtime = GetBoundRuntime();
+        int runtimeIndex = character != null && boundAbilityMode == BoundAbilityMode.Standard
+            ? character.GetRuntimeIndexForSlot(abilitySlotIndex)
+            : -1;
         bool hasAbility = runtime != null && runtime.Definition != null;
         AbilityDefinition presentationDefinition = hasAbility
             ? (runtime.Definition.GetPresentationDefinition(character, runtime) ?? runtime.Definition)
@@ -159,7 +191,10 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         bool isPlayerTurn = gameTurnManager != null && gameTurnManager.CurrentTurn == TurnSide.Player;
         bool isUsable = hasAbility && isPlayerTurn && runtime.IsUsable(character) && hasAnyValidTarget;
-        bool isTargetingThis = hasAbility && gameTurnManager != null && gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex;
+        bool isTargetingThis = hasAbility && gameTurnManager != null && (
+            boundAbilityMode == BoundAbilityMode.Bonus
+                ? gameTurnManager.PendingBonusAbilitySlot == abilitySlotIndex
+                : gameTurnManager.PendingCellTargetAbilityIndex == runtimeIndex);
         bool isOnCooldown = hasAbility && runtime.RemainingCooldown > 0;
         bool showActiveCounter = hasAbility && runtime.IsActive && !string.IsNullOrEmpty(counterText);
         bool showUsageCount = hasAbility && !string.IsNullOrEmpty(counterText) && (!isOnCooldown || showActiveCounter);
@@ -245,7 +280,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         if (abilityTypeImage != null)
         {
-            abilityTypeImage.sprite = GetCategorySprite(presentationDefinition != null ? presentationDefinition.Category : runtime.Definition.Category);
+            abilityTypeImage.sprite = GetTypeSprite(presentationDefinition, runtime);
             abilityTypeImage.enabled = abilityTypeImage.sprite != null;
         }
 
@@ -314,13 +349,17 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             return;
         }
 
-        int runtimeIndex = character.GetRuntimeIndexForSlot(abilitySlotIndex);
-        if (runtimeIndex < 0)
+        if (boundAbilityMode == BoundAbilityMode.Bonus)
         {
+            gameTurnManager?.RequestBonusAbilityUse(abilitySlotIndex);
             return;
         }
 
-        gameTurnManager?.RequestAbilityUse(runtimeIndex);
+        int runtimeIndex = character.GetRuntimeIndexForSlot(abilitySlotIndex);
+        if (runtimeIndex >= 0)
+        {
+            gameTurnManager?.RequestAbilityUse(runtimeIndex);
+        }
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -395,6 +434,21 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         if (backgroundImage == null)
         {
             backgroundImage = GetComponent<Image>();
+        }
+
+        if (occupiedBackgroundSprite == null)
+        {
+            occupiedBackgroundSprite = GetSpriteByName("Button_Shape", ref cachedDefaultBonusOccupiedSprite);
+        }
+
+        if (emptyBackgroundSprite == null)
+        {
+            emptyBackgroundSprite = GetSpriteByName("BT_GType_Select", ref cachedDefaultBonusEmptySprite);
+        }
+
+        if (potionTypeSprite == null)
+        {
+            potionTypeSprite = GetSpriteByName("iPot", ref cachedPotionTypeSprite);
         }
 
         if (abilityImage == null)
@@ -524,13 +578,70 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         }
     }
 
+    private Sprite GetTypeSprite(AbilityDefinition presentationDefinition, CharacterAbilityRuntime runtime)
+    {
+        AbilityButtonTypeIconKind iconKind = presentationDefinition != null
+            ? presentationDefinition.GetButtonTypeIconKind(character, runtime)
+            : AbilityButtonTypeIconKind.Weapon;
+
+        return iconKind switch
+        {
+            AbilityButtonTypeIconKind.Mobility => mobilityTypeSprite,
+            AbilityButtonTypeIconKind.Power => specialPowerTypeSprite,
+            AbilityButtonTypeIconKind.Potion => potionTypeSprite,
+            _ => basicAttackTypeSprite
+        };
+    }
+
     public Sprite GetTypeSpriteForCategory(AbilityCategory category)
     {
         return GetCategorySprite(category);
     }
 
+    public Sprite GetTypeSpriteForKind(AbilityButtonTypeIconKind iconKind)
+    {
+        return iconKind switch
+        {
+            AbilityButtonTypeIconKind.Mobility => mobilityTypeSprite,
+            AbilityButtonTypeIconKind.Power => specialPowerTypeSprite,
+            AbilityButtonTypeIconKind.Potion => potionTypeSprite,
+            _ => basicAttackTypeSprite
+        };
+    }
+
     private void SetEmptyState(bool isEmpty)
     {
+        if (boundAbilityMode == BoundAbilityMode.Bonus)
+        {
+            if (abilityImage != null)
+            {
+                abilityImage.enabled = !isEmpty;
+            }
+
+            if (componentsRoot != null)
+            {
+                componentsRoot.SetActive(!isEmpty);
+            }
+
+            if (backgroundImage != null)
+            {
+                backgroundImage.sprite = isEmpty && emptyBackgroundSprite != null
+                    ? emptyBackgroundSprite
+                    : occupiedBackgroundSprite != null ? occupiedBackgroundSprite : backgroundImage.sprite;
+
+                Color color = backgroundImage.color;
+                color.a = isEmpty ? emptyBonusBackgroundAlpha : 1f;
+                backgroundImage.color = color;
+            }
+
+            if (emptyRoot != null)
+            {
+                emptyRoot.SetActive(false);
+            }
+
+            return;
+        }
+
         if (abilityImage != null)
         {
             abilityImage.enabled = !isEmpty;
@@ -545,6 +656,39 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         {
             emptyRoot.SetActive(isEmpty);
         }
+    }
+
+    private CharacterAbilityRuntime GetBoundRuntime()
+    {
+        if (character == null)
+        {
+            return null;
+        }
+
+        return boundAbilityMode == BoundAbilityMode.Bonus
+            ? character.GetBonusAbility(abilitySlotIndex)
+            : character.GetAbilityForSlot(abilitySlotIndex);
+    }
+
+    private static Sprite GetSpriteByName(string spriteName, ref Sprite cache)
+    {
+        if (cache != null || string.IsNullOrWhiteSpace(spriteName))
+        {
+            return cache;
+        }
+
+        Sprite[] sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        for (int index = 0; index < sprites.Length; index++)
+        {
+            Sprite sprite = sprites[index];
+            if (sprite != null && sprite.name == spriteName)
+            {
+                cache = sprite;
+                break;
+            }
+        }
+
+        return cache;
     }
 
     private void SetFadeIndicatorVisible(bool isVisible, Color fadeColor)
