@@ -17,6 +17,7 @@ MonoBehaviour:
   rewardDescription: The first time each enemy loses health in a battle, it loses
     1 mobility next turn.
   artwork: {fileID: 1293917730, guid: 558798edc9be34311b606488d861229d, type: 3}
+  lockByDefault: 1
   itemKey: 29
   shopPrice: 15
   showCombatStartYesNoPrompt: 0
@@ -24,3 +25,6 @@ MonoBehaviour:
   consumeOnYes: 0
   yesNoEffect: 0
   activationSound: {fileID: 0}
+  damageFxPrefab: {fileID: 0}
+  damageFxLifetime: 1
+  activationSoundVolume: 1

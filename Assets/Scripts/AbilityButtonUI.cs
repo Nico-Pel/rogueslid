@@ -56,7 +56,19 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     private int lastSeenBonusTurnUseGainVersion = -1;
 
     public int AbilityIndex => abilitySlotIndex;
-    public AbilityDefinition BoundDefinition => character != null ? character.GetAbilityForSlot(abilitySlotIndex)?.Definition : null;
+    public AbilityDefinition BoundDefinition
+    {
+        get
+        {
+            CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
+            if (runtime?.Definition == null)
+            {
+                return null;
+            }
+
+            return runtime.Definition.GetPresentationDefinition(character, runtime) ?? runtime.Definition;
+        }
+    }
     public Sprite TypeSprite => abilityTypeImage != null ? abilityTypeImage.sprite : null;
     public Sprite BasicAttackTypeSprite => basicAttackTypeSprite;
     public Sprite MobilityTypeSprite => mobilityTypeSprite;
@@ -139,6 +151,9 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         CharacterAbilityRuntime runtime = character != null ? character.GetAbilityForSlot(abilitySlotIndex) : null;
         int runtimeIndex = character != null ? character.GetRuntimeIndexForSlot(abilitySlotIndex) : -1;
         bool hasAbility = runtime != null && runtime.Definition != null;
+        AbilityDefinition presentationDefinition = hasAbility
+            ? (runtime.Definition.GetPresentationDefinition(character, runtime) ?? runtime.Definition)
+            : null;
         SetEmptyState(!hasAbility);
         string counterText = hasAbility ? runtime.Definition.GetCounterText(runtime) : string.Empty;
 
@@ -230,7 +245,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
         if (abilityTypeImage != null)
         {
-            abilityTypeImage.sprite = GetCategorySprite(runtime.Definition.Category);
+            abilityTypeImage.sprite = GetCategorySprite(presentationDefinition != null ? presentationDefinition.Category : runtime.Definition.Category);
             abilityTypeImage.enabled = abilityTypeImage.sprite != null;
         }
 

@@ -42,6 +42,7 @@ public class WhisperfangAbility : AbilityDefinition
     }
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
+    public override bool IsRangedAttack => true;
     public override bool KeepsActiveStateBetweenTurns => false;
 
     public override void PlayActivationAnimation(Character character)

@@ -137,11 +137,14 @@ public abstract class AbilityDefinition : ScriptableObject
     public float DamageFxOverrideDestroyAfterSeconds => damageFxOverrideDestroyAfterSeconds;
     public bool HasDamageFxOverride => damageFxOverridePrefab != null;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
+    public virtual bool IsRangedAttack => false;
     public virtual bool KeepsActiveStateBetweenTurns => true;
     public virtual bool RefundUseIfDeactivatedWithoutConsumption => false;
     public virtual bool DeactivateAfterSelectedCellActivation => true;
     public virtual int GetBonusUsesPerTurn(Character character, CharacterAbilityRuntime runtime) => 0;
+    public virtual string GetDisplayName(Character character, CharacterAbilityRuntime runtime) => AbilityName;
     public virtual Sprite GetIcon(CharacterAbilityRuntime runtime) => icon;
+    public virtual AbilityDefinition GetPresentationDefinition(Character character, CharacterAbilityRuntime runtime) => this;
 
     public virtual bool CanActivate(Character character, CharacterAbilityRuntime runtime)
     {
@@ -391,7 +394,7 @@ public abstract class AbilityDefinition : ScriptableObject
         }
     }
 
-    private void ApplyTrailColorEffect(Character character, CharacterAbilityRuntime runtime)
+    protected void ApplyTrailColorEffect(Character character, CharacterAbilityRuntime runtime)
     {
         switch (ResolveTrailMode(trailColorMode, runtime))
         {
@@ -404,7 +407,7 @@ public abstract class AbilityDefinition : ScriptableObject
         }
     }
 
-    private void ApplyTrailReplacementEffect(Character character, CharacterAbilityRuntime runtime)
+    protected void ApplyTrailReplacementEffect(Character character, CharacterAbilityRuntime runtime)
     {
         if (replacementTrailPrefab == null)
         {
@@ -422,7 +425,7 @@ public abstract class AbilityDefinition : ScriptableObject
         }
     }
 
-    private AbilityTrailApplicationMode ResolveTrailMode(AbilityTrailApplicationMode mode, CharacterAbilityRuntime runtime)
+    protected AbilityTrailApplicationMode ResolveTrailMode(AbilityTrailApplicationMode mode, CharacterAbilityRuntime runtime)
     {
         if (mode != AbilityTrailApplicationMode.WhileActive)
         {

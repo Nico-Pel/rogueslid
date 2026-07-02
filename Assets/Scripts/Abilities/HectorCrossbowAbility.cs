@@ -1,8 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Hector Crossbow", fileName = "HectorCrossbow")]
 public class HectorCrossbowAbility : AbilityDefinition
 {
+    private readonly Dictionary<Character, HectorShadowAttackContext> pendingShadowAttackContextByCharacter = new Dictionary<Character, HectorShadowAttackContext>();
+
     [Min(1)]
     [SerializeField] private int baseDamage = 4;
     [Min(1)]
@@ -21,6 +24,7 @@ public class HectorCrossbowAbility : AbilityDefinition
     }
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
+    public override bool IsRangedAttack => true;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
@@ -39,36 +43,59 @@ public class HectorCrossbowAbility : AbilityDefinition
             return false;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell.Value, false, range, out Vector2Int direction, out _)
-            || !HectorAbilityUtils.IsLineClear(character.Board, character.GridPosition, targetCell.Value, direction))
+        if (!BidimensionalShadowAbility.TryResolveLineAttackContext(character, targetCell.Value, false, range, out HectorShadowAttackContext context))
         {
             return false;
         }
 
-        character.FaceTargetCell(targetCell.Value);
+        BidimensionalShadowAbility.FaceTargetForContext(character, context, targetCell.Value);
+        pendingShadowAttackContextByCharacter[character] = context;
 
         if (character.Board.TryGetEnemy(targetCell.Value, out Enemy enemy) && enemy != null)
         {
-            HectorAbilityUtils.TryPlayLinearProjectile(
+            Vector3 primaryStart = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+            HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
                 character,
                 projectilePrefab,
+                primaryStart,
                 enemy.transform.position + projectileImpactOffset,
                 projectileSpeed,
-                projectileSpawnOffset,
                 projectileLaunchDelay,
                 () => character.DealDamageToEnemy(enemy, baseDamage, true, true, DamageSoundType.Default, this));
+
+            if (context.CanTwinAttack)
+            {
+                Vector3 secondaryStart = BidimensionalShadowAbility.GetSecondaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+                HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
+                    character,
+                    projectilePrefab,
+                    secondaryStart,
+                    enemy.transform.position + projectileImpactOffset,
+                    projectileSpeed,
+                    projectileLaunchDelay + 0.1f,
+                    () =>
+                    {
+                        if (enemy != null && enemy.CurrentHealth > 0)
+                        {
+                            character.DealDamageToEnemy(enemy, baseDamage, true, true, DamageSoundType.Default, this);
+                        }
+                    },
+                    false);
+            }
+
             PlayConfiguredFx(character, new[] { enemy });
             return true;
         }
 
         if (character.Board.TryGetLichSkullObject(targetCell.Value, out LichSkullObject skull) && skull != null)
         {
-            HectorAbilityUtils.TryPlayLinearProjectile(
+            Vector3 primaryStart = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+            HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
                 character,
                 projectilePrefab,
+                primaryStart,
                 skull.transform.position + projectileImpactOffset,
                 projectileSpeed,
-                projectileSpawnOffset,
                 projectileLaunchDelay,
                 () => character.DealDamageToLichSkull(skull, baseDamage, true, DamageSoundType.Default, this));
             PlayConfiguredFx(character);
@@ -77,12 +104,13 @@ public class HectorCrossbowAbility : AbilityDefinition
 
         if (character.Board.TryGetBarrel(targetCell.Value, out BarrelObstacle barrel) && barrel != null)
         {
-            HectorAbilityUtils.TryPlayLinearProjectile(
+            Vector3 primaryStart = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+            HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
                 character,
                 projectilePrefab,
+                primaryStart,
                 character.Board.GridToWorldPosition(barrel.GridPosition) + projectileImpactOffset,
                 projectileSpeed,
-                projectileSpawnOffset,
                 projectileLaunchDelay,
                 barrel.TakeHit);
             PlayConfiguredFx(character);
@@ -92,6 +120,19 @@ public class HectorCrossbowAbility : AbilityDefinition
         return false;
     }
 
+    public override void PlayActivationAnimation(Character character)
+    {
+        if (character != null
+            && pendingShadowAttackContextByCharacter.TryGetValue(character, out HectorShadowAttackContext context))
+        {
+            BidimensionalShadowAbility.PlayAttackAnimationForContext(character, context, AttackAnimationClip);
+            pendingShadowAttackContextByCharacter.Remove(character);
+            return;
+        }
+
+        base.PlayActivationAnimation(character);
+    }
+
     private bool CanTargetCell(Character character, Vector2Int targetCell, bool allowEmptyCell, bool allowDiagonals)
     {
         if (character == null || character.Board == null)
@@ -99,8 +140,7 @@ public class HectorCrossbowAbility : AbilityDefinition
             return false;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell, allowDiagonals, range, out Vector2Int direction, out _)
-            || !HectorAbilityUtils.IsLineClear(character.Board, character.GridPosition, targetCell, direction))
+        if (!BidimensionalShadowAbility.TryResolveLineAttackContext(character, targetCell, allowDiagonals, range, out _))
         {
             return false;
         }

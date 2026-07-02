@@ -55,6 +55,7 @@ public class GameTurnManager : MonoBehaviour
     private bool combatStartRelocationResolved;
     private bool combatStartRelocationMoved;
     private bool currentRewardMenuIsDebug;
+    private List<TourmentUnlockResult> pendingLoseUnlockResults;
     private UIHomeController homeMenu;
     private int remainingDebugRewardChoices;
 
@@ -1265,12 +1266,26 @@ public class GameTurnManager : MonoBehaviour
         isLoseMenuOpen = true;
         loseMenuCoroutine = null;
         soundManager?.PlayLoseJingle();
-        uiGame?.ShowLoseMenu(characterName, losePortrait, HandleRetryRequested, HandleReturnToHomeRequested);
+        CharacterData currentCharacterData = trackedCharacter != null
+            ? trackedCharacter.Data
+            : board != null && board.Player != null && board.Player.ControlledCharacter != null
+                ? board.Player.ControlledCharacter.Data
+                : null;
+        pendingLoseUnlockResults = board != null ? board.EvaluateAndApplyRunUnlocks(currentCharacterData, false) : null;
+        bool hasUnlocks = pendingLoseUnlockResults != null && pendingLoseUnlockResults.Count > 0;
+        uiGame?.ShowLoseMenu(
+            characterName,
+            losePortrait,
+            hasUnlocks ? null : HandleRetryRequested,
+            hasUnlocks ? HandleAdvanceFromLoseMenuToUnlocks : HandleReturnToHomeRequested,
+            !hasUnlocks,
+            hasUnlocks ? "Next" : "Menu");
     }
 
     private void HandleRetryRequested()
     {
         isLoseMenuOpen = false;
+        pendingLoseUnlockResults = null;
         uiGame?.HideLoseMenu();
         UnbindTrackedCharacter();
         board?.ResetArenaProgression();
@@ -1297,6 +1312,7 @@ public class GameTurnManager : MonoBehaviour
         combatStartRelocationResolved = false;
         combatStartRelocationMoved = false;
         currentRewardMenuIsDebug = false;
+        pendingLoseUnlockResults = null;
         ClearPendingAbility();
         soundManager?.StopArenaMusic();
         uiGame?.HideRewards();
@@ -1315,6 +1331,23 @@ public class GameTurnManager : MonoBehaviour
 
             homeMenu.ShowForCharacter(currentCharacterData);
         }
+    }
+
+    private void HandleAdvanceFromLoseMenuToUnlocks()
+    {
+        isLoseMenuOpen = false;
+        uiGame?.HideLoseMenu();
+
+        CharacterData currentCharacterData = trackedCharacter != null ? trackedCharacter.Data : null;
+        if (pendingLoseUnlockResults != null && pendingLoseUnlockResults.Count > 0)
+        {
+            List<TourmentUnlockResult> unlockResults = pendingLoseUnlockResults;
+            pendingLoseUnlockResults = null;
+            uiGame?.ShowUnlockSequence(unlockResults, currentCharacterData, HandleReturnToHomeRequested);
+            return;
+        }
+
+        HandleReturnToHomeRequested();
     }
 
     private void ClearPendingAbility()

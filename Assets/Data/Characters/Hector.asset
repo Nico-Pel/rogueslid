@@ -41,7 +41,24 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2ac1f4e9bf4d48a0a12c31d5f77b3d11, type: 2}
   - {fileID: 11400000, guid: 7b5a6d3c15ee47d0a81fd0f43b0f8d12, type: 2}
   - {fileID: 11400000, guid: c31e6a419a8d4f1cb4d10e5fd76a7013, type: 2}
-  tourmentRewardUnlocks: []
+  - {fileID: 11400000, guid: c4e4f3812c4348a2b6f6278f9718db11, type: 2}
+  - {fileID: 11400000, guid: c4e4f3812c4348a2b6f6278f9718db12, type: 2}
+  - {fileID: 11400000, guid: ffca2e06cb30a454491009a2b382c821, type: 2}
+  tourmentRewardUnlocks:
+  - requiredTourmentLevel: 1
+    requiredBoss: 1
+    rewardDefinition: {fileID: 11400000, guid: c4e4f3812c4348a2b6f6278f9718db11, type: 2}
+  - requiredTourmentLevel: 1
+    requiredBoss: 2
+    rewardDefinition: {fileID: 11400000, guid: c4e4f3812c4348a2b6f6278f9718db12, type: 2}
+  - requiredTourmentLevel: 1
+    requiredBoss: 3
+    rewardDefinition: {fileID: 11400000, guid: c2030000000000000000000000000022, type: 2}
+  - requiredTourmentLevel: 2
+    requiredBoss: 1
+    rewardDefinition: {fileID: 11400000, guid: ffca2e06cb30a454491009a2b382c821, type: 2}
+  charactersUnlockedAfterRun:
+  - {fileID: 11400000, guid: d882d5611fded44e494f05491da80a71, type: 2}
   persistentUpgrades:
   - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a001, type: 2}
   - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a002, type: 2}

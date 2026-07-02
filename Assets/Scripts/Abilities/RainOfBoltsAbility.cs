@@ -46,6 +46,7 @@ public class RainOfBoltsAbility : AbilityDefinition
     }
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
+    public override bool IsRangedAttack => true;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
@@ -54,10 +55,7 @@ public class RainOfBoltsAbility : AbilityDefinition
             return false;
         }
 
-        int distance = Mathf.Max(
-            Mathf.Abs(targetCell.x - character.GridPosition.x),
-            Mathf.Abs(targetCell.y - character.GridPosition.y));
-        return distance <= range;
+        return BidimensionalShadowAbility.TryResolveRadialAttackOrigin(character, targetCell, range, out _, out _, out _);
     }
 
     public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
@@ -72,7 +70,20 @@ public class RainOfBoltsAbility : AbilityDefinition
             return false;
         }
 
-        character.StartCoroutine(ResolveRainSequence(character, targetCell.Value));
+        BidimensionalShadowAbility.TryResolveRadialAttackOrigin(character, targetCell.Value, range, out bool fromShadow, out Vector2Int originCell, out HectorShadowProxy shadowProxy);
+        if (fromShadow && shadowProxy != null)
+        {
+            shadowProxy.FaceTargetCell(originCell, targetCell.Value);
+        }
+        else
+        {
+            character.FaceTargetCell(targetCell.Value);
+        }
+
+        Vector3 startPosition = fromShadow && shadowProxy != null
+            ? shadowProxy.LaunchAnchor.position + projectileSpawnOffset
+            : character.transform.position + projectileSpawnOffset;
+        character.StartCoroutine(ResolveRainSequence(character, targetCell.Value, startPosition));
         return true;
     }
 
@@ -105,7 +116,7 @@ public class RainOfBoltsAbility : AbilityDefinition
         return cells;
     }
 
-    private IEnumerator ResolveRainSequence(Character character, Vector2Int centerCell)
+    private IEnumerator ResolveRainSequence(Character character, Vector2Int centerCell, Vector3 projectileStartPosition)
     {
         if (character == null || character.Board == null)
         {
@@ -113,8 +124,6 @@ public class RainOfBoltsAbility : AbilityDefinition
         }
 
         character.BeginActionLock();
-        character.FaceTargetCell(centerCell);
-
         List<Vector2Int> primaryCells = GetPrimaryTargetCells(character, centerCell);
         HashSet<Vector2Int> primaryCellSet = new HashSet<Vector2Int>(primaryCells);
         List<Vector2Int> extraCells = GetExtraTargetCells(character, primaryCellSet);
@@ -136,7 +145,7 @@ public class RainOfBoltsAbility : AbilityDefinition
             Vector3 targetPosition = character.Board.GridToWorldPosition(cellPosition) + projectileImpactOffset;
             float travelDuration = Mathf.Max(
                 minimumTravelDuration,
-                Vector3.Distance(character.transform.position + projectileSpawnOffset, targetPosition) / Mathf.Max(0.01f, projectileTravelSpeed));
+                Vector3.Distance(projectileStartPosition, targetPosition) / Mathf.Max(0.01f, projectileTravelSpeed));
             maxTravelDuration = Mathf.Max(maxTravelDuration, travelDuration);
 
             bool playArrowShotSound = index == 0;
@@ -144,6 +153,7 @@ public class RainOfBoltsAbility : AbilityDefinition
                 character,
                 cellPosition,
                 targetPosition,
+                projectileStartPosition,
                 travelDuration,
                 playArrowShotSound,
                 damagePerHit,
@@ -208,6 +218,7 @@ public class RainOfBoltsAbility : AbilityDefinition
         Character character,
         Vector2Int cellPosition,
         Vector3 targetPosition,
+        Vector3 projectileStartPosition,
         float travelDuration,
         bool playArrowShotSound,
         int damage,
@@ -218,13 +229,12 @@ public class RainOfBoltsAbility : AbilityDefinition
             yield break;
         }
 
-        Vector3 startPosition = character.transform.position + projectileSpawnOffset;
         if (playArrowShotSound)
         {
-            SoundManager.Instance?.PlayArrowShot(startPosition);
+            SoundManager.Instance?.PlayArrowShot(projectileStartPosition);
         }
 
-        GameObject projectile = Instantiate(projectilePrefab, startPosition, Quaternion.identity);
+        GameObject projectile = Instantiate(projectilePrefab, projectileStartPosition, Quaternion.identity);
         projectile.transform.localScale = projectilePrefab.transform.localScale;
 
         float duration = Mathf.Max(0.05f, travelDuration);
@@ -233,14 +243,14 @@ public class RainOfBoltsAbility : AbilityDefinition
         while (elapsed < duration && projectile != null)
         {
             float normalizedTime = Mathf.Clamp01(elapsed / duration);
-            ApplyRainBoltProjectilePose(projectile.transform, startPosition, targetPosition, normalizedTime, progressCurve);
+            ApplyRainBoltProjectilePose(projectile.transform, projectileStartPosition, targetPosition, normalizedTime, progressCurve);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
         if (projectile != null)
         {
-            ApplyRainBoltProjectilePose(projectile.transform, startPosition, targetPosition, 1f, progressCurve);
+            ApplyRainBoltProjectilePose(projectile.transform, projectileStartPosition, targetPosition, 1f, progressCurve);
         }
 
         bool didHit = ResolveProjectileImpact(character, cellPosition, projectile, damage);

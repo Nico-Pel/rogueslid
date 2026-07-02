@@ -9,6 +9,7 @@ public class MenuLose : MonoBehaviour
     [SerializeField] private TMP_Text characterNameText;
     [SerializeField] private Button retryButton;
     [SerializeField] private Button menuButton;
+    [SerializeField] private TMP_Text menuButtonText;
 
     public void CacheReferences()
     {
@@ -17,9 +18,12 @@ public class MenuLose : MonoBehaviour
                               ?? FindComponentByName<TMP_Text>(transform, "tTitle");
         retryButton ??= FindNamedButton(transform, "BRetry");
         menuButton ??= FindNamedButton(transform, "BMenu");
+        menuButtonText ??= menuButton != null
+            ? menuButton.GetComponentInChildren<TMP_Text>(true)
+            : null;
     }
 
-    public void Bind(string characterName, Sprite losePortrait, Action retryCallback, Action menuCallback)
+    public void Bind(string characterName, Sprite losePortrait, Action retryCallback, Action menuCallback, bool showRetryButton, string menuLabel)
     {
         CacheReferences();
 
@@ -32,6 +36,16 @@ public class MenuLose : MonoBehaviour
         if (characterNameText != null)
         {
             characterNameText.text = characterName ?? string.Empty;
+        }
+
+        if (retryButton != null)
+        {
+            retryButton.gameObject.SetActive(showRetryButton);
+        }
+
+        if (menuButtonText != null)
+        {
+            menuButtonText.text = string.IsNullOrWhiteSpace(menuLabel) ? "Menu" : menuLabel;
         }
 
         BindButton(retryButton, retryCallback);

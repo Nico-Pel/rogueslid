@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1111aaaa2222bbbb3333cccc4444dddd, type: 3}
+  m_Name: CircleOfTheDamned
+  m_EditorClassIdentifier: 
+  abilityName: Circle of the Damned
+  description: Pandora places a cursed circle on a tile within range 5. It gains
+    magical charges whenever she passes over it, then explodes when recast or at
+    the end of the turn.
+  icon: {fileID: 1607689151, guid: 3fdef4f697daa48018ccf6ccb468414c, type: 3}
+  category: 2
+  attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: ab100000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: ab100000000000000000000000000002, type: 2}
+  - {fileID: 11400000, guid: ab100000000000000000000000000003, type: 2}
+  - {fileID: 11400000, guid: ab100000000000000000000000000004, type: 2}
+  - {fileID: 11400000, guid: ab100000000000000000000000000005, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 2
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  castRange: 5
+  baseStartingCharges: 1
+  activeCircleIcon: {fileID: -306928396, guid: 3fdef4f697daa48018ccf6ccb468414c, type: 3}
+  circleVisualPrefab: {fileID: 2738525187590442423, guid: 59afef511de2940b5aa80c98d85a75e8, type: 3}
+  chargeGainFxPrefab: {fileID: 2957013350672291843, guid: fad0fabb3d4db41e89701e988aed33d1, type: 3}
+  chargeGainFxDestroyAfterSeconds: 1.5
+  chargeGainSoundParametersPrefab: {fileID: 1899072520979101167, guid: 0a16a0cf6ef584735b59447ae64c0cf2, type: 3}
+  explosionFxPrefab: {fileID: 159854, guid: fb50a68104cea5f438567fcabb8efb69, type: 3}
+  explosionFxDestroyAfterSeconds: 2
+  damnedBlastShockwaveFxPrefab: {fileID: 4623002585508310345, guid: 041c5f5b749674f40b96cb4490378b39, type: 3}
+  damnedBlastShockwaveFxDestroyAfterSeconds: 2

@@ -25,6 +25,7 @@ public class CharacterProgressLibraryData
 {
     public List<CharacterProgressEntry> Characters = new List<CharacterProgressEntry>();
     public List<string> GloballyUnlockedRewardIds = new List<string>();
+    public List<string> UnlockedCharacterIds = new List<string>();
 }
 
 public static class CharacterProgressionSaveManager
@@ -170,6 +171,47 @@ public static class CharacterProgressionSaveManager
         }
 
         libraryData.GloballyUnlockedRewardIds.Add(rewardId.Trim());
+        SaveLibraryData(libraryData);
+        return true;
+    }
+
+    public static bool IsCharacterUnlocked(string characterId)
+    {
+        if (string.IsNullOrWhiteSpace(characterId))
+        {
+            return false;
+        }
+
+        string normalizedCharacterId = NormalizeKey(characterId);
+        if (normalizedCharacterId == "pandora")
+        {
+            return true;
+        }
+
+        CharacterProgressLibraryData libraryData = LoadLibraryData();
+        return ContainsNormalized(libraryData.UnlockedCharacterIds, characterId);
+    }
+
+    public static bool UnlockCharacter(string characterId)
+    {
+        if (string.IsNullOrWhiteSpace(characterId))
+        {
+            return false;
+        }
+
+        string normalizedCharacterId = NormalizeKey(characterId);
+        if (normalizedCharacterId == "pandora")
+        {
+            return false;
+        }
+
+        CharacterProgressLibraryData libraryData = LoadLibraryData();
+        if (ContainsNormalized(libraryData.UnlockedCharacterIds, characterId))
+        {
+            return false;
+        }
+
+        libraryData.UnlockedCharacterIds.Add(characterId.Trim());
         SaveLibraryData(libraryData);
         return true;
     }

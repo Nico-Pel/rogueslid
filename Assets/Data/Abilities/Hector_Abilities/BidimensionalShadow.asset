@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2030000000000000000000000000102, type: 3}
+  m_Name: BidimensionalShadow
+  m_EditorClassIdentifier: 
+  abilityName: Bidimensional Shadow
+  description: Summon a shadow clone on a cell in a straight line. Until end of turn,
+    Hector's targeted attacks use the Shadow's sight first.
+  icon: {fileID: 1039267727, guid: 9680c0cd2fb294103bbcc55e7d2b4cbb, type: 3}
+  category: 2
+  attackAnimationClip: {fileID: 7400000, guid: f8bd8d0c56d5b43bb9dd1b688791662e, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: 3a8ed79d7d47243b0a4b8acd7f4f5121, type: 2}
+  - {fileID: 11400000, guid: c89335e930c4545f2bddea25710d4bd4, type: 2}
+  - {fileID: 11400000, guid: c2030000000000000000000000000025, type: 2}
+  - {fileID: 11400000, guid: c2030000000000000000000000000026, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 0
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 1
+  replacementTrailPrefab: {fileID: 8103697321985338180, guid: 9982f1c2cdc734b2eb2ce65c9e78a6a7, type: 3}
+  temporaryTrailReplacementDuration: 0.5
+  radialCastRangeWithUpgrade: 2
+  swapAvailableIcon: {fileID: 1612797062, guid: f08e740e170ca4047ba95a3d1468b26e, type: 3}
+  shadowPrefab: {fileID: 5768572616990734657, guid: 10635553bdcab4f39b22be6cf4fb3676, type: 3}
+  shadowSpawnFxPrefab: {fileID: 704371307033129085, guid: 73292afc31d4547be9781b7636e44eec, type: 3}
+  shadowDespawnFxPrefab: {fileID: 704371307033129085, guid: 73292afc31d4547be9781b7636e44eec, type: 3}
+  bidimensionalProjectilePrefab: {fileID: 6573848276088621683, guid: f1b465e9f5dfa4e89b173d8c5733af09, type: 3}
+  bidimensionalProjectileSpeed: 36
+  bidimensionalProjectileLaunchDelay: 0.08
+  projectileSpawnOffset: {x: 0, y: 0.2, z: 0}
+  projectileImpactOffset: {x: 0, y: 0.2, z: 0}
+  openingProjectileVolleyDelay: 0.25

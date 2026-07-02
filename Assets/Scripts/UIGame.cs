@@ -407,10 +407,15 @@ public class UIGame : MonoBehaviour
 
     public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback)
     {
-        ShowLoseMenu(characterName, losePortrait, retryCallback, null);
+        ShowLoseMenu(characterName, losePortrait, retryCallback, null, true, "Menu");
     }
 
     public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback, Action menuCallback)
+    {
+        ShowLoseMenu(characterName, losePortrait, retryCallback, menuCallback, true, "Menu");
+    }
+
+    public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback, Action menuCallback, bool showRetryButton, string menuLabel)
     {
         CacheLoseMenu();
         HideStatsMenus();
@@ -424,7 +429,7 @@ public class UIGame : MonoBehaviour
             return;
         }
 
-        loseMenuView?.Bind(characterName, losePortrait, retryCallback, menuCallback);
+        loseMenuView?.Bind(characterName, losePortrait, retryCallback, menuCallback, showRetryButton, menuLabel);
         loseMenu.SetActive(true);
         UpdateEndTurnButtonVisibility();
     }
@@ -3729,7 +3734,7 @@ public class UIGame : MonoBehaviour
         return new RewardOffer
         {
             Id = $"ability_preview_{abilityDefinition.name}",
-            Title = abilityDefinition.AbilityName,
+            Title = abilityDefinition.GetDisplayName(observedCharacter, FindObservedAbilityRuntime(abilityDefinition)),
             Description = ResolveAbilityDescription(abilityDefinition),
             Artwork = abilityDefinition.Icon,
             Kind = RewardOfferKind.AbilityUnlock,
@@ -3858,6 +3863,22 @@ public class UIGame : MonoBehaviour
                 return $"Add {2 * stacks} extra random bolts outside Rain of Bolts' initial area.";
             case AbilityUpgradeKey.WolfStepQuickSteps:
                 return $"Wolf Step grants {2 + stacks} movement-free steps.";
+            case AbilityUpgradeKey.CircleOfTheDamnedCursedIncantation:
+                return $"Circle of the Damned starts with {1 + stacks} extra magical charge(s).";
+            case AbilityUpgradeKey.CircleOfTheDamnedProfaneReach:
+                return $"Increase Circle of the Damned's cast range by {2 * stacks}.";
+            case AbilityUpgradeKey.CountsCarbineScopedSight:
+                return $"Increase Count's Carbine range by {stacks}.";
+            case AbilityUpgradeKey.CountsCarbineSilverBullets:
+                return $"Increase Count's Carbine damage by {stacks}.";
+            case AbilityUpgradeKey.HuntersMarkSkeetShooting:
+                return $"Hunter's Mark gains {7 * stacks}% Fear chance.";
+            case AbilityUpgradeKey.HuntersMarkVeteranTracker:
+                return $"Increase Hunter's Mark mark radius and post-dash shockwave size by {stacks}.";
+            case AbilityUpgradeKey.BidimensionalShadowBidimensionalProjectiles:
+                return $"Bidimensional Shadow's opening volley deals {stacks} damage per projectile.";
+            case AbilityUpgradeKey.BidimensionalShadowBidimensionalRay:
+                return $"Bidimensional Shadow can also be cast within a {5} tile radius around Hector.";
             default:
                 return upgradeDefinition.RewardDescription.Replace("(Stackable).", string.Empty).Replace("(Cumulable).", string.Empty).Trim();
         }

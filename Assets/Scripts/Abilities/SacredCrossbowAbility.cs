@@ -5,6 +5,8 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Sacred Crossbow", fileName = "SacredCrossbow")]
 public class SacredCrossbowAbility : AbilityDefinition
 {
+    private readonly Dictionary<Character, HectorShadowAttackContext> pendingShadowAttackContextByCharacter = new Dictionary<Character, HectorShadowAttackContext>();
+
     private sealed class PullCandidate
     {
         public Enemy Enemy;
@@ -41,6 +43,7 @@ public class SacredCrossbowAbility : AbilityDefinition
     [SerializeField] private float sacredRayAttractionFxDuration = 1f;
 
     public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
+    public override bool IsRangedAttack => true;
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
@@ -59,22 +62,39 @@ public class SacredCrossbowAbility : AbilityDefinition
             return false;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell.Value, false, range, out Vector2Int direction, out _))
+        if (!BidimensionalShadowAbility.TryResolveLineAttackContext(character, targetCell.Value, false, range, out HectorShadowAttackContext context))
         {
             return false;
         }
 
-        List<Vector2Int> lineCells = BuildLineCells(character.Board, character.GridPosition, direction, range);
+        BidimensionalShadowAbility.FaceTargetForContext(character, context, targetCell.Value);
+        pendingShadowAttackContextByCharacter[character] = context;
+
+        List<Vector2Int> lineCells = BuildLineCells(character.Board, context.PrimaryOriginCell, context.PrimaryDirection, range);
         if (lineCells.Count <= 0)
         {
             return false;
         }
 
-        character.StartCoroutine(ResolveSacredCrossbowSequence(character, direction, lineCells));
+        Vector3 projectileStartPosition = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+        character.StartCoroutine(ResolveSacredCrossbowSequence(character, lineCells, projectileStartPosition));
         return true;
     }
 
-    private IEnumerator ResolveSacredCrossbowSequence(Character character, Vector2Int direction, List<Vector2Int> lineCells)
+    public override void PlayActivationAnimation(Character character)
+    {
+        if (character != null
+            && pendingShadowAttackContextByCharacter.TryGetValue(character, out HectorShadowAttackContext context))
+        {
+            BidimensionalShadowAbility.PlayAttackAnimationForContext(character, context, AttackAnimationClip);
+            pendingShadowAttackContextByCharacter.Remove(character);
+            return;
+        }
+
+        base.PlayActivationAnimation(character);
+    }
+
+    private IEnumerator ResolveSacredCrossbowSequence(Character character, List<Vector2Int> lineCells, Vector3 projectileStartPosition)
     {
         if (character == null || character.Board == null || lineCells == null || lineCells.Count <= 0)
         {
@@ -82,7 +102,6 @@ public class SacredCrossbowAbility : AbilityDefinition
         }
 
         character.BeginActionLock();
-        character.FaceTargetCell(lineCells[lineCells.Count - 1]);
 
         if (character.GetUpgradeStacks(AbilityUpgradeKey.SacredCrossbowSacredRay) > 0)
         {
@@ -109,6 +128,11 @@ public class SacredCrossbowAbility : AbilityDefinition
                 impactPosition,
                 projectileSpeed,
                 projectileSpawnOffset,
+                projectileLaunchDelay);
+            impactDelay = HectorAbilityUtils.EstimateLinearProjectileTravelDelayFromWorldPosition(
+                projectileStartPosition,
+                impactPosition,
+                projectileSpeed,
                 projectileLaunchDelay);
 
             if (character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null)
@@ -146,12 +170,12 @@ public class SacredCrossbowAbility : AbilityDefinition
             }
         }
 
-        HectorAbilityUtils.TryPlayLinearProjectile(
+        HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
             character,
             projectilePrefab,
+            projectileStartPosition,
             character.Board.GridToWorldPosition(lineCells[lineCells.Count - 1]) + projectileImpactOffset,
             projectileSpeed,
-            projectileSpawnOffset,
             projectileLaunchDelay);
         PlayConfiguredFx(character, hitEnemies);
 
@@ -461,7 +485,7 @@ public class SacredCrossbowAbility : AbilityDefinition
             return false;
         }
 
-        return HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell, false, range, out _, out _)
+        return BidimensionalShadowAbility.TryResolveLineAttackContext(character, targetCell, false, range, out _)
             && character.Board.IsInsideBoard(targetCell);
     }
 

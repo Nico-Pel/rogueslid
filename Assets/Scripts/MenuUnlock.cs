@@ -1,4 +1,5 @@
 using System;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +11,16 @@ public class MenuUnlock : MonoBehaviour
     [SerializeField] private Image difficultyIconImage;
     [SerializeField] private Button nextButton;
     [SerializeField] private RewardButtonUI rewardCard;
+    [SerializeField] private Image characterUnlockImage;
+    [SerializeField] private RectTransform glowTransform;
+    [SerializeField] private ContinuousRotate glowRotate;
+    [SerializeField] private AudioClip unlockCharacterSound;
+
+    private Tween characterRevealDelayTween;
+    private Tween glowScaleTween;
+    private Tween glowSpeedResetTween;
+    private Vector3 glowBaseScale = Vector3.one;
+    private float glowBaseRotateSpeed = 45f;
 
     public void CacheReferences()
     {
@@ -18,6 +29,17 @@ public class MenuUnlock : MonoBehaviour
         difficultyIconImage ??= FindComponentByName<Image>(transform, "iDifficultyIcon");
         nextButton ??= FindNamedButton(transform, "BNext");
         rewardCard ??= GetComponentInChildren<RewardButtonUI>(true);
+        characterUnlockImage ??= FindComponentByName<Image>(transform, "iChara");
+        glowTransform ??= FindComponentByName<RectTransform>(transform, "iGlow");
+        glowRotate ??= glowTransform != null ? glowTransform.GetComponent<ContinuousRotate>() : null;
+        if (glowTransform != null)
+        {
+            glowBaseScale = glowTransform.localScale;
+        }
+        if (glowRotate != null)
+        {
+            glowBaseRotateSpeed = glowRotate.rotateSpeed;
+        }
     }
 
     public void Bind(
@@ -36,12 +58,17 @@ public class MenuUnlock : MonoBehaviour
         CharacterData resolvedCharacterData = unlockResult != null && unlockResult.CharacterData != null
             ? unlockResult.CharacterData
             : fallbackCharacterData;
+        CharacterData unlockedCharacterData = unlockResult != null ? unlockResult.UnlockedCharacterData : null;
+        bool isCharacterUnlock = unlockResult != null && unlockResult.Kind == TourmentUnlockResultKind.Character;
+
+        ResetCharacterUnlockPresentation();
 
         if (unlockTitleText != null)
         {
             unlockTitleText.text = unlockResult != null ? unlockResult.Kind switch
             {
                 TourmentUnlockResultKind.Tourment => $"You unlocked a new Tourment with {(resolvedCharacterData != null ? resolvedCharacterData.CharacterName : "this character")}!",
+                TourmentUnlockResultKind.Character => $"You unlocked a new Character: {(unlockedCharacterData != null ? unlockedCharacterData.CharacterName : "Unknown")}!",
                 TourmentUnlockResultKind.Item => "You unlocked a new Object!",
                 _ => "You unlocked a new Ability!"
             } : string.Empty;
@@ -62,12 +89,13 @@ public class MenuUnlock : MonoBehaviour
         if (rewardCard != null)
         {
             RewardDefinition rewardDefinition = unlockResult != null ? unlockResult.RewardDefinition : null;
-            if (rewardDefinition == null)
+            if (rewardDefinition == null || isCharacterUnlock)
             {
                 rewardCard.gameObject.SetActive(false);
             }
             else
             {
+                rewardCard.gameObject.SetActive(true);
                 RewardOffer rewardOffer = rewardDefinition.CreateOffer();
                 bool isItem = rewardOffer.Kind == RewardOfferKind.Item;
                 RewardButtonStyle style = isItem ? itemRewardStyle : powerRewardStyle;
@@ -82,7 +110,94 @@ public class MenuUnlock : MonoBehaviour
             }
         }
 
+        if (characterUnlockImage != null)
+        {
+            characterUnlockImage.gameObject.SetActive(isCharacterUnlock && unlockedCharacterData != null);
+            if (isCharacterUnlock && unlockedCharacterData != null)
+            {
+                characterUnlockImage.sprite = unlockedCharacterData.Portrait != null
+                    ? unlockedCharacterData.Portrait
+                    : unlockedCharacterData.PortraitWin;
+                characterUnlockImage.enabled = characterUnlockImage.sprite != null;
+                PlayCharacterUnlockPresentation();
+            }
+        }
+
         BindButton(nextButton, nextCallback);
+    }
+
+    private void ResetCharacterUnlockPresentation()
+    {
+        characterRevealDelayTween?.Kill();
+        glowScaleTween?.Kill();
+        glowSpeedResetTween?.Kill();
+
+        if (characterUnlockImage != null)
+        {
+            characterUnlockImage.DOKill();
+            characterUnlockImage.color = Color.white;
+            characterUnlockImage.gameObject.SetActive(false);
+        }
+
+        if (glowTransform != null)
+        {
+            glowTransform.DOKill();
+            glowTransform.localScale = glowBaseScale;
+            glowTransform.gameObject.SetActive(false);
+        }
+        if (glowRotate != null)
+        {
+            glowRotate.SetRotateSpeed(glowBaseRotateSpeed);
+        }
+    }
+
+    private void PlayCharacterUnlockPresentation()
+    {
+        if (characterUnlockImage == null)
+        {
+            return;
+        }
+
+        characterUnlockImage.color = Color.black;
+        if (glowTransform != null)
+        {
+            glowTransform.gameObject.SetActive(true);
+            glowTransform.localScale = glowBaseScale;
+        }
+
+        characterRevealDelayTween = DOVirtual.DelayedCall(2f, () =>
+        {
+            if (characterUnlockImage == null)
+            {
+                return;
+            }
+
+            characterUnlockImage.DOColor(Color.white, 0.25f);
+            if (unlockCharacterSound != null)
+            {
+                SoundManager.Instance?.Play2DSound(unlockCharacterSound, 1f, 1f);
+            }
+
+            if (glowTransform != null)
+            {
+                glowScaleTween = glowTransform.DOScale(glowBaseScale * 2f, 0.5f)
+                    .SetLoops(2, LoopType.Yoyo)
+                    .SetEase(Ease.OutQuad);
+            }
+
+            if (glowRotate != null)
+            {
+                float baseSpeed = Mathf.Max(0.01f, glowBaseRotateSpeed);
+                glowRotate.SetRotateSpeed(baseSpeed * 4f);
+                glowSpeedResetTween = DOVirtual.DelayedCall(1f, () =>
+                {
+                    if (glowRotate != null)
+                    {
+                        glowRotate.SetRotateSpeed(baseSpeed);
+                    }
+                });
+            }
+        });
     }
 
     private static void BindButton(Button button, Action callback)

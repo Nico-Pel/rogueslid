@@ -5,6 +5,7 @@ public enum DamageSoundType
     Default,
     Sword,
     ArrowHit,
+    BulletHit,
     MagicHit
 }
 
@@ -45,6 +46,7 @@ public class SoundManager : MonoBehaviour
     [SerializeField] private AudioClip defaultHitSound;
     [SerializeField] private AudioClip arrowShotSound;
     [SerializeField] private AudioClip arrowHitSound;
+    [SerializeField] private AudioClip bulletHitSound;
     [SerializeField] private AudioClip swordHitSound;
     [SerializeField] private AudioClip magicHitSound;
     [SerializeField] private AudioClip powerUpSound;
@@ -149,6 +151,9 @@ public class SoundManager : MonoBehaviour
         {
             DamageSoundType.Sword => swordHitSound != null ? swordHitSound : defaultHitSound,
             DamageSoundType.ArrowHit => arrowHitSound != null ? arrowHitSound : defaultHitSound,
+            DamageSoundType.BulletHit => bulletHitSound != null
+                ? bulletHitSound
+                : (arrowHitSound != null ? arrowHitSound : defaultHitSound),
             DamageSoundType.MagicHit => magicHitSound != null ? magicHitSound : defaultHitSound,
             _ => defaultHitSound
         };

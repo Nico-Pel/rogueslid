@@ -51,11 +51,14 @@ public class UIHomeController : MonoBehaviour
 
 #if UNITY_EDITOR
     private const KeyCode DebugGiveOrbsKey = KeyCode.J;
+    private const KeyCode DebugUnlockAllCharactersKey = KeyCode.X;
 #endif
 
     private static readonly Color LockedUpgradeColor = new Color32(0xA4, 0xA4, 0xA4, 0x76);
     private static readonly Color PriceNormalColor = Color.white;
     private static readonly Color PriceInsufficientColor = new Color32(0xFF, 0x63, 0x63, 0xFF);
+    private static readonly Color LockedCharacterVisualColor = Color.black;
+    private static readonly Color LockedCharacterHintColor = new Color32(0xFF, 0xB0, 0x3B, 0xFF);
     private static readonly int[][] UpgradePrerequisiteIndices =
     {
         Array.Empty<int>(),
@@ -79,6 +82,11 @@ public class UIHomeController : MonoBehaviour
     private HomeCharacterSelection currentSelection = HomeCharacterSelection.Pandora;
     private HomeMenuSection currentMenuSection = HomeMenuSection.Main;
     private int selectedUpgradeIndex = -1;
+    private bool storyDescriptionAlignmentCached;
+    private TextAlignmentOptions storyDescriptionDefaultAlignment;
+#if UNITY_EDITOR
+    private bool forceAllCharactersUnlockedInEditor;
+#endif
 
     private GameObject menuMainRoot => menuMain != null ? menuMain.gameObject : null;
     private GameObject menuUpgradeRoot => menuUpgrade != null ? menuUpgrade.gameObject : null;
@@ -180,6 +188,12 @@ public class UIHomeController : MonoBehaviour
     private void Update()
     {
 #if UNITY_EDITOR
+        if (gameObject.activeInHierarchy && Input.GetKeyDown(DebugUnlockAllCharactersKey))
+        {
+            forceAllCharactersUnlockedInEditor = !forceAllCharactersUnlockedInEditor;
+            RefreshMenu(false);
+        }
+
         if (gameObject.activeInHierarchy && Input.GetKeyDown(DebugGiveOrbsKey))
         {
             CharacterData selectedCharacter = GetCurrentCharacterData();
@@ -221,6 +235,11 @@ public class UIHomeController : MonoBehaviour
         CacheThemeColorImages();
 
         portraitButtonImage ??= portraitButton != null ? portraitButton.GetComponent<Image>() : null;
+        if (!storyDescriptionAlignmentCached && storyDescriptionText != null)
+        {
+            storyDescriptionDefaultAlignment = storyDescriptionText.alignment;
+            storyDescriptionAlignmentCached = true;
+        }
 
         BindButton(startButton, HandleStartClicked);
         BindButton(previousButton, HandlePreviousClicked);
@@ -519,6 +538,7 @@ public class UIHomeController : MonoBehaviour
         RefreshUpgradeMenu(characterData, immediate);
         UpdateOrbUi(characterData);
         ApplyTheme(characterData, immediate);
+        ApplyLockedPresentation(characterData, config);
         RefreshTabs(characterData, immediate);
     }
 
@@ -539,20 +559,21 @@ public class UIHomeController : MonoBehaviour
     {
         if (characterNameText != null)
         {
-            characterNameText.text = characterData.CharacterName;
+            characterNameText.text = config.IsLocked ? "???" : characterData.CharacterName;
         }
 
         if (characterPortraitImage != null)
         {
             characterPortraitImage.sprite = characterData.Portrait;
             characterPortraitImage.enabled = characterData.Portrait != null;
+            characterPortraitImage.color = config.IsLocked ? LockedCharacterVisualColor : Color.white;
         }
 
         if (startCharacterIconImage != null)
         {
             startCharacterIconImage.sprite = characterData.PathIcon;
             startCharacterIconImage.enabled = characterData.PathIcon != null;
-            startCharacterIconImage.color = config.IsLocked ? new Color(1f, 1f, 1f, 0.5f) : Color.white;
+            startCharacterIconImage.color = config.IsLocked ? LockedCharacterVisualColor : Color.white;
         }
 
         if (startButton != null)
@@ -567,7 +588,9 @@ public class UIHomeController : MonoBehaviour
 
         if (storyDescriptionText != null)
         {
-            storyDescriptionText.text = characterData.Description ?? string.Empty;
+            storyDescriptionText.text = config.IsLocked
+                ? BuildLockedCharacterHint(characterData)
+                : characterData.Description ?? string.Empty;
         }
 
         RefreshDifficultyUi(characterData);
@@ -620,15 +643,17 @@ public class UIHomeController : MonoBehaviour
 
     private void RefreshUpgradeMenu(CharacterData characterData, bool immediate)
     {
+        HomeCharacterConfig config = GetCurrentCharacterConfig();
         if (upgradeCharacterNameText != null)
         {
-            upgradeCharacterNameText.text = characterData.CharacterName;
+            upgradeCharacterNameText.text = config.IsLocked ? "???" : characterData.CharacterName;
         }
 
         if (upgradeCharacterIconImage != null)
         {
             upgradeCharacterIconImage.sprite = characterData.PathIcon;
             upgradeCharacterIconImage.enabled = characterData.PathIcon != null;
+            upgradeCharacterIconImage.color = config.IsLocked ? LockedCharacterVisualColor : Color.white;
         }
 
         if (currentMenuSection == HomeMenuSection.Upgrade
@@ -639,6 +664,54 @@ public class UIHomeController : MonoBehaviour
 
         RefreshUpgradeButtons();
         RefreshUpgradeFrame();
+    }
+
+    private void ApplyLockedPresentation(CharacterData characterData, HomeCharacterConfig config)
+    {
+        if (!config.IsLocked)
+        {
+            if (storyDescriptionText != null && storyDescriptionAlignmentCached)
+            {
+                storyDescriptionText.alignment = storyDescriptionDefaultAlignment;
+            }
+
+            return;
+        }
+
+        if (characterPortraitImage != null)
+        {
+            characterPortraitImage.color = LockedCharacterVisualColor;
+        }
+
+        if (startCharacterIconImage != null)
+        {
+            startCharacterIconImage.color = LockedCharacterVisualColor;
+        }
+
+        if (upgradeCharacterIconImage != null)
+        {
+            upgradeCharacterIconImage.color = LockedCharacterVisualColor;
+        }
+
+        if (characterNameText != null)
+        {
+            characterNameText.DOKill();
+            characterNameText.text = "???";
+        }
+
+        if (upgradeCharacterNameText != null)
+        {
+            upgradeCharacterNameText.DOKill();
+            upgradeCharacterNameText.text = "???";
+        }
+
+        if (storyDescriptionText != null)
+        {
+            storyDescriptionText.DOKill();
+            storyDescriptionText.text = BuildLockedCharacterHint(characterData);
+            storyDescriptionText.color = LockedCharacterHintColor;
+            storyDescriptionText.alignment = TextAlignmentOptions.Center;
+        }
     }
 
     private void RefreshUpgradeButtons()
@@ -891,12 +964,70 @@ public class UIHomeController : MonoBehaviour
 
     private HomeCharacterConfig GetCurrentCharacterConfig()
     {
+        bool hectorUnlocked = IsCharacterUnlockedForHome(hectorCharacterData);
+        bool zhuangUnlocked = IsCharacterUnlockedForHome(zhuangCharacterData);
         return currentSelection switch
         {
-            HomeCharacterSelection.Hector => new HomeCharacterConfig(hectorCharacterData, hectorCharacterPrefab, false),
-            HomeCharacterSelection.Zhuang => new HomeCharacterConfig(zhuangCharacterData, null, true),
+            HomeCharacterSelection.Hector => new HomeCharacterConfig(hectorCharacterData, hectorCharacterPrefab, !hectorUnlocked),
+            HomeCharacterSelection.Zhuang => new HomeCharacterConfig(zhuangCharacterData, null, !zhuangUnlocked),
             _ => new HomeCharacterConfig(pandoraCharacterData, pandoraCharacterPrefab, false)
         };
+    }
+
+    private string BuildLockedCharacterHint(CharacterData lockedCharacterData)
+    {
+        CharacterData requiredCharacter = FindCharacterRequiredToUnlock(lockedCharacterData);
+        string requiredCharacterName = requiredCharacter != null
+            && IsCharacterUnlockedForHome(requiredCharacter)
+            ? requiredCharacter.CharacterName
+            : "???";
+        return $"Finish a run with {requiredCharacterName} to unlock this character.";
+    }
+
+    private bool IsCharacterUnlockedForHome(CharacterData characterData)
+    {
+        if (characterData == null)
+        {
+            return false;
+        }
+
+#if UNITY_EDITOR
+        if (forceAllCharactersUnlockedInEditor)
+        {
+            return true;
+        }
+#endif
+
+        return CharacterProgressionSaveManager.IsCharacterUnlocked(characterData.CharacterId);
+    }
+
+    private CharacterData FindCharacterRequiredToUnlock(CharacterData lockedCharacterData)
+    {
+        if (lockedCharacterData == null)
+        {
+            return null;
+        }
+
+        CharacterData[] allCharacters = { pandoraCharacterData, hectorCharacterData, zhuangCharacterData };
+        for (int index = 0; index < allCharacters.Length; index++)
+        {
+            CharacterData candidate = allCharacters[index];
+            IReadOnlyList<CharacterData> unlockedCharacters = candidate != null ? candidate.CharactersUnlockedAfterRun : null;
+            if (unlockedCharacters == null)
+            {
+                continue;
+            }
+
+            for (int unlockIndex = 0; unlockIndex < unlockedCharacters.Count; unlockIndex++)
+            {
+                if (unlockedCharacters[unlockIndex] == lockedCharacterData)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return null;
     }
 
     private CharacterData GetCurrentCharacterData()

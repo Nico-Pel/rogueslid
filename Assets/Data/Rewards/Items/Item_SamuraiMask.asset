@@ -17,9 +17,14 @@ MonoBehaviour:
   rewardDescription: Gain 2 bonus damage after killing an enemy, until the end of
     the turn.
   artwork: {fileID: 1775963552, guid: c197f5166538a4f4494e44a8222986e0, type: 3}
+  lockByDefault: 0
   itemKey: 26
-  showCombatStartYesNoPrompt: 0
+  shopPrice: 15
+  showCombatStartYesNoPrompt: 1
   activationQuestionOverride: 
   consumeOnYes: 0
   yesNoEffect: 0
   activationSound: {fileID: 0}
+  damageFxPrefab: {fileID: 0}
+  damageFxLifetime: 1
+  activationSoundVolume: 1

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6f433c87d304e2b86d08a3347f75003, type: 3}
+  m_Name: Upgrade_CircleOfTheDamned_ProfaneReach
+  m_EditorClassIdentifier: 
+  rewardId: upgrade_circle_of_the_damned_profane_reach
+  rewardTitle: Profane Reach
+  rewardDescription: Increase Circle of the Damned's cast range by 2. Stackable (Max
+    2).
+  artwork: {fileID: 0}
+  lockByDefault: 0
+  ability: {fileID: 11400000, guid: 2222aaaa3333bbbb4444cccc5555dddd, type: 2}
+  upgradeKey: 93
+  stackable: 1
+  maxStacks: 2
+  shopPrice: 25

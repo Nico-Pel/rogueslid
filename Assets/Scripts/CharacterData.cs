@@ -83,6 +83,7 @@ public class CharacterData : ScriptableObject
     [SerializeField] private List<AbilityDefinition> startingAbilities = new List<AbilityDefinition>();
     [SerializeField] private List<AbilityRewardDefinition> unlockableAbilityRewards = new List<AbilityRewardDefinition>();
     [SerializeField] private List<TourmentRewardUnlockDefinition> tourmentRewardUnlocks = new List<TourmentRewardUnlockDefinition>();
+    [SerializeField] private List<CharacterData> charactersUnlockedAfterRun = new List<CharacterData>();
 
     [Header("Persistent Upgrades")]
     [SerializeField] private List<CharacterUpgradeData> persistentUpgrades = new List<CharacterUpgradeData>();
@@ -105,6 +106,7 @@ public class CharacterData : ScriptableObject
     public IReadOnlyList<AbilityDefinition> StartingAbilities => startingAbilities;
     public IReadOnlyList<AbilityRewardDefinition> UnlockableAbilityRewards => unlockableAbilityRewards;
     public IReadOnlyList<TourmentRewardUnlockDefinition> TourmentRewardUnlocks => tourmentRewardUnlocks;
+    public IReadOnlyList<CharacterData> CharactersUnlockedAfterRun => charactersUnlockedAfterRun;
     public IReadOnlyList<CharacterUpgradeData> PersistentUpgrades => persistentUpgrades;
     public IReadOnlyList<CharacterUIColorEntry> UIColors => uiColors;
 

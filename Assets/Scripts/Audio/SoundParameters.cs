@@ -32,6 +32,11 @@ public class SoundParameters : MonoBehaviour
 
     public void PlaySound(Vector3 position, float forcedVolume = -1f)
     {
+        PlaySound(position, forcedVolume, null);
+    }
+
+    public void PlaySound(Vector3 position, float forcedVolume, float? forcedPitch)
+    {
         AudioClip clip = GetRandomClip();
         if (clip == null || SoundManager.Instance == null)
         {
@@ -39,7 +44,7 @@ public class SoundParameters : MonoBehaviour
         }
 
         float appliedVolume = forcedVolume >= 0f ? forcedVolume : volume;
-        float pitch = Random.Range(pitchMin, pitchMax);
+        float pitch = forcedPitch ?? Random.Range(pitchMin, pitchMax);
 
         if (isUiSound)
         {

@@ -126,6 +126,9 @@ public class Character : MonoBehaviour
     private Enemy markedEnemy;
     private LichSkullObject markedLichSkull;
     private DeathMarkAbility deathMarkAbility;
+    private readonly HashSet<Enemy> hunterMarkedEnemies = new HashSet<Enemy>();
+    private HuntersMarkAbility huntersMarkAbility;
+    private bool hunterMarksPersistUntilConsumed;
     private int actionLockCount;
     private readonly Dictionary<AbilityDefinition, HashSet<Enemy>> abilityTargetsHitThisTurn = new Dictionary<AbilityDefinition, HashSet<Enemy>>();
 
@@ -230,6 +233,7 @@ public class Character : MonoBehaviour
         markedEnemy = null;
         markedLichSkull = null;
         deathMarkAbility = null;
+        ClearHuntersMarks(true);
         wolfMovementPoints = 0;
         SnapToGrid();
         ResetTurn();
@@ -279,6 +283,7 @@ public class Character : MonoBehaviour
         markedEnemy = null;
         markedLichSkull = null;
         deathMarkAbility = null;
+        ClearHuntersMarks(true);
         wolfMovementPoints = 0;
 
         InitializeAbilities(runRewardState != null ? runRewardState.GetEquippedAbilities() : GetStartingAbilityDefinitions());
@@ -792,6 +797,12 @@ public class Character : MonoBehaviour
         totalDamage += nextWeaponAbilityBonusDamage;
         totalDamage += GetAbilityItemBonusDamage(sourceAbility);
         totalDamage += GetDistanceBonusDamageAgainstEnemy(enemy);
+        totalDamage += TryConsumeHuntersMarkBonus(enemy, sourceAbility);
+        if (enemy.HasStatusEffect(CombatStatusType.Poisoned))
+        {
+            totalDamage += GetUpgradeStacks(AbilityUpgradeKey.PoisonTrailPoisonedSoul);
+        }
+
         if (HasItem(ItemRewardKey.ThornedBracer)
             && enemy.CurrentHealth <= Mathf.Max(1, totalDamage - enemy.Resistance))
         {
@@ -817,13 +828,13 @@ public class Character : MonoBehaviour
                 appliedDamage += bonusMarkDamage;
                 if (enemy.CurrentHealth <= 0)
                 {
-                    HandleEnemyKilled(enemy);
+                    HandleEnemyKilled(enemy, sourceAbility);
                 }
             }
         }
         if (enemy.CurrentHealth <= 0)
         {
-            HandleEnemyKilled(enemy);
+            HandleEnemyKilled(enemy, sourceAbility);
         }
 
         if (nextWeaponAbilityBonusDamage > 0)
@@ -1090,6 +1101,22 @@ public class Character : MonoBehaviour
         return Mathf.Max(0, weaponDamage + bonus);
     }
 
+    public AbilityDefinition GetPresentedAbilityForSlot(int slotIndex)
+    {
+        CharacterAbilityRuntime runtime = GetAbilityForSlot(slotIndex);
+        if (runtime?.Definition == null)
+        {
+            return null;
+        }
+
+        return runtime.Definition.GetPresentationDefinition(this, runtime) ?? runtime.Definition;
+    }
+
+    public AbilityDefinition GetPresentedBasicAttackDefinition()
+    {
+        return GetPresentedAbilityForSlot(0);
+    }
+
     public bool HasItem(ItemRewardKey itemKey)
     {
         return runRewardState != null && runRewardState.HasItem(itemKey);
@@ -1232,6 +1259,10 @@ public class Character : MonoBehaviour
         ApplyPoisonTickAtEndOfTurn();
         CommitCurrentTurnStateForNextTurn();
         isFirstPlayerTurnOfArena = false;
+        if (!hunterMarksPersistUntilConsumed)
+        {
+            ClearHuntersMarks(true);
+        }
         ClearDeathMark();
         ClearNextAttackBonusDamage();
         ClearBonusDamageUntilEndOfTurn();
@@ -1407,6 +1438,21 @@ public class Character : MonoBehaviour
 
         markedLichSkull = skullObject;
         deathMarkAbility = sourceAbility;
+    }
+
+    public void ApplyHuntersMark(Enemy enemy, HuntersMarkAbility sourceAbility, bool persistUntilConsumed)
+    {
+        if (enemy == null || enemy.CurrentHealth <= 0)
+        {
+            return;
+        }
+
+        hunterMarkedEnemies.RemoveWhere(candidate => candidate == null || candidate.CurrentHealth <= 0);
+        hunterMarkedEnemies.Add(enemy);
+        huntersMarkAbility = sourceAbility;
+        hunterMarksPersistUntilConsumed = persistUntilConsumed;
+        enemy.SetDeathMarkActive(true);
+        sourceAbility?.OnMarkApplied(enemy);
     }
 
     public int DamageEnemiesAround(
@@ -2331,7 +2377,7 @@ public class Character : MonoBehaviour
 
     private void RefreshBasicAttackVisuals()
     {
-        AbilityDefinition equippedBasicAttack = GetAbilityForSlot(0)?.Definition;
+        AbilityDefinition equippedBasicAttack = GetPresentedBasicAttackDefinition();
         for (int index = 0; index < basicAttackVisuals.Count; index++)
         {
             CharacterBasicAttackVisualConfig config = basicAttackVisuals[index];
@@ -2608,7 +2654,7 @@ public class Character : MonoBehaviour
         return null;
     }
 
-    private void HandleEnemyKilled(Enemy enemy)
+    private void HandleEnemyKilled(Enemy enemy, AbilityDefinition sourceAbility = null)
     {
         Vector2Int enemyCell = enemy != null ? enemy.GridPosition : gridPosition;
 
@@ -2620,6 +2666,12 @@ public class Character : MonoBehaviour
         if (HasItem(ItemRewardKey.RavenFeather))
         {
             GainMovementPoints(1, ItemRewardKey.RavenFeather);
+        }
+
+        if (sourceAbility is SpectralClawsAbility
+            && GetUpgradeStacks(AbilityUpgradeKey.SpectralClawsSpectralTakeoff) > 0)
+        {
+            GainMovementPoints(1);
         }
 
         if (HasItem(ItemRewardKey.SamuraiMask))
@@ -2647,6 +2699,11 @@ public class Character : MonoBehaviour
             }
 
             ClearDeathMark();
+        }
+
+        if (enemy != null && hunterMarkedEnemies.Contains(enemy))
+        {
+            ClearHuntersMark(enemy);
         }
 
         if (HasItem(ItemRewardKey.ScrapBomb))
@@ -3211,6 +3268,70 @@ public class Character : MonoBehaviour
         markedEnemy = null;
         markedLichSkull = null;
         deathMarkAbility = null;
+    }
+
+    private int TryConsumeHuntersMarkBonus(Enemy enemy, AbilityDefinition sourceAbility)
+    {
+        if (enemy == null
+            || sourceAbility == null
+            || !sourceAbility.IsRangedAttack
+            || !hunterMarkedEnemies.Contains(enemy))
+        {
+            return 0;
+        }
+
+        int distanceBonus = Mathf.Max(
+            1,
+            Mathf.Max(
+                Mathf.Abs(enemy.GridPosition.x - gridPosition.x),
+                Mathf.Abs(enemy.GridPosition.y - gridPosition.y)));
+        HuntersMarkAbility sourceHuntersMarkAbility = huntersMarkAbility;
+        ClearHuntersMark(enemy);
+        sourceHuntersMarkAbility?.PlayMarkBurstFeedback(this, enemy);
+        return distanceBonus;
+    }
+
+    private void ClearHuntersMark(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return;
+        }
+
+        hunterMarkedEnemies.Remove(enemy);
+        if (enemy != markedEnemy)
+        {
+            enemy.SetDeathMarkActive(false);
+        }
+        huntersMarkAbility?.OnMarkCleared(enemy);
+
+        if (hunterMarkedEnemies.Count <= 0)
+        {
+            huntersMarkAbility = null;
+            hunterMarksPersistUntilConsumed = false;
+        }
+    }
+
+    private void ClearHuntersMarks(bool clearPersistentMarks)
+    {
+        if (!clearPersistentMarks && hunterMarksPersistUntilConsumed)
+        {
+            return;
+        }
+
+        foreach (Enemy enemy in hunterMarkedEnemies)
+        {
+            if (enemy != null && enemy != markedEnemy)
+            {
+                enemy.SetDeathMarkActive(false);
+            }
+
+            huntersMarkAbility?.OnMarkCleared(enemy);
+        }
+
+        hunterMarkedEnemies.Clear();
+        huntersMarkAbility = null;
+        hunterMarksPersistUntilConsumed = false;
     }
 
     private void Die()

@@ -14,7 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rewardId: item_sakura
   rewardTitle: Sakura
-  rewardDescription: Recover 1 health at the end of the enemy turn if you took
-    damage during it.
+  rewardDescription: Recover 1 health at the end of the enemy turn if you took damage
+    during it.
   artwork: {fileID: 512919188, guid: 1e73d525c312240ef83c8996da75647e, type: 3}
+  lockByDefault: 1
   itemKey: 21
+  shopPrice: 15
+  showCombatStartYesNoPrompt: 0
+  activationQuestionOverride: 
+  consumeOnYes: 0
+  yesNoEffect: 0
+  activationSound: {fileID: 0}
+  damageFxPrefab: {fileID: 0}
+  damageFxLifetime: 1
+  activationSoundVolume: 1

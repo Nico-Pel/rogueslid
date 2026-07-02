@@ -439,7 +439,7 @@ public class BoardManager : MonoBehaviour
         return IsCurrentArenaBossBattle() && currentBiomeIndex >= Mathf.Max(0, GetValidBiomeCount() - 1);
     }
 
-    public List<TourmentUnlockResult> EvaluateAndApplyFinalVictoryUnlocks(CharacterData characterData)
+    public List<TourmentUnlockResult> EvaluateAndApplyRunUnlocks(CharacterData characterData, bool finalVictory)
     {
         List<TourmentUnlockResult> results = new List<TourmentUnlockResult>();
         if (characterData == null || string.IsNullOrWhiteSpace(characterData.CharacterId))
@@ -448,7 +448,7 @@ public class BoardManager : MonoBehaviour
         }
 
         int clearedTourmentLevel = CurrentTourmentLevel;
-        if (CharacterProgressionSaveManager.TryUnlockNextTourment(characterData.CharacterId, clearedTourmentLevel, out int unlockedTourmentLevel))
+        if (finalVictory && CharacterProgressionSaveManager.TryUnlockNextTourment(characterData.CharacterId, clearedTourmentLevel, out int unlockedTourmentLevel))
         {
             results.Add(new TourmentUnlockResult
             {
@@ -458,9 +458,20 @@ public class BoardManager : MonoBehaviour
             });
         }
 
-        TryAppendCharacterRewardUnlocks(results, characterData, clearedTourmentLevel);
-        TryAppendGlobalRewardUnlocks(results, characterData, clearedTourmentLevel);
+        TryAppendCharacterUnlocks(results, characterData);
+
+        int highestClearedBossTier = finalVictory
+            ? (int)TourmentBossUnlockTier.Boss3
+            : Mathf.Clamp(currentBiomeIndex, 0, (int)TourmentBossUnlockTier.Boss2);
+
+        TryAppendCharacterRewardUnlocks(results, characterData, clearedTourmentLevel, highestClearedBossTier);
+        TryAppendGlobalRewardUnlocks(results, characterData, clearedTourmentLevel, highestClearedBossTier);
         return results;
+    }
+
+    public List<TourmentUnlockResult> EvaluateAndApplyFinalVictoryUnlocks(CharacterData characterData)
+    {
+        return EvaluateAndApplyRunUnlocks(characterData, true);
     }
 
     public bool TryGetCell(Vector2Int gridPosition, out BoardCell cell)
@@ -3070,9 +3081,32 @@ public class BoardManager : MonoBehaviour
 
     private bool IsRewardDefinitionUnlockedForCurrentCharacter(RewardDefinition rewardDefinition)
     {
+        if (IsForcedRewardUnlockBypassed(rewardDefinition))
+        {
+            return true;
+        }
+
         Character character = player != null ? player.ControlledCharacter : null;
         CharacterData characterData = character != null ? character.Data : null;
         return IsRewardDefinitionUnlockedForCharacter(rewardDefinition, characterData);
+    }
+
+    private bool IsForcedRewardUnlockBypassed(RewardDefinition rewardDefinition)
+    {
+        if (!IsForcedRewardsModeEnabled() || rewardDefinition == null || forcedRewards == null)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < forcedRewards.Count; index++)
+        {
+            if (forcedRewards[index] == rewardDefinition)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool IsRewardDefinitionUnlockedForCharacter(RewardDefinition rewardDefinition, CharacterData characterData)
@@ -3101,7 +3135,35 @@ public class BoardManager : MonoBehaviour
         return !rewardDefinition.LockByDefault;
     }
 
-    private void TryAppendCharacterRewardUnlocks(List<TourmentUnlockResult> results, CharacterData characterData, int clearedTourmentLevel)
+    private void TryAppendCharacterUnlocks(List<TourmentUnlockResult> results, CharacterData sourceCharacterData)
+    {
+        IReadOnlyList<CharacterData> unlockedCharacters = sourceCharacterData != null ? sourceCharacterData.CharactersUnlockedAfterRun : null;
+        if (unlockedCharacters == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < unlockedCharacters.Count; index++)
+        {
+            CharacterData unlockedCharacterData = unlockedCharacters[index];
+            if (unlockedCharacterData == null
+                || string.IsNullOrWhiteSpace(unlockedCharacterData.CharacterId)
+                || !CharacterProgressionSaveManager.UnlockCharacter(unlockedCharacterData.CharacterId))
+            {
+                continue;
+            }
+
+            results.Add(new TourmentUnlockResult
+            {
+                Kind = TourmentUnlockResultKind.Character,
+                TourmentLevel = CurrentTourmentLevel,
+                CharacterData = sourceCharacterData,
+                UnlockedCharacterData = unlockedCharacterData
+            });
+        }
+    }
+
+    private void TryAppendCharacterRewardUnlocks(List<TourmentUnlockResult> results, CharacterData characterData, int clearedTourmentLevel, int highestClearedBossTier)
     {
         IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions = characterData != null ? characterData.TourmentRewardUnlocks : null;
         if (unlockDefinitions == null)
@@ -3113,7 +3175,7 @@ public class BoardManager : MonoBehaviour
         {
             TourmentRewardUnlockDefinition unlockDefinition = unlockDefinitions[index];
             RewardDefinition rewardDefinition = unlockDefinition != null ? unlockDefinition.RewardDefinition : null;
-            if (!CanUnlockRewardDefinition(unlockDefinition, rewardDefinition, clearedTourmentLevel))
+            if (!CanUnlockRewardDefinition(unlockDefinition, rewardDefinition, clearedTourmentLevel, highestClearedBossTier))
             {
                 continue;
             }
@@ -3133,7 +3195,7 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private void TryAppendGlobalRewardUnlocks(List<TourmentUnlockResult> results, CharacterData characterData, int clearedTourmentLevel)
+    private void TryAppendGlobalRewardUnlocks(List<TourmentUnlockResult> results, CharacterData characterData, int clearedTourmentLevel, int highestClearedBossTier)
     {
         IReadOnlyList<TourmentRewardUnlockDefinition> unlockDefinitions = unlockItemsData != null ? unlockItemsData.RewardUnlocks : null;
         if (unlockDefinitions == null)
@@ -3145,7 +3207,7 @@ public class BoardManager : MonoBehaviour
         {
             TourmentRewardUnlockDefinition unlockDefinition = unlockDefinitions[index];
             RewardDefinition rewardDefinition = unlockDefinition != null ? unlockDefinition.RewardDefinition : null;
-            if (!CanUnlockRewardDefinition(unlockDefinition, rewardDefinition, clearedTourmentLevel))
+            if (!CanUnlockRewardDefinition(unlockDefinition, rewardDefinition, clearedTourmentLevel, highestClearedBossTier))
             {
                 continue;
             }
@@ -3165,12 +3227,12 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private static bool CanUnlockRewardDefinition(TourmentRewardUnlockDefinition unlockDefinition, RewardDefinition rewardDefinition, int clearedTourmentLevel)
+    private static bool CanUnlockRewardDefinition(TourmentRewardUnlockDefinition unlockDefinition, RewardDefinition rewardDefinition, int clearedTourmentLevel, int highestClearedBossTier)
     {
         return unlockDefinition != null
             && rewardDefinition != null
             && clearedTourmentLevel >= unlockDefinition.RequiredTourmentLevel
-            && unlockDefinition.RequiredBoss <= TourmentBossUnlockTier.Boss3;
+            && highestClearedBossTier >= (int)unlockDefinition.RequiredBoss;
     }
 
     private bool TryFindCharacterSpecificUnlockDefinition(CharacterData characterData, RewardDefinition rewardDefinition, out TourmentRewardUnlockDefinition unlockDefinition)

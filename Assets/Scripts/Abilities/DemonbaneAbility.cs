@@ -5,6 +5,7 @@ using UnityEngine;
 public class DemonbaneAbility : AbilityDefinition
 {
     private readonly Dictionary<Character, bool> pendingFallbackCastByCharacter = new Dictionary<Character, bool>();
+    private readonly Dictionary<Character, HectorShadowAttackContext> pendingShadowAttackContextByCharacter = new Dictionary<Character, HectorShadowAttackContext>();
 
     [Min(1)]
     [SerializeField] private int baseDamage = 4;
@@ -100,13 +101,13 @@ public class DemonbaneAbility : AbilityDefinition
             return false;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell.Value, allowDiagonals, range, out Vector2Int direction, out _)
-            || !HectorAbilityUtils.IsLineClear(character.Board, character.GridPosition, targetCell.Value, direction))
+        if (!BidimensionalShadowAbility.TryResolveLineAttackContext(character, targetCell.Value, allowDiagonals, range, out HectorShadowAttackContext context))
         {
             return false;
         }
 
-        character.FaceTargetCell(targetCell.Value);
+        BidimensionalShadowAbility.FaceTargetForContext(character, context, targetCell.Value);
+        pendingShadowAttackContextByCharacter[character] = context;
 
         int damage = baseDamage;
         if (character.RemainingMovementPoints <= 0)
@@ -121,12 +122,13 @@ public class DemonbaneAbility : AbilityDefinition
                 damage += 2 * character.GetUpgradeStacks(AbilityUpgradeKey.DemonbaneBloodCallsBlood);
             }
 
-            HectorAbilityUtils.TryPlayLinearProjectile(
+            Vector3 primaryStart = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+            HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
                 character,
                 projectilePrefab,
+                primaryStart,
                 enemy.transform.position + projectileImpactOffset,
                 projectileSpeed,
-                projectileSpawnOffset,
                 projectileLaunchDelay,
                 () =>
                 {
@@ -136,18 +138,47 @@ public class DemonbaneAbility : AbilityDefinition
                         enemy.ApplyStatusEffect(CombatStatusType.Bleeding, -1, 1);
                     }
                 });
+
+            if (context.CanTwinAttack)
+            {
+                int twinDamage = damage;
+                Vector3 secondaryStart = BidimensionalShadowAbility.GetSecondaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+                HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
+                    character,
+                    projectilePrefab,
+                    secondaryStart,
+                    enemy.transform.position + projectileImpactOffset,
+                    projectileSpeed,
+                    projectileLaunchDelay + 0.1f,
+                    () =>
+                    {
+                        if (enemy == null || enemy.CurrentHealth <= 0)
+                        {
+                            return;
+                        }
+
+                        int appliedDamage = character.DealDamageToEnemy(enemy, twinDamage, true, true, DamageSoundType.Default, this);
+                        if (appliedDamage > 0 && enemy.CurrentHealth > 0)
+                        {
+                            enemy.ApplyStatusEffect(CombatStatusType.Bleeding, -1, 1);
+                        }
+                    },
+                    false);
+            }
+
             PlayConfiguredFx(character, new[] { enemy });
             return true;
         }
 
         if (character.Board.TryGetLichSkullObject(targetCell.Value, out LichSkullObject skull) && skull != null)
         {
-            HectorAbilityUtils.TryPlayLinearProjectile(
+            Vector3 primaryStart = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+            HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
                 character,
                 projectilePrefab,
+                primaryStart,
                 skull.transform.position + projectileImpactOffset,
                 projectileSpeed,
-                projectileSpawnOffset,
                 projectileLaunchDelay,
                 () => character.DealDamageToLichSkull(skull, damage, true, DamageSoundType.Default, this));
             PlayConfiguredFx(character);
@@ -156,12 +187,13 @@ public class DemonbaneAbility : AbilityDefinition
 
         if (character.Board.TryGetBarrel(targetCell.Value, out BarrelObstacle barrel) && barrel != null)
         {
-            HectorAbilityUtils.TryPlayLinearProjectile(
+            Vector3 primaryStart = BidimensionalShadowAbility.GetPrimaryProjectileStartWorldPosition(character, context, projectileSpawnOffset);
+            HectorAbilityUtils.TryPlayLinearProjectileFromWorldPosition(
                 character,
                 projectilePrefab,
+                primaryStart,
                 character.Board.GridToWorldPosition(barrel.GridPosition) + projectileImpactOffset,
                 projectileSpeed,
-                projectileSpawnOffset,
                 projectileLaunchDelay,
                 barrel.TakeHit);
             PlayConfiguredFx(character);
@@ -182,6 +214,15 @@ public class DemonbaneAbility : AbilityDefinition
 
     public override void PlayActivationAnimation(Character character)
     {
+        if (character != null
+            && pendingShadowAttackContextByCharacter.TryGetValue(character, out HectorShadowAttackContext context))
+        {
+            BidimensionalShadowAbility.PlayAttackAnimationForContext(character, context, AttackAnimationClip);
+            pendingShadowAttackContextByCharacter.Remove(character);
+            pendingFallbackCastByCharacter[character] = false;
+            return;
+        }
+
         if (character != null
             && pendingFallbackCastByCharacter.TryGetValue(character, out bool useFallbackAnimation)
             && useFallbackAnimation
@@ -271,39 +312,13 @@ public class DemonbaneAbility : AbilityDefinition
             return false;
         }
 
-        Vector2Int[] directions = allowDiagonals
-            ? HectorAbilityUtils.OrthogonalAndDiagonalDirections
-            : HectorAbilityUtils.OrthogonalDirections;
-
-        for (int directionIndex = 0; directionIndex < directions.Length; directionIndex++)
+        for (int x = 0; x < character.Board.Width; x++)
         {
-            Vector2Int direction = directions[directionIndex];
-            for (int step = 1; step <= range; step++)
+            for (int y = 0; y < character.Board.Height; y++)
             {
-                Vector2Int cellPosition = character.GridPosition + (direction * step);
-                if (!character.Board.TryGetCell(cellPosition, out BoardCell boardCell))
-                {
-                    break;
-                }
-
-                if (character.Board.TryGetEnemy(cellPosition, out Enemy enemy) && enemy != null)
+                if (CanTargetCell(character, new Vector2Int(x, y), allowDiagonals, false))
                 {
                     return true;
-                }
-
-                if (character.Board.TryGetLichSkullObject(cellPosition, out LichSkullObject skull) && skull != null)
-                {
-                    return true;
-                }
-
-                if (character.Board.TryGetBarrel(cellPosition, out BarrelObstacle barrel) && barrel != null)
-                {
-                    return true;
-                }
-
-                if (boardCell.HasBlockingTerrain || boardCell.IsOccupied)
-                {
-                    break;
                 }
             }
         }
@@ -323,8 +338,7 @@ public class DemonbaneAbility : AbilityDefinition
             return true;
         }
 
-        if (!HectorAbilityUtils.TryResolveAlignedDirection(character.GridPosition, targetCell, allowDiagonals, range, out Vector2Int direction, out _)
-            || !HectorAbilityUtils.IsLineClear(character.Board, character.GridPosition, targetCell, direction))
+        if (!BidimensionalShadowAbility.TryResolveLineAttackContext(character, targetCell, allowDiagonals, range, out _))
         {
             return false;
         }

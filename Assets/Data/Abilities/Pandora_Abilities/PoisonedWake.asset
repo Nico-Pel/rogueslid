@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb22bb22bb22bb22bb22bb22bb22bb22, type: 3}
+  m_Name: PoisonedWake
+  m_EditorClassIdentifier: 
+  abilityName: Poisoned Wake
+  description: Pandora moves up to 4 squares in a straight line and leaves poisoned
+    squares in her wake.
+  icon: {fileID: -290366765, guid: f2e91570fcefc4499af810edd708e71a, type: 3}
+  category: 1
+  attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: f201f201f201f201f201f201f201f201, type: 2}
+  - {fileID: 11400000, guid: f202f202f202f202f202f202f202f202, type: 2}
+  - {fileID: 11400000, guid: f203f203f203f203f203f203f203f203, type: 2}
+  - {fileID: 11400000, guid: f204f204f204f204f204f204f204f204, type: 2}
+  - {fileID: 11400000, guid: f205f205f205f205f205f205f205f205, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 0
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseRange: 4
+  poisonCellLifetimeInPlayerTurns: 1
+  poisonStatusDurationInTurns: 1
+  fxPoisonField: {fileID: 4332574224400551890, guid: 7088521cc855d48dc8619d3cef9c8fd2, type: 3}
+  dashSoundParametersPrefab: {fileID: 1899072520979101167, guid: d07eb194d8dfe40bba0325eb38a442b1, type: 3}
