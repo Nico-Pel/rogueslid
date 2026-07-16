@@ -789,6 +789,19 @@ public class BoardManager : MonoBehaviour
 
     public void HandlePlayerTurnStarted(Character playerCharacter)
     {
+        if (spawnedEnemies.Count > 0)
+        {
+            List<Enemy> enemiesSnapshot = new List<Enemy>(spawnedEnemies);
+            for (int index = 0; index < enemiesSnapshot.Count; index++)
+            {
+                Enemy enemy = enemiesSnapshot[index];
+                if (enemy != null)
+                {
+                    enemy.HandlePlayerTurnStarted();
+                }
+            }
+        }
+
         if (activeSkullObjects.Count > 0)
         {
             List<SkullObject> skullSnapshot = new List<SkullObject>(activeSkullObjects);

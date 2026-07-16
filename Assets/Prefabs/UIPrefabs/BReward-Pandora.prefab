@@ -1192,10 +1192,10 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
+  m_fontSize: 36.4
   m_fontSizeBase: 36
   m_fontWeight: 400
-  m_enableAutoSizing: 0
+  m_enableAutoSizing: 1
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 2
@@ -1228,7 +1228,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 10, y: 10, z: 10, w: 10}
+  m_margin: {x: 10, y: 3.3650036, z: 10, w: 3.968193}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -1386,6 +1386,9 @@ MonoBehaviour:
   subtitleText: {fileID: 4480840265210909960}
   typeContainerBackground: {fileID: 5471387999609631476}
   typeIcon: {fileID: 3664819472120534012}
+  buyButton: {fileID: 0}
+  priceText: {fileID: 0}
+  boughtOverlay: {fileID: 0}
 --- !u!1 &8189571999577043474
 GameObject:
   m_ObjectHideFlags: 0

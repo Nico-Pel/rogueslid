@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bb4f9ba80a245c0bd68dfd7084ac6f1, type: 3}
+  m_Name: Arena2-BanditsQuarter
+  m_EditorClassIdentifier: 
+  biomeName: Bandits' Quarter
+  groundColor: {r: 0.8256942, g: 0.82102174, b: 0.8490566, a: 1}
+  cliffColor: {r: 0.3882353, g: 0.37254903, b: 0.40392157, a: 1}
+  rockColor: {r: 0.8278466, g: 0.8070043, b: 0.8773585, a: 1}
+  backgroundDecorSprite: {fileID: 21300000, guid: a06a0e6e0bf914d8d92f924e11500087, type: 3}
+  combatMusic: {fileID: 8300000, guid: 748a17e7ebe724bc7a6704881f481580, type: 3}
+  arenaLayouts:
+  - {fileID: 2800000, guid: 5972763937f2e40749f1f2a026933883, type: 3}
+  - {fileID: 2800000, guid: bd98e836e12c546ce8300a5855f48e3e, type: 3}
+  - {fileID: 2800000, guid: 2262e2349dcf94726a65eb90f4cc0e54, type: 3}
+  - {fileID: 2800000, guid: cdddb3b21d8ba4b57bb60b3b3f98d802, type: 3}
+  - {fileID: 2800000, guid: 8f9848f1d9e8f481cbcd68a0b288be2d, type: 3}
+  - {fileID: 2800000, guid: 9275f96fa6fb94398a311efd04e34c7c, type: 3}
+  - {fileID: 2800000, guid: d7bc91231d2654b3aa05b185cb350096, type: 3}
+  obstaclePrefabs:
+  - {fileID: 6748463629275346963, guid: a76b12e87250c449689e0e25f1c18354, type: 3}
+  - {fileID: 9205521067862607340, guid: 14e00a236f17545ebbee3ee97d65a7be, type: 3}
+  - {fileID: 2780441592490594640, guid: 964e69bf377264b57a0af30f084d2063, type: 3}
+  - {fileID: 8413043313061632029, guid: 8e388e2cd22cb40e1bff42f0071814e8, type: 3}
+  - {fileID: 3245583134270734714, guid: 4088561ea2b6c42c2afb2f8c9bea38a4, type: 3}
+  - {fileID: 3365203741406293010, guid: 9649119ab00a041e7838f49f7f273f4a, type: 3}
+  - {fileID: 6726293435134504919, guid: e0be35a2d3fda4473ab26a1b5c189d8e, type: 3}
+  - {fileID: 1439077524496680622, guid: d9a6e45c9eae741d3bf9066c02d1a120, type: 3}
+  - {fileID: 5706263804660975334, guid: 552f01ee0977e456aa99de95f0608bfc, type: 3}
+  - {fileID: 6836785853733531452, guid: 7c62e9c1bc41940dcb145f1a22d65376, type: 3}
+  - {fileID: 1115597412672182893, guid: cb62de1c2d0b74a9aad09264d8cfe440, type: 3}
+  - {fileID: 1115597412672182893, guid: 283a7b87642d54437950d638943ff97c, type: 3}
+  - {fileID: 4167226560171851869, guid: 6dd35e2c197b74b7296e0fb32a65d8a9, type: 3}
+  - {fileID: 4167226560171851869, guid: 6dd35e2c197b74b7296e0fb32a65d8a9, type: 3}
+  - {fileID: 4167226560171851869, guid: 6dd35e2c197b74b7296e0fb32a65d8a9, type: 3}
+  - {fileID: 4167226560171851869, guid: 6dd35e2c197b74b7296e0fb32a65d8a9, type: 3}
+  enemyPoolsByArenaCount:
+  - pools:
+    - {fileID: 11400000, guid: 3d0863d4bafac48aa91c959017909e17, type: 2}
+    - {fileID: 11400000, guid: 3769c8fe10dd841a7809d2579ef03863, type: 2}
+    - {fileID: 11400000, guid: 4cc673b43146943f3937aa00adb50cb5, type: 2}
+    - {fileID: 11400000, guid: 4d3860af47dc04ed4bb6c04022ff5264, type: 2}
+    minArenaCount: 1
+    maxArenaCount: 4
+  - pools:
+    - {fileID: 11400000, guid: a1db2e7b3e062412ea83176852bb3cbb, type: 2}
+    - {fileID: 11400000, guid: a56ba3dfc253d4af0bf5e81c4f539597, type: 2}
+    - {fileID: 11400000, guid: 9942399fb8a4c4f9ea569e51b65e9e30, type: 2}
+    - {fileID: 11400000, guid: 4857c47ca8edc4db9baf6af8ea39ed66, type: 2}
+    - {fileID: 11400000, guid: f9de1fad78d4a431da32db20f93b84b9, type: 2}
+    - {fileID: 11400000, guid: 0398059129e114f288cfcd47e330c460, type: 2}
+    minArenaCount: 5
+    maxArenaCount: 6
+  - pools:
+    - {fileID: 11400000, guid: 8ef283075a1f34d1594fe2b166aa09c3, type: 2}
+    - {fileID: 11400000, guid: 1964e7704ffab468c820d32eedc3f7ad, type: 2}
+    - {fileID: 11400000, guid: 9f5ad7d71894349cbba5a2ef02543ba3, type: 2}
+    - {fileID: 11400000, guid: 4ed5d64829f8a4c78937c9dedd9899af, type: 2}
+    - {fileID: 11400000, guid: ad22df40683a04478abdc5f9dbdd7281, type: 2}
+    minArenaCount: 7
+    maxArenaCount: 9
+  - pools:
+    - {fileID: 11400000, guid: 6cad2db59924b404391a02e1aec9901d, type: 2}
+    minArenaCount: 10
+    maxArenaCount: 10
+  spawnableEnemies:
+  - {fileID: 2433636361208229482, guid: 5d80dd640084f426e90e00dfa8da1e14, type: 3}
+  - {fileID: 2433636361208229482, guid: 30f1fcabd41e54fa98224f42a52a5e72, type: 3}
+  - {fileID: 2433636361208229482, guid: 31dd61e2758394909b23a2d5dc6771bc, type: 3}
+  - {fileID: 2433636361208229482, guid: 378ebdbe95af846569bc75280b5097eb, type: 3}

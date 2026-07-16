@@ -16,6 +16,7 @@ public class CharacterProgressEntry
     public int OrbCount;
     public int MaxUnlockedTourment = 1;
     public int SelectedTourment = 1;
+    public bool HasClearedTourmentFive;
     public List<string> UnlockedRewardIds = new List<string>();
     public List<CharacterUpgradeProgressEntry> Upgrades = new List<CharacterUpgradeProgressEntry>();
 }
@@ -113,6 +114,31 @@ public static class CharacterProgressionSaveManager
 
         SaveLibraryData(libraryData);
         unlockedTourmentLevel = nextTourment;
+        return true;
+    }
+
+    public static bool HasClearedTourmentFive(string characterId)
+    {
+        CharacterProgressEntry characterProgress = GetOrCreateCharacterProgress(LoadLibraryData(), characterId, false);
+        return characterProgress != null && characterProgress.HasClearedTourmentFive;
+    }
+
+    public static bool MarkTourmentFiveCleared(string characterId)
+    {
+        if (string.IsNullOrWhiteSpace(characterId))
+        {
+            return false;
+        }
+
+        CharacterProgressLibraryData libraryData = LoadLibraryData();
+        CharacterProgressEntry characterProgress = GetOrCreateCharacterProgress(libraryData, characterId, true);
+        if (characterProgress.HasClearedTourmentFive)
+        {
+            return false;
+        }
+
+        characterProgress.HasClearedTourmentFive = true;
+        SaveLibraryData(libraryData);
         return true;
     }
 

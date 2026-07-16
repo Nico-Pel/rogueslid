@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class BarrelObstacle : MonoBehaviour
 {
+    [Header("Break")]
     [SerializeField] private Transform fractures;
     [SerializeField] private float fractureForce = 4f;
     [SerializeField] private float upwardForce = 1.5f;
@@ -15,6 +16,13 @@ public class BarrelObstacle : MonoBehaviour
     [SerializeField] private float finalScale = 0.1f;
     [SerializeField] private SoundParameters breakSound;
     [SerializeField] [Range(0f, 1f)] private float potionDropChance = 0.05f;
+
+    [Header("Explosion")]
+    [SerializeField] private bool explodeOnBreak;
+    [SerializeField] [Min(1)] private int explosionDamage = 2;
+    [SerializeField] [Min(1)] private int explosionRadius = 1;
+    [SerializeField] private GameObject explosionFxPrefab;
+    [SerializeField] private float explosionFxLifetime = 1.5f;
 
     private BoardManager board;
     private Vector2Int gridPosition;
@@ -88,6 +96,7 @@ public class BarrelObstacle : MonoBehaviour
         breakSound?.PlaySound(transform.position);
         board?.ClearStaticObstacle(gridPosition, gameObject);
         board?.HandleBarrelDestroyed(gridPosition, potionDropChance);
+        ExplodeIfNeeded();
 
         if (fracturesRoot != null)
         {
@@ -101,6 +110,49 @@ public class BarrelObstacle : MonoBehaviour
         }
 
         Destroy(gameObject);
+    }
+
+    private void ExplodeIfNeeded()
+    {
+        if (!explodeOnBreak || board == null)
+        {
+            return;
+        }
+
+        if (explosionFxPrefab != null)
+        {
+            GameObject spawnedFx = Instantiate(explosionFxPrefab, transform.position, explosionFxPrefab.transform.rotation);
+            spawnedFx.transform.localScale = explosionFxPrefab.transform.localScale;
+            if (explosionFxLifetime > 0f)
+            {
+                Destroy(spawnedFx, explosionFxLifetime);
+            }
+        }
+
+        Character playerCharacter = board.Player != null ? board.Player.ControlledCharacter : null;
+        if (playerCharacter != null && GetChebyshevDistance(gridPosition, playerCharacter.GridPosition) <= explosionRadius)
+        {
+            playerCharacter.TakeDamage(explosionDamage, null, false, DamageSoundType.Default);
+        }
+
+        for (int index = 0; index < board.SpawnedEnemies.Count; index++)
+        {
+            Enemy enemy = board.SpawnedEnemies[index];
+            if (enemy == null || enemy.CurrentHealth <= 0)
+            {
+                continue;
+            }
+
+            if (GetChebyshevDistance(gridPosition, enemy.GridPosition) <= explosionRadius)
+            {
+                enemy.TakeDamage(explosionDamage, DamageSoundType.Default);
+            }
+        }
+    }
+
+    private static int GetChebyshevDistance(Vector2Int a, Vector2Int b)
+    {
+        return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
     }
 
     private void CullFractures(Transform fracturesRoot)

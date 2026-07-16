@@ -30,7 +30,13 @@ public class HuntersMarkAbility : AbilityDefinition
         int markRadius = GetMarkRadius(character);
         bool diagonalDash = character != null && character.GetUpgradeStacks(AbilityUpgradeKey.HuntersMarkShortcut) > 0;
         bool persistentMark = character != null && character.GetUpgradeStacks(AbilityUpgradeKey.HuntersMarkRelentlessMark) > 0;
-        return $"Dash up to {dashRange} tile(s) in a straight line{(diagonalDash ? " or diagonal" : string.Empty)}. After moving, enemies within {markRadius} tile(s) are marked. Until the end of the turn, the next ranged attack against a marked enemy deals +1 damage per tile separating Hector and the target, with adjacent targets counting as 1. Marks {(persistentMark ? "last until consumed" : "expire at end of turn")}.";
+        string markedAreaText = markRadius <= 1
+            ? "mark adjacent enemies"
+            : $"mark enemies within {markRadius} tile(s)";
+        string persistenceText = persistentMark
+            ? " Marks last until consumed."
+            : string.Empty;
+        return $"Dash up to {dashRange} tile(s) in a straight line{(diagonalDash ? " or diagonal" : string.Empty)}. After moving, {markedAreaText}. Until the end of the turn, the next ranged attack against a marked enemy deals +1 damage per tile separating Hector and the target (minimum 1).{persistenceText}";
     }
 
     public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)

@@ -17,6 +17,7 @@ MonoBehaviour:
   rewardDescription: Enemies killed by your attacks explode and deal 1 damage to
     other nearby enemies.
   artwork: {fileID: -1882264711, guid: 558798edc9be34311b606488d861229d, type: 3}
+  lockByDefault: 0
   itemKey: 40
   shopPrice: 15
   showCombatStartYesNoPrompt: 0
@@ -24,6 +25,6 @@ MonoBehaviour:
   consumeOnYes: 0
   yesNoEffect: 0
   activationSound: {fileID: 8300000, guid: ee8815eb75bf8498388a49e827d4ca63, type: 3}
-  damageFxPrefab: {fileID: 1847734682164545968, guid: 34a74acfd8cef4a929e459ad5e17611d, type: 3}
+  damageFxPrefab: {fileID: 1847734682164545968, guid: 714d4d7dfbed146998d335f3282b51a1, type: 3}
   damageFxLifetime: 2
   activationSoundVolume: 0.25

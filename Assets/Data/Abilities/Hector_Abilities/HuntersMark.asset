@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: HuntersMark
   m_EditorClassIdentifier: 
   abilityName: Hunter's Mark
-  description: Dash 2 tiles in a straight line. After moving, adjacent enemies are
-    marked until the end of the turn.
+  description: Dash up to 2 tiles in a straight line. After moving, mark adjacent
+    enemies. Until the end of the turn, the next ranged attack against a marked
+    enemy deals +1 damage per tile separating Hector and the target.
   icon: {fileID: -767586726, guid: f08e740e170ca4047ba95a3d1468b26e, type: 3}
   category: 1
   attackAnimationClip: {fileID: 7400000, guid: f8bd8d0c56d5b43bb9dd1b688791662e, type: 2}

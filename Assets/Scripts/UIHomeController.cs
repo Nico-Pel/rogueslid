@@ -557,6 +557,10 @@ public class UIHomeController : MonoBehaviour
 
     private void RefreshMainMenu(CharacterData characterData, HomeCharacterConfig config)
     {
+        bool hasClearedTourmentFive = !config.IsLocked
+            && !string.IsNullOrWhiteSpace(characterData.CharacterId)
+            && CharacterProgressionSaveManager.HasClearedTourmentFive(characterData.CharacterId);
+
         if (characterNameText != null)
         {
             characterNameText.text = config.IsLocked ? "???" : characterData.CharacterName;
@@ -564,9 +568,17 @@ public class UIHomeController : MonoBehaviour
 
         if (characterPortraitImage != null)
         {
-            characterPortraitImage.sprite = characterData.Portrait;
-            characterPortraitImage.enabled = characterData.Portrait != null;
+            Sprite portraitSprite = hasClearedTourmentFive ? characterData.PortraitWin : characterData.Portrait;
+            characterPortraitImage.sprite = portraitSprite;
+            characterPortraitImage.enabled = portraitSprite != null;
             characterPortraitImage.color = config.IsLocked ? LockedCharacterVisualColor : Color.white;
+
+            Transform portraitParent = characterPortraitImage.transform.parent;
+            ContinuousDoScale portraitScaleAnimation = portraitParent != null ? portraitParent.GetComponent<ContinuousDoScale>() : null;
+            if (portraitScaleAnimation != null)
+            {
+                portraitScaleAnimation.enabled = !hasClearedTourmentFive;
+            }
         }
 
         if (startCharacterIconImage != null)

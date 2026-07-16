@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Bonus Rogue Bow", fileName = "BonusRogueBow")]
 public class BonusRogueBowAbility : AbilityDefinition
@@ -17,6 +18,27 @@ public class BonusRogueBowAbility : AbilityDefinition
 
     public override bool IsBonusAbility => true;
     public override bool IsRangedAttack => true;
+    public override AbilityTargetingMode TargetingMode => AbilityTargetingMode.FreeCell;
+
+    public override bool CanActivate(Character character, CharacterAbilityRuntime runtime)
+    {
+        if (character == null || character.Board == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<Enemy> enemies = character.Board.SpawnedEnemies;
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy enemy = enemies[index];
+            if (enemy != null && enemy.CurrentHealth > 0 && CanActivateOnCell(character, runtime, enemy.GridPosition))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public override bool CanActivateOnCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
@@ -50,6 +72,48 @@ public class BonusRogueBowAbility : AbilityDefinition
     public override bool CanShowPotentialTargetCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
     {
         return CanActivateOnCell(character, runtime, targetCell);
+    }
+
+    public override bool ShouldAutoUseWhenOnlyOneValidTarget(Character character, CharacterAbilityRuntime runtime)
+    {
+        return true;
+    }
+
+    public override bool TryGetAutomaticTargetCell(Character character, CharacterAbilityRuntime runtime, out Vector2Int targetCell)
+    {
+        targetCell = default;
+        if (character == null || character.Board == null)
+        {
+            return false;
+        }
+
+        Vector2Int singleValidCell = default;
+        int validTargetCount = 0;
+        IReadOnlyList<Enemy> enemies = character.Board.SpawnedEnemies;
+        for (int index = 0; index < enemies.Count; index++)
+        {
+            Enemy enemy = enemies[index];
+            if (enemy == null || enemy.CurrentHealth <= 0 || !CanActivateOnCell(character, runtime, enemy.GridPosition))
+            {
+                continue;
+            }
+
+            validTargetCount++;
+            if (validTargetCount > 1)
+            {
+                return false;
+            }
+
+            singleValidCell = enemy.GridPosition;
+        }
+
+        if (validTargetCount != 1)
+        {
+            return false;
+        }
+
+        targetCell = singleValidCell;
+        return true;
     }
 
     public override bool TryActivate(Character character, CharacterAbilityRuntime runtime, Vector2Int? targetCell)

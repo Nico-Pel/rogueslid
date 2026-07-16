@@ -65,10 +65,11 @@ MonoBehaviour:
     maxArenaCount: 9
   - pools:
     - {fileID: 11400000, guid: 18030c22df28a4b71aec5ebcb9628366, type: 2}
+    - {fileID: 11400000, guid: 22e253592bc27469687352b303487976, type: 2}
     minArenaCount: 10
     maxArenaCount: 10
   spawnableEnemies:
-  - {fileID: 2433636361208229482, guid: 41573dec7f1f3402ca627ff1402282f1, type: 3}
-  - {fileID: 2433636361208229482, guid: 559d230ea069b4ffab739e17342840a0, type: 3}
-  - {fileID: 2433636361208229482, guid: 0e3fe0f078dc646a0b6b1288dc54927d, type: 3}
-  - {fileID: 2433636361208229482, guid: eb8f8e624232448adb732b69b5d4cee4, type: 3}
+  - {fileID: 2433636361208229482, guid: 0cbaeb22454854eed942580950900756, type: 3}
+  - {fileID: 2433636361208229482, guid: 6e19e3a80687d453d8e4e86bd31ffb1f, type: 3}
+  - {fileID: 2433636361208229482, guid: 31b59dde700bc41a487c75f117f9f5c7, type: 3}
+  - {fileID: 2433636361208229482, guid: 07d028696ad4540eb8f143556381680a, type: 3}

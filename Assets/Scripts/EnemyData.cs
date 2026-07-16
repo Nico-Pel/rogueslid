@@ -10,7 +10,11 @@ public enum EnemySpecialBehavior
     TrollShockwaveBoss,
     RagnarWarboss,
     RagnarOgreMinion,
-    DragoonTwinBoss
+    DragoonTwinBoss,
+    BanditDeathBomb,
+    ScoundrelReactiveGuard,
+    ColossusFrontShockwave,
+    ExecutionerRageOnHit
 }
 
 [CreateAssetMenu(fileName = "EnemyData", menuName = "RogueSliders/Enemies/Enemy Data")]

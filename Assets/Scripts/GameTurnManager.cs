@@ -1846,6 +1846,11 @@ public class GameTurnManager : MonoBehaviour
         Character currentCharacter = board.Player != null ? board.Player.ControlledCharacter : null;
         CharacterData characterData = currentCharacter != null ? currentCharacter.Data : null;
         TourmentData currentTourment = board.GetTourmentData(board.CurrentTourmentLevel);
+        if (characterData != null && board.CurrentTourmentLevel >= 5)
+        {
+            CharacterProgressionSaveManager.MarkTourmentFiveCleared(characterData.CharacterId);
+        }
+
         List<TourmentUnlockResult> unlockResults = board.EvaluateAndApplyFinalVictoryUnlocks(characterData);
 
         uiGame.ShowWinMenu(characterData, currentTourment, () => HandleVictoryMenuAdvanced(characterData, unlockResults));

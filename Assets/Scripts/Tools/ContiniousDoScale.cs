@@ -9,17 +9,35 @@ public class ContinuousDoScale : MonoBehaviour
     public Ease scaleEase = Ease.InOutSine;
 
     private Vector3 _baseScale;
+    private Tween _scaleTween;
 
-    private void Start()
+    private void Awake()
     {
         _baseScale = transform.localScale;
+    }
+
+    private void OnEnable()
+    {
+        if (_baseScale == Vector3.zero)
+        {
+            _baseScale = transform.localScale;
+        }
+
         ScaleObject();
+    }
+
+    private void OnDisable()
+    {
+        _scaleTween?.Kill();
+        _scaleTween = null;
+        transform.localScale = _baseScale;
     }
 
     private void ScaleObject()
     {
+        _scaleTween?.Kill();
         Vector3 targetScale = Vector3.Scale(_baseScale, scaleMultiplier);
-        transform.DOScale(targetScale, scaleDuration)
+        _scaleTween = transform.DOScale(targetScale, scaleDuration)
             .SetEase(scaleEase)
             .SetLoops(-1, LoopType.Yoyo);
     }

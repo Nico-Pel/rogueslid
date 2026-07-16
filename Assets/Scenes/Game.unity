@@ -13236,6 +13236,7 @@ MonoBehaviour:
   mobilityBar: {fileID: 1470725776}
   mobilityIconPrefab: {fileID: 5578875801011110117, guid: 7b41eef5a48044d61889ea00a9f88037, type: 3}
   abilitiesBar: {fileID: 1235958787}
+  bonusAbilitiesBar: {fileID: 0}
   itemsList: {fileID: 555622326}
   itemIconPrefab: {fileID: 3392569492582753771, guid: f6205324302d44844bca990bf51d81b1, type: 3}
   mobilityAvailableColor: {r: 1, g: 1, b: 1, a: 1}
@@ -13254,6 +13255,8 @@ MonoBehaviour:
   rewardCheckChooseButton: {fileID: 91314084}
   rewardCheckBackButton: {fileID: 0}
   rewardCheckCard: {fileID: 317698815}
+  rewardCheckChooseLabel: {fileID: 0}
+  rewardCheckBarrelLootLabel: {fileID: 0}
   yesNoMenu: {fileID: 595158969}
   yesNoArtworkImage: {fileID: 921800231}
   yesNoTitleText: {fileID: 1454088486}
@@ -19618,7 +19621,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 6eab81802b77e4421977148ed6eeab80, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a06a0e6e0bf914d8d92f924e11500087, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -35855,15 +35858,14 @@ MonoBehaviour:
   mirrorOnYAxisChance: 0.5
   playerCharacterPrefab: {fileID: 7052028393415067872, guid: 307fa2897e7c9410dbef01b61d9d6007, type: 3}
   selectedCharacterDataOverride: {fileID: 0}
-  useForcedDatas: 0
-  forcedBiome: {fileID: 11400000, guid: ea89e8deff40349978450d4281b8e368, type: 2}
-  forcedEnemyPoolDefinition: {fileID: 11400000, guid: 18030c22df28a4b71aec5ebcb9628366, type: 2}
+  useForcedDatas: 1
+  forcedBiome: {fileID: 11400000, guid: c84ec414647d94b18b541a817d55e4ac, type: 2}
+  forcedEnemyPoolDefinition: {fileID: 11400000, guid: 4857c47ca8edc4db9baf6af8ea39ed66, type: 2}
   cheatRewardsCount: 19
   useForcedRewards: 1
   forcedRewards:
-  - {fileID: 11400000, guid: c4e4f3812c4348a2b6f6278f9718db11, type: 2}
-  - {fileID: 11400000, guid: c4e4f3812c4348a2b6f6278f9718db12, type: 2}
-  - {fileID: 11400000, guid: ffca2e06cb30a454491009a2b382c821, type: 2}
+  - {fileID: 11400000, guid: 96149aba9e3a47fb9a39603d5b382336, type: 2}
+  - {fileID: 11400000, guid: fb5ab765b986465fb8cb20481f4e05f0, type: 2}
   itemRewardDefinitions:
   - {fileID: 11400000, guid: c2030000000000000000000000000001, type: 2}
   - {fileID: 11400000, guid: c2030000000000000000000000000002, type: 2}
