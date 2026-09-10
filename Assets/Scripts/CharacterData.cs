@@ -185,6 +185,7 @@ public class CharacterData : ScriptableObject
             SpinningBladesAbility => 5,
             DemonicChainAbility => 4,
             ThiefsDaggerAbility => 5,
+            ZhuangFauchardAbility => 5,
             HectorCrossbowAbility => 4,
             DemonbaneAbility => 4,
             SacredCrossbowAbility => 5,

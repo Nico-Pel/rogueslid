@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ac6e9f2b6b84a68a2f6db780f2d9a11, type: 3}
+  m_Name: ZhuangFauchard
+  m_EditorClassIdentifier: 
+  abilityName: Savage Fauchard
+  description: Strike an adjacent enemy or obstacle for 5 damage.
+  icon: {fileID: -409810025, guid: 2b03fd21095bc489095fb9cf2cd1a628, type: 3}
+  category: 0
+  attackAnimationClip: {fileID: 7400000, guid: 805fd51d5d4c4467da46332fe739114b, type: 2}
+  linkedUpgradeRewards: []
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0.5
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 178598, guid: 351dec89524a0c64b97fd0eeb9fbbba1, type: 3}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseDamage: 5
+  swingFxPrefab: {fileID: 2957013350672291843, guid: b7f6adfb4b043441c84b5a7841eed90e, type: 3}
+  enemyImpactFxPrefab: {fileID: 178598, guid: 351dec89524a0c64b97fd0eeb9fbbba1, type: 3}
+  obstacleImpactFxPrefab: {fileID: 4623002585508310345, guid: 41e7eb696ba724ba49f8acb263f6041e, type: 3}
+  swingSoundParametersPrefab: {fileID: 1899072520979101167, guid: 2c1e4056a710344af98cc9dc9c04d6ba, type: 3}
+  obstacleImpactSoundParametersPrefab: {fileID: 1899072520979101167, guid: 0dcc4773b9bde475fb8c4f4b0811054f, type: 3}

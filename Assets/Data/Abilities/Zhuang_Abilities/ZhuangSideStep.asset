@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f17ef1f3d3d4862a9d7a0d16e9f1a11, type: 3}
+  m_Name: ZhuangSideStep
+  m_EditorClassIdentifier: 
+  abilityName: Side Step
+  description: Move to an adjacent tile, using a mobility point.
+  icon: {fileID: 485811783, guid: c197f5166538a4f4494e44a8222986e0, type: 3}
+  category: 1
+  attackAnimationClip: {fileID: 0}
+  linkedUpgradeRewards: []
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 1
+  fxSpawns:
+  - fxPrefab: {fileID: 4623002585508310345, guid: a476e64d2e63c4077b7a32b888adad51, type: 3}
+    spawnDelay: 0
+    destroyAfterSeconds: 1
+    spawnAnchor: 0
+    offsetReference: 0
+    positionOffset: {x: 0, y: 0, z: 0}
+    parentToAnchor: 0
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 2
+  trailMaterialColor: {r: 0, g: 0.7398896, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  stepFxPrefab: {fileID: 4623002585508310345, guid: a476e64d2e63c4077b7a32b888adad51, type: 3}
+  stepSoundParametersPrefab: {fileID: 1899072520979101167, guid: d07eb194d8dfe40bba0325eb38a442b1, type: 3}

@@ -128,6 +128,7 @@ public class Enemy : MonoBehaviour
     private Tween bodyRotationTween;
     private Tween fearBodyWiggleTween;
     private Tween impactTween;
+    private Tween airborneBodyTween;
     private RendererBlinkFeedback blinkFeedback;
     private Renderer[] statusRenderers;
     private readonly Dictionary<Renderer, MaterialPropertyBlock> statusPropertyBlocks = new Dictionary<Renderer, MaterialPropertyBlock>();
@@ -186,6 +187,10 @@ public class Enemy : MonoBehaviour
     private bool dragoonTwinAttackSuppressed;
     private int forcedFearTurnsRemaining;
     private CombatStatusFxLibrary statusFxLibrary;
+    private int resistanceModifierFromSpecials;
+    private bool scoundrelReactiveGuardTriggeredThisPlayerTurn;
+    private bool isAirborne;
+    private GameObject activeAirborneFxInstance;
 
     public Vector2Int GridPosition => gridPosition;
     public int MaxHealth => maxHealth;
@@ -193,7 +198,7 @@ public class Enemy : MonoBehaviour
     public int EffectiveForce => Mathf.Max(0, force + forceModifierFromStatuses + trollAttackBonusDamage);
     public int Mobility => Mathf.Max(0, mobility + mobilityBonusFromSpecials);
     public int CurrentHealth => currentHealth;
-    public int Resistance => resistance;
+    public int Resistance => Mathf.Max(0, resistance + resistanceModifierFromSpecials - (GetComponent<ZhuangEnemyEffects>()?.ResistanceReduction ?? 0));
     public bool IsImmuneToFire => enemyData != null && enemyData.ImmuneToFire;
     public EnemyAttackPattern AttackPattern => attackPattern;
     public DamageSoundType DamageSoundType => damageSoundType;
@@ -211,6 +216,7 @@ public class Enemy : MonoBehaviour
     public string EnemySpecialInfo => enemyData != null ? enemyData.SpecialInfo : "The goblin is a classic enemy.";
     public EnemySpecialBehavior SpecialBehavior => specialBehavior;
     public GameObject SpecialCompanionPrefab => enemyData != null ? enemyData.SpecialCompanionPrefab : null;
+    public bool IsAirborne => isAirborne;
 
     private int pendingMobilityPenalty;
     private static readonly int RimGlowColorId = Shader.PropertyToID("_RimGlowColor");
@@ -333,6 +339,8 @@ public class Enemy : MonoBehaviour
         hasFlyingAnimationOverride = false;
         flyingAnimationOverrideValue = false;
         forcedFearTurnsRemaining = 0;
+        resistanceModifierFromSpecials = 0;
+        scoundrelReactiveGuardTriggeredThisPlayerTurn = false;
         ReleaseExtraOccupiedCells();
         ClearWormTunnels();
         if (specialBehavior == EnemySpecialBehavior.GiantWormTunnelBoss)
@@ -452,7 +460,7 @@ public class Enemy : MonoBehaviour
         }
 
         bool wasEligibleForFear = ShouldUseFleeBehaviour();
-        int finalDamage = Mathf.Max(1, incomingDamage - resistance);
+        int finalDamage = Mathf.Max(1, incomingDamage - Resistance);
         currentHealth = Mathf.Max(0, currentHealth - finalDamage);
 
         blinkFeedback?.Blink(Color.white, 0.5f, 0.12f);
@@ -470,6 +478,11 @@ public class Enemy : MonoBehaviour
         {
             dragoonTwinAttackSuppressed = true;
             SetFlyingOverride(false);
+        }
+
+        if (finalDamage > 0)
+        {
+            HandleSpecialDamageReaction();
         }
 
         if (currentHealth <= 0)
@@ -579,6 +592,12 @@ public class Enemy : MonoBehaviour
 
     public IEnumerator ExecuteTurn()
     {
+        yield return ExecuteTurnActions();
+        if (this != null && CurrentHealth > 0) GetComponent<ZhuangEnemyEffects>()?.EndEnemyTurn();
+    }
+
+    private IEnumerator ExecuteTurnActions()
+    {
         if (Board == null)
         {
             yield break;
@@ -604,10 +623,18 @@ public class Enemy : MonoBehaviour
 
         int effectiveMobility = Mathf.Max(0, Mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
+        PrepareForTurnExecution();
 
         yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
         {
+            yield break;
+        }
+
+        if (specialBehavior == EnemySpecialBehavior.ColossusFrontShockwave)
+        {
+            yield return ExecuteColossusTurn(target, effectiveMobility);
+            yield return PerformEndOfTurnRegen();
             yield break;
         }
 
@@ -755,6 +782,7 @@ public class Enemy : MonoBehaviour
 
         int effectiveMobility = Mathf.Max(0, Mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
+        PrepareForTurnExecution();
 
         yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
@@ -1141,14 +1169,14 @@ public class Enemy : MonoBehaviour
         return true;
     }
 
-    public void ApplyMobilityPenaltyNextTurn(int amount)
+    public void ApplyMobilityPenaltyNextTurn(int amount, int minimumMobility = 0)
     {
         if (amount <= 0)
         {
             return;
         }
 
-        pendingMobilityPenalty += amount;
+        pendingMobilityPenalty += Mathf.Min(amount, Mathf.Max(0, Mobility - pendingMobilityPenalty - minimumMobility));
     }
 
     public void ApplyFear(int turnCount = 1)
@@ -1235,6 +1263,8 @@ public class Enemy : MonoBehaviour
 
     private void OnDisable()
     {
+        airborneBodyTween?.Kill();
+        airborneBodyTween = null;
         moveTween?.Kill();
         bodySpawnScaleTween?.Kill();
         bodyRotationTween?.Kill();
@@ -1249,6 +1279,8 @@ public class Enemy : MonoBehaviour
         IsMoving = false;
         SetFlyingAnimation(false);
         RefreshCanvasHeight(false);
+        ResetAirborneVisualState();
+        ClearAirborneFx();
         ClearMistyConfusion();
         ClearDeathMarkFx();
     }
@@ -2830,6 +2862,7 @@ public class Enemy : MonoBehaviour
 
         int effectiveMobility = Mathf.Max(0, Mobility - pendingMobilityPenalty);
         pendingMobilityPenalty = 0;
+        PrepareForTurnExecution();
 
         yield return ProcessStartOfTurnStatusEffects();
         if (isDying || currentHealth <= 0)
@@ -3977,6 +4010,73 @@ public class Enemy : MonoBehaviour
         yield return new WaitForSeconds(0.08f);
     }
 
+    private IEnumerator ExecuteColossusTurn(Character target, int effectiveMobility)
+    {
+        if (Board == null || target == null)
+        {
+            yield break;
+        }
+
+        List<Vector2Int> plannedPath = BuildMovementPlan(target, false, effectiveMobility);
+        int movementSpentThisTurn = 0;
+        for (int step = 0; step < plannedPath.Count; step++)
+        {
+            if (!TryMoveToPlannedStep(plannedPath[step]))
+            {
+                break;
+            }
+
+            movementSpentThisTurn++;
+            yield return WaitForMovementStepResolution();
+        }
+
+        yield return ExecuteColossusShockwaveAttack(target);
+        HandleMovementExhaustionDamage(movementSpentThisTurn, effectiveMobility);
+    }
+
+    private IEnumerator ExecuteColossusShockwaveAttack(Character target)
+    {
+        if (Board == null || target == null)
+        {
+            yield break;
+        }
+
+        Vector2Int impactDirection = GetPrimaryDirectionTowards(target.GridPosition);
+        Vector2Int impactCell = gridPosition + impactDirection;
+        if (!Board.TryGetCell(impactCell, out _))
+        {
+            impactCell = gridPosition;
+        }
+
+        FaceMovementDirection(impactDirection);
+        TriggerAttackAnimation();
+        if (specialStartDelay > 0f)
+        {
+            yield return new WaitForSeconds(specialStartDelay);
+        }
+
+        if (specialImpactShakeRatio > 0f)
+        {
+            cam.Instance?.Shake(specialImpactShakeRatio);
+        }
+
+        StartCoroutine(ApplyShockwaveToBarrels(impactCell, 2));
+
+        int distanceToTarget = GetChebyshevDistance(impactCell, target.GridPosition);
+        if (distanceToTarget <= 2)
+        {
+            float impactDelay = Mathf.Max(0f, attackDamageDelay) + (Mathf.Max(0, distanceToTarget) * Mathf.Max(0f, specialPerDistanceDelay));
+            if (impactDelay > 0f)
+            {
+                yield return new WaitForSeconds(impactDelay);
+            }
+
+            target.TakeDamage(Mathf.Max(1, EffectiveForce), this, false, damageSoundType);
+        }
+
+        yield return new WaitForSeconds(0.08f);
+    }
+
     private IEnumerator KnockCharacterAwayFromTroll(Character target, int distanceFromTroll)
     {
         if (target == null || Board == null)
@@ -4401,6 +4501,70 @@ public class Enemy : MonoBehaviour
         return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
     }
 
+    private Vector2Int GetPrimaryDirectionTowards(Vector2Int targetCell)
+    {
+        Vector2Int delta = targetCell - gridPosition;
+        if (delta == Vector2Int.zero)
+        {
+            return Vector2Int.up;
+        }
+
+        if (Mathf.Abs(delta.x) >= Mathf.Abs(delta.y))
+        {
+            return new Vector2Int(delta.x >= 0 ? 1 : -1, 0);
+        }
+
+        return new Vector2Int(0, delta.y >= 0 ? 1 : -1);
+    }
+
+    private IEnumerator ApplyShockwaveToBarrels(Vector2Int centerCell, int radius)
+    {
+        if (Board == null)
+        {
+            yield break;
+        }
+
+        List<(BarrelObstacle barrel, float delay)> delayedBarrels = new List<(BarrelObstacle, float)>();
+        HashSet<BarrelObstacle> uniqueBarrels = new HashSet<BarrelObstacle>();
+
+        for (int x = 0; x < Board.Width; x++)
+        {
+            for (int y = 0; y < Board.Height; y++)
+            {
+                Vector2Int cellPosition = new Vector2Int(x, y);
+                if (GetChebyshevDistance(centerCell, cellPosition) > radius
+                    || !Board.TryGetBarrel(cellPosition, out BarrelObstacle barrel)
+                    || barrel == null
+                    || !uniqueBarrels.Add(barrel))
+                {
+                    continue;
+                }
+
+                int distance = GetChebyshevDistance(centerCell, cellPosition);
+                float delay = Mathf.Max(0f, attackDamageDelay) + (Mathf.Max(0, distance) * Mathf.Max(0f, specialPerDistanceDelay));
+                delayedBarrels.Add((barrel, delay));
+            }
+        }
+
+        delayedBarrels.Sort((left, right) => left.delay.CompareTo(right.delay));
+        float elapsedDelay = 0f;
+        for (int index = 0; index < delayedBarrels.Count; index++)
+        {
+            (BarrelObstacle barrel, float delay) = delayedBarrels[index];
+            float waitDuration = Mathf.Max(0f, delay - elapsedDelay);
+            if (waitDuration > 0f)
+            {
+                yield return new WaitForSeconds(waitDuration);
+                elapsedDelay += waitDuration;
+            }
+
+            if (barrel != null && !barrel.IsDestroyed)
+            {
+                barrel.TakeHit();
+            }
+        }
+    }
+
     private void IncreaseTrollForce()
     {
         if (specialBehavior != EnemySpecialBehavior.TrollShockwaveBoss)
@@ -4431,13 +4595,65 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        Transform anchor = EffectAnchor != null ? EffectAnchor : transform;
+        Transform anchor = ResolveSelfBuffFxAnchor(selfPowerUpFxPrefab);
         GameObject fxInstance = Instantiate(selfPowerUpFxPrefab, anchor.position, selfPowerUpFxPrefab.transform.rotation);
         fxInstance.transform.localScale = selfPowerUpFxPrefab.transform.localScale;
         if (optionalActionFxLifetime > 0f)
         {
             Destroy(fxInstance, optionalActionFxLifetime);
         }
+    }
+
+    private void PlaySelfBuffFxOnly()
+    {
+        if (selfPowerUpFxPrefab == null)
+        {
+            return;
+        }
+
+        Transform anchor = ResolveSelfBuffFxAnchor(selfPowerUpFxPrefab);
+        GameObject fxInstance = Instantiate(selfPowerUpFxPrefab, anchor.position, selfPowerUpFxPrefab.transform.rotation);
+        fxInstance.transform.localScale = selfPowerUpFxPrefab.transform.localScale;
+        if (optionalActionFxLifetime > 0f)
+        {
+            Destroy(fxInstance, optionalActionFxLifetime);
+        }
+    }
+
+    private Transform ResolveSelfBuffFxAnchor(GameObject fxPrefab)
+    {
+        if (fxPrefab != null
+            && !string.IsNullOrEmpty(fxPrefab.name)
+            && fxPrefab.name.IndexOf("Buff", StringComparison.OrdinalIgnoreCase) >= 0
+            && enemyBody != null)
+        {
+            return enemyBody;
+        }
+
+        return EffectAnchor != null ? EffectAnchor : transform;
+    }
+
+    private void ResetAirborneVisualState()
+    {
+        isAirborne = false;
+        if (enemyBody != null)
+        {
+            enemyBody.localPosition = cachedBodyOriginalLocalPosition;
+            return;
+        }
+
+        transform.localPosition = cachedBodyOriginalLocalPosition;
+    }
+
+    private void ClearAirborneFx()
+    {
+        if (activeAirborneFxInstance == null)
+        {
+            return;
+        }
+
+        Destroy(activeAirborneFxInstance);
+        activeAirborneFxInstance = null;
     }
 
     private bool TrySelectGiantWormDestination(
@@ -4909,6 +5125,77 @@ public class Enemy : MonoBehaviour
         forceModifierFromStatuses += amount;
     }
 
+    public bool TryLaunchAirborne(
+        float totalDuration,
+        float peakHeight = 0.45f,
+        GameObject airborneFxPrefab = null,
+        float airborneFxLifetime = 1f,
+        SoundParameters airborneSound = null)
+    {
+        if (!isActiveAndEnabled || isDying || currentHealth <= 0)
+        {
+            return false;
+        }
+
+        CacheBody();
+        Transform targetBody = enemyBody != null ? enemyBody : transform;
+        if (targetBody == null)
+        {
+            return false;
+        }
+
+        airborneBodyTween?.Kill();
+        airborneBodyTween = null;
+        ClearAirborneFx();
+        ResetAirborneVisualState();
+
+        float duration = Mathf.Max(0.12f, totalDuration);
+        float clampedPeakHeight = Mathf.Max(0.05f, peakHeight);
+        float riseDuration = Mathf.Min(0.12f, duration * 0.35f);
+        float fallDuration = Mathf.Min(0.14f, duration * 0.35f);
+        float apexDuration = Mathf.Max(0f, duration - riseDuration - fallDuration);
+        float startY = cachedBodyOriginalLocalPosition.y;
+
+        isAirborne = true;
+        targetBody.localPosition = cachedBodyOriginalLocalPosition;
+
+        if (airborneFxPrefab != null)
+        {
+            Transform fxAnchor = enemyBody != null ? enemyBody : transform;
+            activeAirborneFxInstance = Instantiate(airborneFxPrefab, fxAnchor.position, airborneFxPrefab.transform.rotation, fxAnchor);
+            activeAirborneFxInstance.transform.localScale = airborneFxPrefab.transform.localScale;
+            if (airborneFxLifetime > 0f)
+            {
+                Destroy(activeAirborneFxInstance, airborneFxLifetime);
+            }
+        }
+
+        airborneSound?.PlaySound(targetBody.position);
+
+        airborneBodyTween = DOTween.Sequence()
+            .Append(targetBody.DOLocalMoveY(startY + clampedPeakHeight, riseDuration).SetEase(Ease.OutQuad))
+            .AppendInterval(apexDuration)
+            .Append(targetBody.DOLocalMoveY(startY, fallDuration).SetEase(Ease.InQuad))
+            .OnComplete(() =>
+            {
+                airborneBodyTween = null;
+                ResetAirborneVisualState();
+            })
+            .OnKill(() =>
+            {
+                airborneBodyTween = null;
+                ResetAirborneVisualState();
+            });
+
+        return true;
+    }
+
+    public Transform GetBodyTransform()
+    {
+        CacheBody();
+        return enemyBody != null ? enemyBody : transform;
+    }
+
     private IEnumerator ProcessStartOfTurnStatusEffects()
     {
         if (statusPotencies.TryGetValue(CombatStatusType.Poisoned, out int poisonDamage) && poisonDamage > 0)
@@ -4973,6 +5260,60 @@ public class Enemy : MonoBehaviour
         }
 
         RefreshStatusVisuals();
+    }
+
+    private void PrepareForTurnExecution()
+    {
+        if (specialBehavior == EnemySpecialBehavior.ScoundrelReactiveGuard && resistanceModifierFromSpecials > 0)
+        {
+            resistanceModifierFromSpecials = 0;
+        }
+    }
+
+    private void HandleSpecialDamageReaction()
+    {
+        switch (specialBehavior)
+        {
+            case EnemySpecialBehavior.ScoundrelReactiveGuard:
+                if (!scoundrelReactiveGuardTriggeredThisPlayerTurn)
+                {
+                    scoundrelReactiveGuardTriggeredThisPlayerTurn = true;
+                    resistanceModifierFromSpecials += Mathf.Max(1, enemyData != null ? enemyData.SpecialDamage : 5);
+                    PlaySelfBuffFxOnly();
+                }
+                break;
+            case EnemySpecialBehavior.ExecutionerRageOnHit:
+                forceModifierFromStatuses += 1;
+                PlaySelfBuffFeedback();
+                break;
+        }
+    }
+
+    private void HandleSpecialDeathEffects()
+    {
+        if (specialBehavior != EnemySpecialBehavior.BanditDeathBomb
+            || Board == null
+            || enemyData == null
+            || enemyData.SpecialCompanionPrefab == null)
+        {
+            return;
+        }
+
+        GameObject bombObject = Instantiate(
+            enemyData.SpecialCompanionPrefab,
+            Board.GridToWorldPosition(gridPosition),
+            enemyData.SpecialCompanionPrefab.transform.rotation);
+        BombHazard bombHazard = bombObject.GetComponent<BombHazard>();
+        if (bombHazard == null)
+        {
+            bombHazard = bombObject.AddComponent<BombHazard>();
+        }
+
+        bombHazard.Configure(
+            Board,
+            gridPosition,
+            Mathf.Max(1, enemyData.SpecialDamage),
+            Mathf.Max(1, enemyData.SpecialLandingDistance));
     }
 
     private void CacheStatusRenderers()
@@ -5308,6 +5649,7 @@ public class Enemy : MonoBehaviour
         }
 
         isDying = true;
+        HandleSpecialDeathEffects();
         ClearDeathMarkFx();
         SpawnDeathFx();
         if (resolveOwnedLinkedSummons)
@@ -5335,6 +5677,11 @@ public class Enemy : MonoBehaviour
         }
 
         Destroy(gameObject, deathDestroyDelay);
+    }
+
+    public void HandlePlayerTurnStarted()
+    {
+        scoundrelReactiveGuardTriggeredThisPlayerTurn = false;
     }
 
     public void PlayReviveAnimation()

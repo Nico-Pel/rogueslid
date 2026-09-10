@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6f433c87d304e2b86d08a3347f75003, type: 3}
+  m_Name: Upgrade_ZhuangSideStep_SacredCarapace
+  m_EditorClassIdentifier: 
+  rewardId: upgrade_zhuang_side_step_sacred_carapace
+  rewardTitle: Sacred Carapace
+  rewardDescription: "While Black Turtle Step protects Zhuang, each enemy hit received grants +1 resistance until the end of the enemy turn."
+  artwork: {fileID: 0}
+  ability: {fileID: 11400000, guid: e24fc169e1267c0b871771ee48aebd22, type: 2}
+  upgradeKey: 131
+  stackable: 0
+  maxStacks: 0
+  shopPrice: 25

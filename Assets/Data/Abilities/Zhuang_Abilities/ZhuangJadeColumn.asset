@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2495361e52821a711ada4014fac3d070, type: 3}
+  m_Name: ZhuangJadeColumn
+  m_EditorClassIdentifier: 
+  abilityName: Jade Column
+  description: "Raise a blocking, breakable Jade Column exactly 2 tiles away, including diagonals. It collapses at the start of your next turn. Cooldown 2 turns."
+  icon: {fileID: 1607689151, guid: f48a59640b1434d5a82c3cb13dcb4c59, type: 3}
+  category: 2
+  attackAnimationClip: {fileID: 7400000, guid: 173308a0465534a88acc94ffbc9c9415, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391313, type: 2}
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391314, type: 2}
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391315, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 2
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  projectilePrefab: {fileID: 0}
+  castFxPrefab: {fileID: 7839843593225048449, guid: 037a8987e594c4f0cae8867dc29a64f7, type: 3}
+  secondaryFxPrefab: {fileID: 607822911118259243, guid: 58132ec18818e44fd9510cfa63e9b4d4, type: 3}
+  impactFxPrefab: {fileID: 2175437417473095395, guid: 12307d2444eae493aa0bcdc1cd8a20e4, type: 3}
+  persistentFxPrefab: {fileID: 2628561491948644552, guid: 8128e165cea7147f7bc9de0790ea9fda, type: 3}
+  markFxPrefab: {fileID: 0}
+  markBurstFxPrefab: {fileID: 0}
+  castSoundParametersPrefab: {fileID: 1899072520979101167, guid: 0a16a0cf6ef584735b59447ae64c0cf2, type: 3}
+  impactSoundParametersPrefab: {fileID: 1899072520979101167, guid: 0dcc4773b9bde475fb8c4f4b0811054f, type: 3}
+  secondarySoundParametersPrefab: {fileID: 3546907494164934999, guid: 7e33ecf61c2fc431bb7558daeb97ffb3, type: 3}
+  markBurstSound: {fileID: 0}
+  columnPrefab: {fileID: 6748463629275346963, guid: 1973ee6b1eaef69be5581c6b805aa43f, type: 3}

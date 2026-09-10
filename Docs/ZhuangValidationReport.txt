@@ -1,0 +1,650 @@
+Zhuang validation: PASS
+Assertions: 648
+13 abilities including separate Side Step and Black Turtle Step
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangBlackTurtleStep.asset has a concrete implementation
+ZhuangBlackTurtleStep icon resolves
+ZhuangBlackTurtleStep uses the appropriate attack/cast animation, or movement only
+ZhuangBlackTurtleStep.m_CorrespondingSourceObject is not a missing reference
+ZhuangBlackTurtleStep.m_PrefabInstance is not a missing reference
+ZhuangBlackTurtleStep.m_PrefabAsset is not a missing reference
+ZhuangBlackTurtleStep.m_GameObject is not a missing reference
+ZhuangBlackTurtleStep.m_Script is not a missing reference
+ZhuangBlackTurtleStep.icon is not a missing reference
+ZhuangBlackTurtleStep.attackAnimationClip is not a missing reference
+ZhuangBlackTurtleStep.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangBlackTurtleStep.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangBlackTurtleStep.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangBlackTurtleStep.damageFxOverridePrefab is not a missing reference
+ZhuangBlackTurtleStep.replacementTrailPrefab is not a missing reference
+ZhuangBlackTurtleStep.projectilePrefab is not a missing reference
+ZhuangBlackTurtleStep.castFxPrefab is not a missing reference
+ZhuangBlackTurtleStep.secondaryFxPrefab is not a missing reference
+ZhuangBlackTurtleStep.impactFxPrefab is not a missing reference
+ZhuangBlackTurtleStep.persistentFxPrefab is not a missing reference
+ZhuangBlackTurtleStep.markFxPrefab is not a missing reference
+ZhuangBlackTurtleStep.markBurstFxPrefab is not a missing reference
+ZhuangBlackTurtleStep.castSoundParametersPrefab is not a missing reference
+ZhuangBlackTurtleStep.castSoundParametersPrefab contains SoundParameters
+SoundParameters-PoisonedWake contains playable audio
+ZhuangBlackTurtleStep.impactSoundParametersPrefab is not a missing reference
+ZhuangBlackTurtleStep.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangBlackTurtleStep.secondarySoundParametersPrefab is not a missing reference
+ZhuangBlackTurtleStep.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-CircleDamnedPoint contains playable audio
+ZhuangBlackTurtleStep.markBurstSound is not a missing reference
+ZhuangBlackTurtleStep.secondaryAnimation is not a missing reference
+ZhuangBlackTurtleStep.landingAnimation is not a missing reference
+ZhuangBlackTurtleStep cast/impact FX and audio resolve
+ZhuangBlackTurtleStep upgrade belongs to this ability
+ZhuangBlackTurtleStep upgrade belongs to this ability
+ZhuangBlackTurtleStep upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangCelestialRings.asset has a concrete implementation
+ZhuangCelestialRings icon resolves
+ZhuangCelestialRings uses the appropriate attack/cast animation, or movement only
+ZhuangCelestialRings.m_CorrespondingSourceObject is not a missing reference
+ZhuangCelestialRings.m_PrefabInstance is not a missing reference
+ZhuangCelestialRings.m_PrefabAsset is not a missing reference
+ZhuangCelestialRings.m_GameObject is not a missing reference
+ZhuangCelestialRings.m_Script is not a missing reference
+ZhuangCelestialRings.icon is not a missing reference
+ZhuangCelestialRings.attackAnimationClip is not a missing reference
+ZhuangCelestialRings.attackAnimationClip uses Zhuang's rig
+ZhuangCelestialRings.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangCelestialRings.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangCelestialRings.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangCelestialRings.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangCelestialRings.damageFxOverridePrefab is not a missing reference
+ZhuangCelestialRings.replacementTrailPrefab is not a missing reference
+ZhuangCelestialRings.projectilePrefab is not a missing reference
+ZhuangCelestialRings.castFxPrefab is not a missing reference
+ZhuangCelestialRings.secondaryFxPrefab is not a missing reference
+ZhuangCelestialRings.impactFxPrefab is not a missing reference
+ZhuangCelestialRings.persistentFxPrefab is not a missing reference
+ZhuangCelestialRings.markFxPrefab is not a missing reference
+ZhuangCelestialRings.markBurstFxPrefab is not a missing reference
+ZhuangCelestialRings.castSoundParametersPrefab is not a missing reference
+ZhuangCelestialRings.castSoundParametersPrefab contains SoundParameters
+SoundParameters-KnivesThrowing contains playable audio
+ZhuangCelestialRings.impactSoundParametersPrefab is not a missing reference
+ZhuangCelestialRings.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangCelestialRings.secondarySoundParametersPrefab is not a missing reference
+ZhuangCelestialRings.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangCelestialRings.markBurstSound is not a missing reference
+ZhuangCelestialRings.secondaryAnimation is not a missing reference
+ZhuangCelestialRings.landingAnimation is not a missing reference
+ZhuangCelestialRings.divineIcon is not a missing reference
+ZhuangCelestialRings cast/impact FX and audio resolve
+ZhuangCelestialRings upgrade belongs to this ability
+ZhuangCelestialRings upgrade belongs to this ability
+ZhuangCelestialRings upgrade belongs to this ability
+ZhuangCelestialRings upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangCranePunishment.asset has a concrete implementation
+ZhuangCranePunishment icon resolves
+ZhuangCranePunishment uses the appropriate attack/cast animation, or movement only
+ZhuangCranePunishment.m_CorrespondingSourceObject is not a missing reference
+ZhuangCranePunishment.m_PrefabInstance is not a missing reference
+ZhuangCranePunishment.m_PrefabAsset is not a missing reference
+ZhuangCranePunishment.m_GameObject is not a missing reference
+ZhuangCranePunishment.m_Script is not a missing reference
+ZhuangCranePunishment.icon is not a missing reference
+ZhuangCranePunishment.attackAnimationClip is not a missing reference
+ZhuangCranePunishment.attackAnimationClip uses Zhuang's rig
+ZhuangCranePunishment.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangCranePunishment.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangCranePunishment.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangCranePunishment.damageFxOverridePrefab is not a missing reference
+ZhuangCranePunishment.replacementTrailPrefab is not a missing reference
+ZhuangCranePunishment.projectilePrefab is not a missing reference
+ZhuangCranePunishment.castFxPrefab is not a missing reference
+ZhuangCranePunishment.secondaryFxPrefab is not a missing reference
+ZhuangCranePunishment.impactFxPrefab is not a missing reference
+ZhuangCranePunishment.persistentFxPrefab is not a missing reference
+ZhuangCranePunishment.markFxPrefab is not a missing reference
+ZhuangCranePunishment.markBurstFxPrefab is not a missing reference
+ZhuangCranePunishment.castSoundParametersPrefab is not a missing reference
+ZhuangCranePunishment.castSoundParametersPrefab contains SoundParameters
+SoundParameters-Shotgun contains playable audio
+ZhuangCranePunishment.impactSoundParametersPrefab is not a missing reference
+ZhuangCranePunishment.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangCranePunishment.secondarySoundParametersPrefab is not a missing reference
+ZhuangCranePunishment.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-CircleDamnedPoint contains playable audio
+ZhuangCranePunishment.markBurstSound is not a missing reference
+ZhuangCranePunishment.secondaryAnimation is not a missing reference
+ZhuangCranePunishment.landingAnimation is not a missing reference
+ZhuangCranePunishment cast/impact FX and audio resolve
+ZhuangCranePunishment upgrade belongs to this ability
+ZhuangCranePunishment upgrade belongs to this ability
+ZhuangCranePunishment upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangDragonGuandao.asset has a concrete implementation
+ZhuangDragonGuandao icon resolves
+ZhuangDragonGuandao uses the appropriate attack/cast animation, or movement only
+ZhuangDragonGuandao.m_CorrespondingSourceObject is not a missing reference
+ZhuangDragonGuandao.m_PrefabInstance is not a missing reference
+ZhuangDragonGuandao.m_PrefabAsset is not a missing reference
+ZhuangDragonGuandao.m_GameObject is not a missing reference
+ZhuangDragonGuandao.m_Script is not a missing reference
+ZhuangDragonGuandao.icon is not a missing reference
+ZhuangDragonGuandao.attackAnimationClip is not a missing reference
+ZhuangDragonGuandao.attackAnimationClip uses Zhuang's rig
+ZhuangDragonGuandao.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangDragonGuandao.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangDragonGuandao.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangDragonGuandao.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangDragonGuandao.damageFxOverridePrefab is not a missing reference
+ZhuangDragonGuandao.replacementTrailPrefab is not a missing reference
+ZhuangDragonGuandao.whirlwindAnimation is not a missing reference
+ZhuangDragonGuandao.whirlwindAnimation uses Zhuang's rig
+ZhuangDragonGuandao.dragonCloudExecuteAnimation is not a missing reference
+ZhuangDragonGuandao.dragonCloudExecuteAnimation uses Zhuang's rig
+ZhuangDragonGuandao.primarySlashFxPrefab is not a missing reference
+ZhuangDragonGuandao.extendedSlashFxPrefab is not a missing reference
+ZhuangDragonGuandao.whirlwindFxPrefab is not a missing reference
+ZhuangDragonGuandao.dragonCloudExecuteFxPrefab is not a missing reference
+ZhuangDragonGuandao.airborneFxPrefab is not a missing reference
+ZhuangDragonGuandao.slashSoundParametersPrefab is not a missing reference
+ZhuangDragonGuandao.slashSoundParametersPrefab contains SoundParameters
+SoundParameters-KnivesThrowing contains playable audio
+ZhuangDragonGuandao.extendedHitSoundParametersPrefab is not a missing reference
+ZhuangDragonGuandao.extendedHitSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangDragonGuandao.executeSoundParametersPrefab is not a missing reference
+ZhuangDragonGuandao.executeSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangDragonGuandao.airborneSound is not a missing reference
+ZhuangDragonGuandao upgrade belongs to this ability
+ZhuangDragonGuandao upgrade belongs to this ability
+ZhuangDragonGuandao upgrade belongs to this ability
+ZhuangDragonGuandao upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangFauchard.asset has a concrete implementation
+ZhuangFauchard icon resolves
+ZhuangFauchard uses the appropriate attack/cast animation, or movement only
+ZhuangFauchard.m_CorrespondingSourceObject is not a missing reference
+ZhuangFauchard.m_PrefabInstance is not a missing reference
+ZhuangFauchard.m_PrefabAsset is not a missing reference
+ZhuangFauchard.m_GameObject is not a missing reference
+ZhuangFauchard.m_Script is not a missing reference
+ZhuangFauchard.icon is not a missing reference
+ZhuangFauchard.attackAnimationClip is not a missing reference
+ZhuangFauchard.attackAnimationClip uses Zhuang's rig
+ZhuangFauchard.damageFxOverridePrefab is not a missing reference
+ZhuangFauchard.replacementTrailPrefab is not a missing reference
+ZhuangFauchard.swingFxPrefab is not a missing reference
+ZhuangFauchard.enemyImpactFxPrefab is not a missing reference
+ZhuangFauchard.obstacleImpactFxPrefab is not a missing reference
+ZhuangFauchard.swingSoundParametersPrefab is not a missing reference
+ZhuangFauchard.swingSoundParametersPrefab contains SoundParameters
+SoundParameters-KnivesThrowing contains playable audio
+ZhuangFauchard.obstacleImpactSoundParametersPrefab is not a missing reference
+ZhuangFauchard.obstacleImpactSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangHeronWings.asset has a concrete implementation
+ZhuangHeronWings icon resolves
+ZhuangHeronWings uses the appropriate attack/cast animation, or movement only
+ZhuangHeronWings.m_CorrespondingSourceObject is not a missing reference
+ZhuangHeronWings.m_PrefabInstance is not a missing reference
+ZhuangHeronWings.m_PrefabAsset is not a missing reference
+ZhuangHeronWings.m_GameObject is not a missing reference
+ZhuangHeronWings.m_Script is not a missing reference
+ZhuangHeronWings.icon is not a missing reference
+ZhuangHeronWings.attackAnimationClip is not a missing reference
+ZhuangHeronWings.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangHeronWings.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangHeronWings.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangHeronWings.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangHeronWings.damageFxOverridePrefab is not a missing reference
+ZhuangHeronWings.replacementTrailPrefab is not a missing reference
+ZhuangHeronWings.projectilePrefab is not a missing reference
+ZhuangHeronWings.castFxPrefab is not a missing reference
+ZhuangHeronWings.secondaryFxPrefab is not a missing reference
+ZhuangHeronWings.impactFxPrefab is not a missing reference
+ZhuangHeronWings.persistentFxPrefab is not a missing reference
+ZhuangHeronWings.markFxPrefab is not a missing reference
+ZhuangHeronWings.markBurstFxPrefab is not a missing reference
+ZhuangHeronWings.castSoundParametersPrefab is not a missing reference
+ZhuangHeronWings.castSoundParametersPrefab contains SoundParameters
+SoundParameters-PoisonedWake contains playable audio
+ZhuangHeronWings.impactSoundParametersPrefab is not a missing reference
+ZhuangHeronWings.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangHeronWings.secondarySoundParametersPrefab is not a missing reference
+ZhuangHeronWings.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-CircleDamnedPoint contains playable audio
+ZhuangHeronWings.markBurstSound is not a missing reference
+ZhuangHeronWings.secondaryAnimation is not a missing reference
+ZhuangHeronWings.secondaryAnimation uses Zhuang's rig
+ZhuangHeronWings.landingAnimation is not a missing reference
+ZhuangHeronWings cast/impact FX and audio resolve
+ZhuangHeronWings upgrade belongs to this ability
+ZhuangHeronWings upgrade belongs to this ability
+ZhuangHeronWings upgrade belongs to this ability
+ZhuangHeronWings upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangJadeColumn.asset has a concrete implementation
+ZhuangJadeColumn icon resolves
+ZhuangJadeColumn uses the appropriate attack/cast animation, or movement only
+ZhuangJadeColumn.m_CorrespondingSourceObject is not a missing reference
+ZhuangJadeColumn.m_PrefabInstance is not a missing reference
+ZhuangJadeColumn.m_PrefabAsset is not a missing reference
+ZhuangJadeColumn.m_GameObject is not a missing reference
+ZhuangJadeColumn.m_Script is not a missing reference
+ZhuangJadeColumn.icon is not a missing reference
+ZhuangJadeColumn.attackAnimationClip is not a missing reference
+ZhuangJadeColumn.attackAnimationClip uses Zhuang's rig
+ZhuangJadeColumn.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangJadeColumn.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangJadeColumn.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangJadeColumn.damageFxOverridePrefab is not a missing reference
+ZhuangJadeColumn.replacementTrailPrefab is not a missing reference
+ZhuangJadeColumn.projectilePrefab is not a missing reference
+ZhuangJadeColumn.castFxPrefab is not a missing reference
+ZhuangJadeColumn.secondaryFxPrefab is not a missing reference
+ZhuangJadeColumn.impactFxPrefab is not a missing reference
+ZhuangJadeColumn.persistentFxPrefab is not a missing reference
+ZhuangJadeColumn.markFxPrefab is not a missing reference
+ZhuangJadeColumn.markBurstFxPrefab is not a missing reference
+ZhuangJadeColumn.castSoundParametersPrefab is not a missing reference
+ZhuangJadeColumn.castSoundParametersPrefab contains SoundParameters
+SoundParameters-CircleDamnedPoint contains playable audio
+ZhuangJadeColumn.impactSoundParametersPrefab is not a missing reference
+ZhuangJadeColumn.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangJadeColumn.secondarySoundParametersPrefab is not a missing reference
+ZhuangJadeColumn.secondarySoundParametersPrefab contains SoundParameters
+SoundParameter-SacredRay contains playable audio
+ZhuangJadeColumn.markBurstSound is not a missing reference
+ZhuangJadeColumn.secondaryAnimation is not a missing reference
+ZhuangJadeColumn.landingAnimation is not a missing reference
+ZhuangJadeColumn.columnPrefab is not a missing reference
+ZhuangJadeColumn cast/impact FX and audio resolve
+ZhuangJadeColumn upgrade belongs to this ability
+ZhuangJadeColumn upgrade belongs to this ability
+ZhuangJadeColumn upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangLionsRoar.asset has a concrete implementation
+ZhuangLionsRoar icon resolves
+ZhuangLionsRoar uses the appropriate attack/cast animation, or movement only
+ZhuangLionsRoar.m_CorrespondingSourceObject is not a missing reference
+ZhuangLionsRoar.m_PrefabInstance is not a missing reference
+ZhuangLionsRoar.m_PrefabAsset is not a missing reference
+ZhuangLionsRoar.m_GameObject is not a missing reference
+ZhuangLionsRoar.m_Script is not a missing reference
+ZhuangLionsRoar.icon is not a missing reference
+ZhuangLionsRoar.attackAnimationClip is not a missing reference
+ZhuangLionsRoar.attackAnimationClip uses Zhuang's rig
+ZhuangLionsRoar.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangLionsRoar.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangLionsRoar.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangLionsRoar.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangLionsRoar.damageFxOverridePrefab is not a missing reference
+ZhuangLionsRoar.replacementTrailPrefab is not a missing reference
+ZhuangLionsRoar.projectilePrefab is not a missing reference
+ZhuangLionsRoar.castFxPrefab is not a missing reference
+ZhuangLionsRoar.secondaryFxPrefab is not a missing reference
+ZhuangLionsRoar.impactFxPrefab is not a missing reference
+ZhuangLionsRoar.persistentFxPrefab is not a missing reference
+ZhuangLionsRoar.markFxPrefab is not a missing reference
+ZhuangLionsRoar.markBurstFxPrefab is not a missing reference
+ZhuangLionsRoar.castSoundParametersPrefab is not a missing reference
+ZhuangLionsRoar.castSoundParametersPrefab contains SoundParameters
+SoundParameters-Shotgun contains playable audio
+ZhuangLionsRoar.impactSoundParametersPrefab is not a missing reference
+ZhuangLionsRoar.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangLionsRoar.secondarySoundParametersPrefab is not a missing reference
+ZhuangLionsRoar.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-CircleDamnedPoint contains playable audio
+ZhuangLionsRoar.markBurstSound is not a missing reference
+ZhuangLionsRoar.secondaryAnimation is not a missing reference
+ZhuangLionsRoar.landingAnimation is not a missing reference
+ZhuangLionsRoar cast/impact FX and audio resolve
+ZhuangLionsRoar upgrade belongs to this ability
+ZhuangLionsRoar upgrade belongs to this ability
+ZhuangLionsRoar upgrade belongs to this ability
+ZhuangLionsRoar upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangMonkeyStrike.asset has a concrete implementation
+ZhuangMonkeyStrike icon resolves
+ZhuangMonkeyStrike uses the appropriate attack/cast animation, or movement only
+ZhuangMonkeyStrike.m_CorrespondingSourceObject is not a missing reference
+ZhuangMonkeyStrike.m_PrefabInstance is not a missing reference
+ZhuangMonkeyStrike.m_PrefabAsset is not a missing reference
+ZhuangMonkeyStrike.m_GameObject is not a missing reference
+ZhuangMonkeyStrike.m_Script is not a missing reference
+ZhuangMonkeyStrike.icon is not a missing reference
+ZhuangMonkeyStrike.attackAnimationClip is not a missing reference
+ZhuangMonkeyStrike.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangMonkeyStrike.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangMonkeyStrike.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangMonkeyStrike.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangMonkeyStrike.damageFxOverridePrefab is not a missing reference
+ZhuangMonkeyStrike.replacementTrailPrefab is not a missing reference
+ZhuangMonkeyStrike.projectilePrefab is not a missing reference
+ZhuangMonkeyStrike.castFxPrefab is not a missing reference
+ZhuangMonkeyStrike.secondaryFxPrefab is not a missing reference
+ZhuangMonkeyStrike.impactFxPrefab is not a missing reference
+ZhuangMonkeyStrike.persistentFxPrefab is not a missing reference
+ZhuangMonkeyStrike.markFxPrefab is not a missing reference
+ZhuangMonkeyStrike.markBurstFxPrefab is not a missing reference
+ZhuangMonkeyStrike.castSoundParametersPrefab is not a missing reference
+ZhuangMonkeyStrike.castSoundParametersPrefab contains SoundParameters
+SoundParameters-PoisonedWake contains playable audio
+ZhuangMonkeyStrike.impactSoundParametersPrefab is not a missing reference
+ZhuangMonkeyStrike.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangMonkeyStrike.secondarySoundParametersPrefab is not a missing reference
+ZhuangMonkeyStrike.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-Shotgun contains playable audio
+ZhuangMonkeyStrike.markBurstSound is not a missing reference
+ZhuangMonkeyStrike.secondaryAnimation is not a missing reference
+ZhuangMonkeyStrike.secondaryAnimation uses Zhuang's rig
+ZhuangMonkeyStrike.landingAnimation is not a missing reference
+ZhuangMonkeyStrike.landingAnimation uses Zhuang's rig
+ZhuangMonkeyStrike cast/impact FX and audio resolve
+ZhuangMonkeyStrike upgrade belongs to this ability
+ZhuangMonkeyStrike upgrade belongs to this ability
+ZhuangMonkeyStrike upgrade belongs to this ability
+ZhuangMonkeyStrike upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangPhoenixJian.asset has a concrete implementation
+ZhuangPhoenixJian icon resolves
+ZhuangPhoenixJian uses the appropriate attack/cast animation, or movement only
+ZhuangPhoenixJian.m_CorrespondingSourceObject is not a missing reference
+ZhuangPhoenixJian.m_PrefabInstance is not a missing reference
+ZhuangPhoenixJian.m_PrefabAsset is not a missing reference
+ZhuangPhoenixJian.m_GameObject is not a missing reference
+ZhuangPhoenixJian.m_Script is not a missing reference
+ZhuangPhoenixJian.icon is not a missing reference
+ZhuangPhoenixJian.attackAnimationClip is not a missing reference
+ZhuangPhoenixJian.attackAnimationClip uses Zhuang's rig
+ZhuangPhoenixJian.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangPhoenixJian.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangPhoenixJian.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangPhoenixJian.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangPhoenixJian.damageFxOverridePrefab is not a missing reference
+ZhuangPhoenixJian.replacementTrailPrefab is not a missing reference
+ZhuangPhoenixJian.projectilePrefab is not a missing reference
+ZhuangPhoenixJian.castFxPrefab is not a missing reference
+ZhuangPhoenixJian.secondaryFxPrefab is not a missing reference
+ZhuangPhoenixJian.impactFxPrefab is not a missing reference
+ZhuangPhoenixJian.persistentFxPrefab is not a missing reference
+ZhuangPhoenixJian.markFxPrefab is not a missing reference
+ZhuangPhoenixJian.markBurstFxPrefab is not a missing reference
+ZhuangPhoenixJian.castSoundParametersPrefab is not a missing reference
+ZhuangPhoenixJian.castSoundParametersPrefab contains SoundParameters
+SoundParameters-KnivesThrowing contains playable audio
+ZhuangPhoenixJian.impactSoundParametersPrefab is not a missing reference
+ZhuangPhoenixJian.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-FireDmg contains playable audio
+ZhuangPhoenixJian.secondarySoundParametersPrefab is not a missing reference
+ZhuangPhoenixJian.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-FireDmg contains playable audio
+ZhuangPhoenixJian.markBurstSound is not a missing reference
+ZhuangPhoenixJian.secondaryAnimation is not a missing reference
+ZhuangPhoenixJian.landingAnimation is not a missing reference
+ZhuangPhoenixJian cast/impact FX and audio resolve
+ZhuangPhoenixJian upgrade belongs to this ability
+ZhuangPhoenixJian upgrade belongs to this ability
+ZhuangPhoenixJian upgrade belongs to this ability
+ZhuangPhoenixJian upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangSerpentHook.asset has a concrete implementation
+ZhuangSerpentHook icon resolves
+ZhuangSerpentHook uses the appropriate attack/cast animation, or movement only
+ZhuangSerpentHook.m_CorrespondingSourceObject is not a missing reference
+ZhuangSerpentHook.m_PrefabInstance is not a missing reference
+ZhuangSerpentHook.m_PrefabAsset is not a missing reference
+ZhuangSerpentHook.m_GameObject is not a missing reference
+ZhuangSerpentHook.m_Script is not a missing reference
+ZhuangSerpentHook.icon is not a missing reference
+ZhuangSerpentHook.attackAnimationClip is not a missing reference
+ZhuangSerpentHook.attackAnimationClip uses Zhuang's rig
+ZhuangSerpentHook.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangSerpentHook.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangSerpentHook.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangSerpentHook.damageFxOverridePrefab is not a missing reference
+ZhuangSerpentHook.replacementTrailPrefab is not a missing reference
+ZhuangSerpentHook.projectilePrefab is not a missing reference
+ZhuangSerpentHook.castFxPrefab is not a missing reference
+ZhuangSerpentHook.secondaryFxPrefab is not a missing reference
+ZhuangSerpentHook.impactFxPrefab is not a missing reference
+ZhuangSerpentHook.persistentFxPrefab is not a missing reference
+ZhuangSerpentHook.markFxPrefab is not a missing reference
+ZhuangSerpentHook.markBurstFxPrefab is not a missing reference
+ZhuangSerpentHook.castSoundParametersPrefab is not a missing reference
+ZhuangSerpentHook.castSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangSerpentHook.impactSoundParametersPrefab is not a missing reference
+ZhuangSerpentHook.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangSerpentHook.secondarySoundParametersPrefab is not a missing reference
+ZhuangSerpentHook.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-PoisonedWake contains playable audio
+ZhuangSerpentHook.markBurstSound is not a missing reference
+ZhuangSerpentHook.secondaryAnimation is not a missing reference
+ZhuangSerpentHook.landingAnimation is not a missing reference
+ZhuangSerpentHook cast/impact FX and audio resolve
+ZhuangSerpentHook upgrade belongs to this ability
+ZhuangSerpentHook upgrade belongs to this ability
+ZhuangSerpentHook upgrade belongs to this ability
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangSideStep.asset has a concrete implementation
+ZhuangSideStep icon resolves
+ZhuangSideStep uses the appropriate attack/cast animation, or movement only
+ZhuangSideStep.m_CorrespondingSourceObject is not a missing reference
+ZhuangSideStep.m_PrefabInstance is not a missing reference
+ZhuangSideStep.m_PrefabAsset is not a missing reference
+ZhuangSideStep.m_GameObject is not a missing reference
+ZhuangSideStep.m_Script is not a missing reference
+ZhuangSideStep.icon is not a missing reference
+ZhuangSideStep.attackAnimationClip is not a missing reference
+ZhuangSideStep.fxSpawns.Array.data[0].fxPrefab is not a missing reference
+ZhuangSideStep.damageFxOverridePrefab is not a missing reference
+ZhuangSideStep.replacementTrailPrefab is not a missing reference
+ZhuangSideStep.stepFxPrefab is not a missing reference
+ZhuangSideStep.stepSoundParametersPrefab is not a missing reference
+ZhuangSideStep.stepSoundParametersPrefab contains SoundParameters
+SoundParameters-PoisonedWake contains playable audio
+Assets/Data/Abilities/Zhuang_Abilities/ZhuangTigerFists.asset has a concrete implementation
+ZhuangTigerFists icon resolves
+ZhuangTigerFists uses the appropriate attack/cast animation, or movement only
+ZhuangTigerFists.m_CorrespondingSourceObject is not a missing reference
+ZhuangTigerFists.m_PrefabInstance is not a missing reference
+ZhuangTigerFists.m_PrefabAsset is not a missing reference
+ZhuangTigerFists.m_GameObject is not a missing reference
+ZhuangTigerFists.m_Script is not a missing reference
+ZhuangTigerFists.icon is not a missing reference
+ZhuangTigerFists.attackAnimationClip is not a missing reference
+ZhuangTigerFists.attackAnimationClip uses Zhuang's rig
+ZhuangTigerFists.linkedUpgradeRewards.Array.data[0] is not a missing reference
+ZhuangTigerFists.linkedUpgradeRewards.Array.data[1] is not a missing reference
+ZhuangTigerFists.linkedUpgradeRewards.Array.data[2] is not a missing reference
+ZhuangTigerFists.linkedUpgradeRewards.Array.data[3] is not a missing reference
+ZhuangTigerFists.damageFxOverridePrefab is not a missing reference
+ZhuangTigerFists.replacementTrailPrefab is not a missing reference
+ZhuangTigerFists.projectilePrefab is not a missing reference
+ZhuangTigerFists.castFxPrefab is not a missing reference
+ZhuangTigerFists.secondaryFxPrefab is not a missing reference
+ZhuangTigerFists.impactFxPrefab is not a missing reference
+ZhuangTigerFists.persistentFxPrefab is not a missing reference
+ZhuangTigerFists.markFxPrefab is not a missing reference
+ZhuangTigerFists.markBurstFxPrefab is not a missing reference
+ZhuangTigerFists.castSoundParametersPrefab is not a missing reference
+ZhuangTigerFists.castSoundParametersPrefab contains SoundParameters
+SoundParameters-KnifeImpact contains playable audio
+ZhuangTigerFists.impactSoundParametersPrefab is not a missing reference
+ZhuangTigerFists.impactSoundParametersPrefab contains SoundParameters
+SoundParameters-ChainHit contains playable audio
+ZhuangTigerFists.secondarySoundParametersPrefab is not a missing reference
+ZhuangTigerFists.secondarySoundParametersPrefab contains SoundParameters
+SoundParameters-CircleDamnedPoint contains playable audio
+ZhuangTigerFists.markBurstSound is not a missing reference
+ZhuangTigerFists.secondaryAnimation is not a missing reference
+ZhuangTigerFists.secondaryAnimation uses Zhuang's rig
+ZhuangTigerFists.landingAnimation is not a missing reference
+ZhuangTigerFists.whiteTigerIcon is not a missing reference
+ZhuangTigerFists cast/impact FX and audio resolve
+ZhuangTigerFists upgrade belongs to this ability
+ZhuangTigerFists upgrade belongs to this ability
+ZhuangTigerFists upgrade belongs to this ability
+ZhuangTigerFists upgrade belongs to this ability
+Jade Column has Rock component
+Zhuang overrides the clip actually played by the Attack state
+Reward_ZhuangDragonGuandao is eligible without a progression unlock
+Reward_ZhuangTigerFists is eligible without a progression unlock
+Reward_ZhuangPhoenixJian is eligible without a progression unlock
+Reward_ZhuangJadeColumn is eligible without a progression unlock
+Reward_ZhuangCranePunishment is eligible without a progression unlock
+Reward_ZhuangLionsRoar is eligible without a progression unlock
+Reward_ZhuangMonkeyStrike is eligible without a progression unlock
+Reward_ZhuangSerpentHook is eligible without a progression unlock
+Reward_ZhuangCelestialRings is eligible without a progression unlock
+Reward_ZhuangHeronWings is eligible without a progression unlock
+Reward_ZhuangBlackTurtleStep is eligible without a progression unlock
+Void Glove disabled without a valid pull
+Void Glove button enters targeting without spending its use
+Switching to a character skill clears pending bonus targeting
+Switching back to an active item clears skill targeting
+Void Glove rejects occupied cells without spending a use
+Void Glove rejects out-of-range pulls even via direct activation
+Screen click commits Void Glove pull and clears targeting
+Void Glove cannot be reused in the same turn
+Heal potion activates and consumes only its own slot
+Consuming a potion preserves other active item runtimes and uses
+Slot compaction preserves cooldown and combat uses
+Adding a potion preserves active item state
+Only a new turn resets turn uses and ticks cooldown once
+Void Glove previews do not perturb random rewards or target selection
+Void Glove pulls the weakest eligible enemy
+RogueBow activates from its UI request with a single target
+RogueBow deals damage and respects its turn limit
+RogueBow is available on the next turn
+RogueBow kill increases persistent damage
+RogueKnife activates from its UI request with a single target
+RogueKnife deals damage and respects its turn limit
+RogueKnife is available on the next turn
+RogueKnife kill increases persistent damage
+PotionStrength activates and is consumed
+Strength potion grants 3 damage
+PotionResistance activates and is consumed
+Resistance potion grants 3 resistance
+PotionMobility activates and is consumed
+Mobility potion restores movement
+PotionFearAll activates and is consumed
+Fear potion applies fear to enemies
+Level-end generation offers Zhuang skills (sample 0)
+Level-end generation offers Zhuang skills (sample 1)
+Level-end generation offers Zhuang skills (sample 2)
+Level-end generation offers Zhuang skills (sample 3)
+Level-end generation offers Zhuang skills (sample 4)
+Level-end generation offers Zhuang skills (sample 5)
+Level-end generation offers Zhuang skills (sample 6)
+Level-end generation offers Zhuang skills (sample 7)
+Level-end generation offers Zhuang skills (sample 8)
+Level-end generation offers Zhuang skills (sample 9)
+Level-end generation offers Zhuang skills (sample 10)
+Level-end generation offers Zhuang skills (sample 11)
+Level-end generation offers Zhuang skills (sample 12)
+Level-end generation offers Zhuang skills (sample 13)
+Level-end generation offers Zhuang skills (sample 14)
+Level-end generation offers Zhuang skills (sample 15)
+Level-end generation offers Zhuang skills (sample 16)
+Level-end generation offers Zhuang skills (sample 17)
+Level-end generation offers Zhuang skills (sample 18)
+Level-end generation offers Zhuang skills (sample 19)
+After choosing each category, level-end rewards offer upgrades for equipped Zhuang skills
+ZhuangSideStep activation succeeds
+Preparing Side Step stays idle instead of attacking
+Side Step move starts with the real Zhuang animator
+Side Step uses the locomotion Dash state
+action lock released
+Fauchard plays its assigned clip through the real controller
+DragonGuandao plays its assigned clip through the real controller
+TigerFists plays its assigned clip through the real controller
+PhoenixJian plays its assigned clip through the real controller
+CranePunishment plays its assigned clip through the real controller
+LionsRoar plays its assigned clip through the real controller
+JadeColumn plays its assigned clip through the real controller
+CelestialRings plays its assigned clip through the real controller
+SerpentHook plays its assigned clip through the real controller
+Serpent's pull transitions from casting to locomotion without waiting for the attack to finish
+Fauchard rejects distant target
+ZhuangFauchard activation succeeds
+action lock released
+Fauchard deals 5 damage
+ZhuangDragonGuandao activation succeeds
+action lock released
+Guandao distant damage and launch
+Crane opens during Momentum
+ZhuangCranePunishment activation succeeds
+action lock released
+Crane spends all movement and heals for Grace
+Crane damage and clock restored
+ZhuangDragonGuandao activation succeeds
+action lock released
+Dragon Cloud executes despite resistance
+Automatic execute does not open Momentum
+ZhuangDragonGuandao activation succeeds
+action lock released
+Momentum expires after real time
+ZhuangTigerFists activation succeeds
+action lock released
+Tiger wall collision is 5 + 2 and stays on its tile
+ZhuangTigerFists activation succeeds
+White Tiger transform grants unused temporary attack
+ZhuangTigerFists activation succeeds
+action lock released
+White Tiger +2 damage, 2-cell push, 2 HP cost
+White Tiger expires at turn end
+ZhuangTigerFists activation succeeds
+action lock released
+Tiger Claws pulls weakest adjacent enemy
+ZhuangTigerFists activation succeeds
+action lock released
+Stone Tiger destroys rock and strikes enemy behind it
+ZhuangPhoenixJian activation succeeds
+action lock released
+Phoenix three-cell frontal sweep
+Burn kill grants next-turn Phoenix charge
+Jade rejects adjacent tile without Jade Eye
+ZhuangJadeColumn activation succeeds
+action lock released
+Jade is a real blocking rock
+Jade clears occupancy at next player turn
+ZhuangJadeColumn activation succeeds
+action lock released
+Jade projection leaves time to use Crane
+Projected Jade collapses then deals landing damage
+ZhuangLionsRoar activation succeeds
+Lion affects distant enemies with enhanced far reduction
+Lion mark adds damage to the hit and launches
+Lion resistance reduction expires with mark
+ZhuangSideStep activation succeeds
+Side Step selected adjacent cell
+action lock released
+Side Step spends movement
+ZhuangBlackTurtleStep activation succeeds
+action lock released
+Black Turtle range upgrade and base resistance
+Turtle builds +1 resistance and retaliates on hit
+Turtle defense expires after enemy turn
+ZhuangMonkeyStrike activation succeeds
+action lock released
+Golden Monkey lethal landing refunds a usable attack
+Leap lands at its grid destination
+ZhuangSerpentHook activation succeeds
+action lock released
+Serpent rush, damage, knock and second charge
+Rings start empty
+Knock charges persist and promote at 3
+ZhuangCelestialRings activation succeeds
+action lock released
+Divine ring hits main and adjacent target, keeps promotion at 2
+ZhuangCelestialRings activation succeeds
+action lock released
+Lethal ring returns its charge on arrival
+ZhuangHeronWings activation succeeds
+action lock released
+Heron bonus charge, landing heal and radial damage
+Heron bonus charge expires next turn
+ZhuangHeronWings activation succeeds
+action lock released
+Leaps skip crossed ground hazards but trigger landing hazards

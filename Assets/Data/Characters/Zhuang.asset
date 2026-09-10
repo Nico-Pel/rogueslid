@@ -28,19 +28,21 @@ MonoBehaviour:
   resistance: 0
   movementPointsPerTurn: 4
   startingAbilities:
-  - {fileID: 11400000, guid: 6c2d0ca1f1574680883c8a8b1ec31211, type: 2}
+  - {fileID: 11400000, guid: 0b2d478e5c8a4c25b3aeb6bd9d391111, type: 2}
   - {fileID: 11400000, guid: 364ec113b09a42ffb823f413bdad6b22, type: 2}
   - {fileID: 0}
   unlockableAbilityRewards:
-  - {fileID: 11400000, guid: f303bf6ed87c4e0b8c314c3a53c32e49, type: 2}
-  - {fileID: 11400000, guid: 1c56ad6be3e54b6aa1624144650c0880, type: 2}
-  - {fileID: 11400000, guid: 2f59f1a58a39411fa87af4efb4df1211, type: 2}
-  - {fileID: 11400000, guid: 7fb8d3191f5f43db9c35c29ec66c4211, type: 2}
-  - {fileID: 11400000, guid: d3e10f1d3815476382d1915338cf0211, type: 2}
-  - {fileID: 11400000, guid: 21318e21923d435783585b85d988894d, type: 2}
-  - {fileID: 11400000, guid: 2ac1f4e9bf4d48a0a12c31d5f77b3d11, type: 2}
-  - {fileID: 11400000, guid: 7b5a6d3c15ee47d0a81fd0f43b0f8d12, type: 2}
-  - {fileID: 11400000, guid: c31e6a419a8d4f1cb4d10e5fd76a7013, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391201, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391202, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391203, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391204, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391205, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391206, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391207, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391208, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391209, type: 2}
+  - {fileID: 11400000, guid: 1b2d478e5c8a4c25b3aeb6bd9d391210, type: 2}
+  - {fileID: 11400000, guid: 02e2aa2ab7dcc8c599405e0b01e4da3f, type: 2}
   tourmentRewardUnlocks: []
   persistentUpgrades:
   - {fileID: 11400000, guid: 4f41e8d2fe7a48b1bbcb0ca932b7a001, type: 2}

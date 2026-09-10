@@ -185,6 +185,10 @@ public class GameTurnManager : MonoBehaviour
         }
 
         Character controlledCharacter = board != null && board.Player != null ? board.Player.ControlledCharacter : null;
+        if (controlledCharacter != null && controlledCharacter.IsBusy)
+        {
+            return;
+        }
         ClearPendingAbility();
         board?.HandlePlayerTurnEnded(controlledCharacter);
         if (controlledCharacter == null || controlledCharacter.CurrentHealth <= 0)
@@ -351,6 +355,7 @@ public class GameTurnManager : MonoBehaviour
             }
             else
             {
+                pendingBonusAbilitySlot = -1;
                 pendingCellTargetAbilityIndex = abilityIndex;
                 PendingAbilityChanged?.Invoke(pendingCellTargetAbilityIndex);
             }

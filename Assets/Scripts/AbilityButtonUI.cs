@@ -110,6 +110,7 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         }
 
         wasWaitingForReuseDelay = isWaitingForReuseDelay;
+        if (runtime?.Definition is ZhuangAbility) Refresh();
 
         if (!isPointerDown || longPressTriggered || abilityCheckLongPressDuration <= 0f)
         {
@@ -316,7 +317,12 @@ public class AbilityButtonUI : MonoBehaviour, IPointerDownHandler, IPointerUpHan
             cooldownCountLabel.text = showCooldown ? runtime.RemainingCooldown.ToString() : string.Empty;
         }
 
-        if (showWhisperfangLuckyFade)
+        Color? attentionColor = isPlayerTurn ? runtime.Definition.GetAttentionColor(character, runtime) : null;
+        if (attentionColor.HasValue)
+        {
+            SetFadeIndicatorVisible(true, attentionColor.Value);
+        }
+        else if (showWhisperfangLuckyFade)
         {
             SetFadeIndicatorVisible(true, whisperfangLuckyFadeColor);
         }

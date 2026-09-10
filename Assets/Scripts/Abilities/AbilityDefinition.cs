@@ -146,6 +146,7 @@ public abstract class AbilityDefinition : ScriptableObject
     public bool HasDamageFxOverride => damageFxOverridePrefab != null;
     public virtual AbilityTargetingMode TargetingMode => AbilityTargetingMode.Immediate;
     public virtual bool IsRangedAttack => false;
+    public virtual Color? GetAttentionColor(Character character, CharacterAbilityRuntime runtime) => null;
     public virtual bool IsBonusAbility => false;
     public virtual bool IsConsumableBonusAbility => false;
     public virtual bool KeepsActiveStateBetweenTurns => true;

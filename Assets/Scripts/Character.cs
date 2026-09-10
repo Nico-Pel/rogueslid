@@ -499,7 +499,7 @@ public class Character : MonoBehaviour
         return TryTeleportTo(targetCell, moveDuration);
     }
 
-    public bool TryTeleportTo(Vector2Int targetCell, float animationDuration)
+    public bool TryTeleportTo(Vector2Int targetCell, float animationDuration, float jumpHeight = 0f)
     {
         if (Board == null || targetCell == gridPosition)
         {
@@ -520,10 +520,17 @@ public class Character : MonoBehaviour
         ConsumeTemporaryBonusDamageOnMovement();
 
         gridPosition = targetCell;
-        Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
+        if (jumpHeight > 0f)
+        {
+            if (Board.TryGetCell(targetCell, out BoardCell landingCell)) landingCell.Hazard?.HandleCharacterEntered(this);
+        }
+        else
+        {
+            Board.NotifyCharacterTraversedPath(this, startCell, targetCell);
+        }
         NotifyAbilitiesCharacterMoved(startCell, targetCell, false);
         NotifyMoved(startCell, targetCell);
-        AnimateToGrid(animationDuration);
+        AnimateToGrid(animationDuration, jumpHeight);
         return true;
     }
 
@@ -807,6 +814,18 @@ public class Character : MonoBehaviour
         actionLockCount++;
     }
 
+    public int PreviewDamageToEnemy(Enemy enemy, int baseDamage, bool addBonusDamage, AbilityDefinition ability)
+    {
+        if (enemy == null) return 0;
+        RecalculateItemDrivenStats();
+        int total = Mathf.Max(1, baseDamage + (addBonusDamage ? bonusDamage : 0));
+        total += GetNextWeaponAbilityBonusDamage(ability) + GetAbilityItemBonusDamage(ability) + GetDistanceBonusDamageAgainstEnemy(enemy);
+        total += enemy.GetComponent<ZhuangEnemyEffects>()?.BonusDamage(this, ability) ?? 0;
+        if (enemy.HasStatusEffect(CombatStatusType.Poisoned)) total += GetUpgradeStacks(AbilityUpgradeKey.PoisonTrailPoisonedSoul);
+        if (HasItem(ItemRewardKey.ThornedBracer) && enemy.CurrentHealth <= Mathf.Max(1, total - enemy.Resistance)) total += 2;
+        return Mathf.Max(1, total - enemy.Resistance);
+    }
+
     public void EndActionLock()
     {
         actionLockCount = Mathf.Max(0, actionLockCount - 1);
@@ -838,6 +857,8 @@ public class Character : MonoBehaviour
         totalDamage += GetAbilityItemBonusDamage(sourceAbility);
         totalDamage += GetDistanceBonusDamageAgainstEnemy(enemy);
         totalDamage += TryConsumeHuntersMarkBonus(enemy, sourceAbility);
+        ZhuangEnemyEffects zhuangEffects = enemy.GetComponent<ZhuangEnemyEffects>();
+        totalDamage += zhuangEffects != null ? zhuangEffects.BonusDamage(this, sourceAbility) : 0;
         if (enemy.HasStatusEffect(CombatStatusType.Poisoned))
         {
             totalDamage += GetUpgradeStacks(AbilityUpgradeKey.PoisonTrailPoisonedSoul);
@@ -853,6 +874,7 @@ public class Character : MonoBehaviour
         if (appliedDamage > 0)
         {
             HandleEnemyDamagedByPlayer(enemy, isAbilityDamage);
+            zhuangEffects?.OnAbilityHit(this, sourceAbility);
         }
 
         if (isAbilityDamage)
@@ -961,6 +983,7 @@ public class Character : MonoBehaviour
 
         if (sourceEnemy != null)
         {
+            GetComponent<ZhuangTurtleGuard>()?.OnHit(sourceEnemy);
             if (finalDamage > 0 && HasItem(ItemRewardKey.CorruptedBlouse) && !corruptedBlouseTriggeredThisCombat)
             {
                 corruptedBlouseTriggeredThisCombat = true;
@@ -1104,6 +1127,18 @@ public class Character : MonoBehaviour
         int weaponDamage = 0;
         switch (basicAttack)
         {
+            case ZhuangFauchardAbility:
+                weaponDamage = 5;
+                break;
+            case ZhuangDragonGuandaoAbility:
+                weaponDamage = 5 + GetUpgradeStacks(AbilityUpgradeKey.ZhuangBlazingDragon);
+                break;
+            case ZhuangTigerFistsAbility:
+                weaponDamage = 5 + (includeTemporaryModifiers && GetAbilityForSlot(0).GetState<ZhuangTigerFistsAbility.State>().White ? 2 : 0);
+                break;
+            case ZhuangPhoenixJianAbility:
+                weaponDamage = 4;
+                break;
             case SpinningBladesAbility:
                 weaponDamage = 5 + GetUpgradeStacks(AbilityUpgradeKey.SpinningBladesSharpening);
                 break;
@@ -1338,6 +1373,7 @@ public class Character : MonoBehaviour
 
     public void HandleEnemyTurnEnded()
     {
+        GetComponent<ZhuangTurtleGuard>()?.Clear();
         enemyTurnInProgress = false;
         isFirstEnemyTurnOfArena = false;
         if (HasItem(ItemRewardKey.Sakura) && tookDamageDuringEnemyTurn)
@@ -1966,7 +2002,7 @@ public class Character : MonoBehaviour
         AnimateToGrid(moveDuration);
     }
 
-    private void AnimateToGrid(float duration)
+    private void AnimateToGrid(float duration, float jumpHeight = 0f)
     {
         if (Board == null)
         {
@@ -1978,7 +2014,10 @@ public class Character : MonoBehaviour
         SetDashingAnimation(true);
         SoundManager.Instance?.PlayDash(transform.position);
         Vector3 targetPosition = Board.GridToWorldPosition(gridPosition) + Vector3.up * spawnHeight;
-        moveTween = transform.DOMove(targetPosition, Mathf.Max(0.01f, duration))
+        Tween movement = jumpHeight > 0f
+            ? (Tween)transform.DOJump(targetPosition, jumpHeight, 1, Mathf.Max(0.01f, duration))
+            : transform.DOMove(targetPosition, Mathf.Max(0.01f, duration));
+        moveTween = movement
             .SetEase(Ease.Linear)
             .OnComplete(() =>
             {
@@ -2123,7 +2162,7 @@ public class Character : MonoBehaviour
             return false;
         }
 
-        InitializeBonusAbilities(runRewardState.GetBonusAbilitySlots());
+        SynchronizeBonusAbilities();
         NotifyAbilitiesChanged();
         return true;
     }
@@ -2135,12 +2174,14 @@ public class Character : MonoBehaviour
             return false;
         }
 
+        // Discard this exact instance before matching slots, including duplicate potions.
+        if (slotIndex < bonusAbilities.Count) bonusAbilities[slotIndex] = null;
         if (compactImmediately)
         {
             runRewardState.CompactBonusAbilitiesLeft();
         }
 
-        InitializeBonusAbilities(runRewardState.GetBonusAbilitySlots());
+        SynchronizeBonusAbilities();
         NotifyAbilitiesChanged();
         return true;
     }
@@ -2153,8 +2194,36 @@ public class Character : MonoBehaviour
         }
 
         runRewardState.CompactBonusAbilitiesLeft();
-        InitializeBonusAbilities(runRewardState.GetBonusAbilitySlots());
+        SynchronizeBonusAbilities();
         NotifyAbilitiesChanged();
+    }
+
+    private void SynchronizeBonusAbilities()
+    {
+        // Inventory changes must preserve cooldowns, per-combat uses and runtime state.
+        List<CharacterAbilityRuntime> remaining = new List<CharacterAbilityRuntime>(bonusAbilities);
+        bonusAbilities.Clear();
+        IReadOnlyList<AbilityDefinition> definitions = runRewardState.GetBonusAbilitySlots();
+        for (int index = 0; index < definitions.Count; index++)
+        {
+            AbilityDefinition definition = definitions[index];
+            CharacterAbilityRuntime runtime = null;
+            if (definition != null)
+            {
+                int match = remaining.FindIndex(candidate => candidate != null && candidate.Definition == definition);
+                if (match >= 0)
+                {
+                    runtime = remaining[match];
+                    remaining.RemoveAt(match);
+                }
+                else
+                {
+                    runtime = new CharacterAbilityRuntime(definition);
+                    runtime.ResetCombat();
+                }
+            }
+            bonusAbilities.Add(runtime);
+        }
     }
 
     public int GetBonusAbilityPersistentValue(string key)

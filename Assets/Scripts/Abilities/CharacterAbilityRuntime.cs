@@ -21,6 +21,17 @@ public class CharacterAbilityRuntime
     private bool suppressNextPrimaryEffectOnce;
     private int definitionBonusUsesThisTurn;
     private int pendingActivationUseDelta;
+    private readonly System.Collections.Generic.Dictionary<System.Type, object> abilityStates = new System.Collections.Generic.Dictionary<System.Type, object>();
+
+    public T GetState<T>() where T : class, new()
+    {
+        if (!abilityStates.TryGetValue(typeof(T), out object state))
+        {
+            state = new T();
+            abilityStates.Add(typeof(T), state);
+        }
+        return (T)state;
+    }
     public AbilityTargetingMode TargetingMode => Definition != null ? Definition.TargetingMode : AbilityTargetingMode.Immediate;
     public int RemainingUsesThisTurn => Definition == null || Definition.UsesPerTurn <= 0
         ? int.MaxValue
@@ -31,6 +42,7 @@ public class CharacterAbilityRuntime
 
     public void ResetCombat()
     {
+        abilityStates.Clear();
         UsesThisTurn = 0;
         UsesThisCombat = 0;
         RemainingCooldown = 0;

@@ -3,6 +3,8 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Rogue Sliders/Abilities/Side Step", fileName = "SideStep")]
 public class SideStepAbility : AbilityDefinition
 {
+    [SerializeField] private GameObject stepFxPrefab;
+    [SerializeField] private GameObject stepSoundParametersPrefab;
     public override bool KeepsActiveStateBetweenTurns => false;
     public override bool RefundUseIfDeactivatedWithoutConsumption => true;
 
@@ -31,7 +33,7 @@ public class SideStepAbility : AbilityDefinition
         }
 
         Vector2Int delta = targetCell - character.GridPosition;
-        return Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1 && character.Board.IsCellWalkable(targetCell);
+        return character.RemainingMovementPoints > 0 && Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1 && character.Board.IsCellWalkable(targetCell);
     }
 
     public override bool TryActivateFromSelectedCell(Character character, CharacterAbilityRuntime runtime, Vector2Int targetCell)
@@ -42,6 +44,7 @@ public class SideStepAbility : AbilityDefinition
         }
 
         character.ConsumeMovementPoint();
+        PlayStepFeedback(character);
         return true;
     }
 
@@ -54,5 +57,16 @@ public class SideStepAbility : AbilityDefinition
 
         PlayConfiguredFx(character);
         return true;
+    }
+
+    public override void OnCharacterMoved(Character character, CharacterAbilityRuntime runtime, Vector2Int previousCell, Vector2Int currentCell, bool consumedMovementPoint)
+    {
+        if (runtime.IsActive && consumedMovementPoint) PlayStepFeedback(character);
+    }
+
+    private void PlayStepFeedback(Character character)
+    {
+        ZhuangAbilityUtils.Fx(stepFxPrefab, character.Board.GridToWorldPosition(character.GridPosition));
+        ZhuangAbilityUtils.Sound(stepSoundParametersPrefab, character.transform.position);
     }
 }

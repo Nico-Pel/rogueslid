@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f8cd84fbf02458995394ad2b3e71811, type: 3}
+  m_Name: ZhuangDragonGuandao
+  m_EditorClassIdentifier: 
+  abilityName: Dragon Guandao
+  description: Strike an adjacent enemy for 5 damage, or a target 2 tiles away in
+    a straight line for 7 damage. Targets hit from 2 tiles away are knocked airborne
+    on the spot.
+  icon: {fileID: -1386984905, guid: 2b03fd21095bc489095fb9cf2cd1a628, type: 3}
+  category: 0
+  attackAnimationClip: {fileID: 7400000, guid: 805fd51d5d4c4467da46332fe739114b, type: 2}
+  linkedUpgradeRewards:
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391301, type: 2}
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391302, type: 2}
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391303, type: 2}
+  - {fileID: 11400000, guid: 2b2d478e5c8a4c25b3aeb6bd9d391304, type: 2}
+  usesPerTurn: 1
+  usesPerCombat: 0
+  cooldownTurns: 1
+  reuseDelaySeconds: 0.75
+  consumesMovementPoint: 0
+  isToggle: 0
+  fxSpawns: []
+  damageApplyDelay: 0.5
+  damageDelayDistanceMultiplier: 1
+  damageFxOverridePrefab: {fileID: 0}
+  damageFxOverridePositionOffset: {x: 0, y: 0, z: 0}
+  damageFxOverrideDestroyAfterSeconds: 1
+  trailColorMode: 0
+  trailMaterialColor: {r: 1, g: 1, b: 1, a: 1}
+  temporaryTrailColorDuration: 0.5
+  trailReplacementMode: 0
+  replacementTrailPrefab: {fileID: 0}
+  temporaryTrailReplacementDuration: 0.5
+  baseMeleeDamage: 5
+  baseExtendedDamage: 7
+  whirlwindDamage: 2
+  airborneDuration: 0.55
+  airbornePeakHeight: 0.55
+  whirlwindFollowupDelay: 0.5
+  dragonCloudExecuteDelay: 0.2
+  whirlwindAnimation: {fileID: 7400000, guid: 434a71ea7a60a473a97cb14c8bcc9f73, type: 2}
+  dragonCloudExecuteAnimation: {fileID: 7400000, guid: 805fd51d5d4c4467da46332fe739114b, type: 2}
+  primarySlashFxPrefab: {fileID: 2957013350672291843, guid: b7f6adfb4b043441c84b5a7841eed90e, type: 3}
+  extendedSlashFxPrefab: {fileID: 4623002585508310345, guid: 2481fe006e4834df38c83724b941ac53, type: 3}
+  whirlwindFxPrefab: {fileID: 4623002585508310345, guid: a476e64d2e63c4077b7a32b888adad51, type: 3}
+  dragonCloudExecuteFxPrefab: {fileID: 4015235826899696612, guid: c5e0753db71804fe7be2f906ead7b0a1, type: 3}
+  airborneFxPrefab: {fileID: 2407364176693153571, guid: a66daf307f4864f2183ba9b16b78556e, type: 3}
+  airborneFxLifetime: 1
+  slashSoundParametersPrefab: {fileID: 1899072520979101167, guid: 2c1e4056a710344af98cc9dc9c04d6ba, type: 3}
+  extendedHitSoundParametersPrefab: {fileID: 438535622983110001, guid: 6b6c4eaf82654b4ca6a8bd7de3aa0f61, type: 3}
+  executeSoundParametersPrefab: {fileID: 1899072520979101167, guid: 0dcc4773b9bde475fb8c4f4b0811054f, type: 3}
+  airborneSound: {fileID: 1848193843528552724, guid: 0dcc4773b9bde475fb8c4f4b0811054f, type: 3}

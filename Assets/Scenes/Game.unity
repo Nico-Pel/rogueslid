@@ -246,6 +246,7 @@ MonoBehaviour:
   zhuangCharacterData: {fileID: 11400000, guid: d882d5611fded44e494f05491da80a71, type: 2}
   pandoraCharacterPrefab: {fileID: 7052028393415067872, guid: 307fa2897e7c9410dbef01b61d9d6007, type: 3}
   hectorCharacterPrefab: {fileID: 7052028393415067872, guid: 26fb24543a2914fab9420f7bc1422663, type: 3}
+  zhuangCharacterPrefab: {fileID: 7052028393415067872, guid: 5ca2cd821e67243f1a1a592195391387, type: 3}
   themeTweenDuration: 0.5
   menuMain: {fileID: 1408865719}
   menuUpgrade: {fileID: 1969346546}
@@ -35858,11 +35859,11 @@ MonoBehaviour:
   mirrorOnYAxisChance: 0.5
   playerCharacterPrefab: {fileID: 7052028393415067872, guid: 307fa2897e7c9410dbef01b61d9d6007, type: 3}
   selectedCharacterDataOverride: {fileID: 0}
-  useForcedDatas: 1
+  useForcedDatas: 0
   forcedBiome: {fileID: 11400000, guid: c84ec414647d94b18b541a817d55e4ac, type: 2}
   forcedEnemyPoolDefinition: {fileID: 11400000, guid: 4857c47ca8edc4db9baf6af8ea39ed66, type: 2}
   cheatRewardsCount: 19
-  useForcedRewards: 1
+  useForcedRewards: 0
   forcedRewards:
   - {fileID: 11400000, guid: 96149aba9e3a47fb9a39603d5b382336, type: 2}
   - {fileID: 11400000, guid: fb5ab765b986465fb8cb20481f4e05f0, type: 2}

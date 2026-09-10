@@ -217,7 +217,28 @@ public class BoardManager : MonoBehaviour
 
         selectedCharacterDataOverride = characterData;
         selectedTourmentLevel = Mathf.Clamp(tourmentLevel, 1, 5);
+        TryUnlockCharactersForPlayedRun(characterData);
         Debug.Log($"[Pouet Startup] SetPlayerCharacterSetup applied. playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")} selectedTourmentLevel={selectedTourmentLevel}", this);
+    }
+
+    private static void TryUnlockCharactersForPlayedRun(CharacterData sourceCharacterData)
+    {
+        IReadOnlyList<CharacterData> unlockedCharacters = sourceCharacterData != null ? sourceCharacterData.CharactersUnlockedAfterRun : null;
+        if (unlockedCharacters == null)
+        {
+            return;
+        }
+
+        for (int index = 0; index < unlockedCharacters.Count; index++)
+        {
+            CharacterData unlockedCharacterData = unlockedCharacters[index];
+            if (unlockedCharacterData == null || string.IsNullOrWhiteSpace(unlockedCharacterData.CharacterId))
+            {
+                continue;
+            }
+
+            CharacterProgressionSaveManager.UnlockCharacter(unlockedCharacterData.CharacterId);
+        }
     }
 
 #if UNITY_EDITOR
@@ -789,6 +810,7 @@ public class BoardManager : MonoBehaviour
 
     public void HandlePlayerTurnStarted(Character playerCharacter)
     {
+        foreach (ZhuangJadeColumn column in GetComponentsInChildren<ZhuangJadeColumn>()) column.Expire();
         if (spawnedEnemies.Count > 0)
         {
             List<Enemy> enemiesSnapshot = new List<Enemy>(spawnedEnemies);
@@ -1133,6 +1155,18 @@ public class BoardManager : MonoBehaviour
 
         barrel = cell.StaticObstacle.GetComponent<BarrelObstacle>();
         return barrel != null && !barrel.IsDestroyed;
+    }
+
+    public bool TryGetRock(Vector2Int gridPosition, out Rock rock)
+    {
+        rock = null;
+        if (!TryGetCell(gridPosition, out BoardCell cell) || cell.StaticObstacle == null)
+        {
+            return false;
+        }
+
+        rock = cell.StaticObstacle.GetComponent<Rock>();
+        return rock != null && !rock.IsDestroyed;
     }
 
     public bool TryGetSkullObject(Vector2Int gridPosition, out SkullObject skullObject)
@@ -1734,6 +1768,16 @@ public class BoardManager : MonoBehaviour
         if (barrel != null)
         {
             barrel.Assign(this, cell.GridPosition);
+        }
+
+        Rock rock = obstacle.GetComponent<Rock>();
+        if (rock == null && cell.Type == BoardCellType.Rock && barrel == null)
+        {
+            rock = obstacle.AddComponent<Rock>();
+        }
+        if (rock != null)
+        {
+            rock.Assign(this, cell.GridPosition);
         }
     }
 

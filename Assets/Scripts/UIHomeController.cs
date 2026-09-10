@@ -26,6 +26,7 @@ public class UIHomeController : MonoBehaviour
     [SerializeField] private CharacterData zhuangCharacterData;
     [SerializeField] private GameObject pandoraCharacterPrefab;
     [SerializeField] private GameObject hectorCharacterPrefab;
+    [SerializeField] private GameObject zhuangCharacterPrefab;
     public float themeTweenDuration = 0.5f;
 
     [Header("Menus")]
@@ -981,7 +982,7 @@ public class UIHomeController : MonoBehaviour
         return currentSelection switch
         {
             HomeCharacterSelection.Hector => new HomeCharacterConfig(hectorCharacterData, hectorCharacterPrefab, !hectorUnlocked),
-            HomeCharacterSelection.Zhuang => new HomeCharacterConfig(zhuangCharacterData, null, !zhuangUnlocked),
+            HomeCharacterSelection.Zhuang => new HomeCharacterConfig(zhuangCharacterData, zhuangCharacterPrefab, !zhuangUnlocked),
             _ => new HomeCharacterConfig(pandoraCharacterData, pandoraCharacterPrefab, false)
         };
     }
@@ -993,7 +994,7 @@ public class UIHomeController : MonoBehaviour
             && IsCharacterUnlockedForHome(requiredCharacter)
             ? requiredCharacter.CharacterName
             : "???";
-        return $"Finish a run with {requiredCharacterName} to unlock this character.";
+        return $"Play a run with {requiredCharacterName} to unlock this character.";
     }
 
     private bool IsCharacterUnlockedForHome(CharacterData characterData)
