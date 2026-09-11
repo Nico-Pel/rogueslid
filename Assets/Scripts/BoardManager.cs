@@ -271,7 +271,11 @@ public class BoardManager : MonoBehaviour
 
     private void Awake()
     {
+#if UNITY_EDITOR
         Debug.Log($"[Pouet Startup] BoardManager.Awake generateOnStart={generateOnStart} useForcedDatas={useForcedDatas} forcedBiome={(forcedBiome != null ? forcedBiome.name : "null")} forcedEnemyPoolDefinition={(forcedEnemyPoolDefinition != null ? forcedEnemyPoolDefinition.name : "null")} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+#else
+        Debug.Log($"[Pouet Startup] BoardManager.Awake generateOnStart={generateOnStart} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+#endif
 
         // Initial arena generation is orchestrated by GameTurnManager so character
         // selection and forced-data setup are applied before the board is created.
@@ -280,7 +284,11 @@ public class BoardManager : MonoBehaviour
     [ContextMenu("Generate Board")]
     public void GenerateBoard()
     {
+#if UNITY_EDITOR
         Debug.Log($"[Pouet Startup] GenerateBoard begin. useForcedDatas={useForcedDatas} forcedBiome={(forcedBiome != null ? forcedBiome.name : "null")} forcedEnemyPoolDefinition={(forcedEnemyPoolDefinition != null ? forcedEnemyPoolDefinition.name : "null")} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")} arenaCount={arenaCount}", this);
+#else
+        Debug.Log($"[Pouet Startup] GenerateBoard begin. playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")} arenaCount={arenaCount}", this);
+#endif
         ApplyCurrentBiomeVisuals();
         currentSelectedEnemyPool = ResolveSelectedEnemyPoolForCurrentArena();
         Texture2D selectedArenaLayout = SelectArenaLayout(currentSelectedEnemyPool);
@@ -397,7 +405,12 @@ public class BoardManager : MonoBehaviour
 
     public void ResetArenaProgression()
     {
+        GameServices.StartRun(CurrentTourmentLevel);
+#if UNITY_EDITOR
         Debug.Log($"[Pouet Startup] ResetArenaProgression before reset. useForcedDatas={useForcedDatas} forcedBiome={(forcedBiome != null ? forcedBiome.name : "null")} forcedEnemyPoolDefinition={(forcedEnemyPoolDefinition != null ? forcedEnemyPoolDefinition.name : "null")} playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+#else
+        Debug.Log($"[Pouet Startup] ResetArenaProgression before reset. playerCharacterPrefab={(playerCharacterPrefab != null ? playerCharacterPrefab.name : "null")} selectedCharacterDataOverride={(selectedCharacterDataOverride != null ? selectedCharacterDataOverride.CharacterName : "null")}", this);
+#endif
         currentBiomeIndex = 0;
         arenaCount = 1;
         shopShownForCurrentBiome = false;
@@ -3183,6 +3196,9 @@ public class BoardManager : MonoBehaviour
 
     private bool IsForcedRewardUnlockBypassed(RewardDefinition rewardDefinition)
     {
+#if !UNITY_EDITOR
+        return false;
+#else
         if (!IsForcedRewardsModeEnabled() || rewardDefinition == null || forcedRewards == null)
         {
             return false;
@@ -3197,6 +3213,7 @@ public class BoardManager : MonoBehaviour
         }
 
         return false;
+#endif
     }
 
     private bool IsRewardDefinitionUnlockedForCharacter(RewardDefinition rewardDefinition, CharacterData characterData)

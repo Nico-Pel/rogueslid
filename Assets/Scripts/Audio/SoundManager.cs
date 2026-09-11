@@ -1,4 +1,7 @@
 using UnityEngine;
+using System.Collections.Generic;
+using YsoCorp;
+using YsoCorp.GameUtils;
 
 public enum DamageSoundType
 {
@@ -59,6 +62,73 @@ public class SoundManager : MonoBehaviour
 
     private AudioSource musicSource;
     private AudioSource oneShotSource;
+    private AudioSource jingleSource;
+    private YCConfig soundConfig;
+    private bool applicationPaused;
+    private readonly List<ManagedSound> managedSounds = new List<ManagedSound>();
+
+    private sealed class ManagedSound
+    {
+        public AudioSource Source;
+        public float Volume;
+        public bool Music;
+        public bool PausedForAd;
+    }
+
+    private void LateUpdate() => ApplySettings();
+
+    private void OnApplicationPause(bool paused)
+    {
+        applicationPaused = paused;
+        ApplySettings();
+        if (paused) ADataManager.ForceSave();
+    }
+
+    // Use the SDK's own preferences, including before online configuration exists.
+    private float GetSettingsVolume(bool music)
+    {
+        var sdk = YCManager.instance != null ? YCManager.instance.soundManager : null;
+        bool enabled = sdk != null
+            ? (music ? sdk.IsMusicEnabled() : sdk.AreEffectsEnabled())
+            : ADataManager.GetBool(music ? "SOUNDMUSIC" : "SOUNDEFFECT", true);
+        float volume = sdk != null
+            ? (music ? sdk.GetMusicVolume() : sdk.GetEffectsVolume())
+            : ADataManager.GetFloat(music ? "SOUNDMUSIC_VOLUME" : "SOUNDEFFECT_VOLUME", 1f);
+        bool configured = soundConfig == null || (music ? soundConfig.SoundMusic : soundConfig.SoundEffect);
+        return enabled && configured ? Mathf.Clamp01(volume) : 0f;
+    }
+
+    private void TrackSource(AudioSource source, float volume, bool music = false)
+    {
+        managedSounds.Add(new ManagedSound { Source = source, Volume = volume, Music = music });
+        ApplySettings();
+    }
+
+    private void ApplySettings()
+    {
+        float musicSetting = GetSettingsVolume(true);
+        float effectsSetting = GetSettingsVolume(false);
+        var ads = YCManager.instance != null ? YCManager.instance.adsManager : null;
+        bool suspended = applicationPaused || (ads != null && ads.IsFullscreenAdPending);
+        for (int i = managedSounds.Count - 1; i >= 0; i--)
+        {
+            ManagedSound sound = managedSounds[i];
+            if (sound.Source == null) { managedSounds.RemoveAt(i); continue; }
+            sound.Source.volume = sound.Volume * (sound.Music ? musicSetting : effectsSetting);
+            sound.Source.mute = suspended || (sound.Music ? musicSetting : effectsSetting) <= 0f;
+            // Keep music position through ads. Effects expire normally, avoiding stale hits on return.
+            if (sound.Music && suspended && sound.Source.isPlaying)
+            {
+                sound.Source.Pause();
+                sound.PausedForAd = true;
+            }
+            else if (!suspended && sound.PausedForAd)
+            {
+                sound.Source.UnPause();
+                sound.PausedForAd = false;
+            }
+        }
+    }
 
     public float UiVolumeMultiplier => uiVolumeMultiplier;
     public AudioClip ShopMusic => shopMusic;
@@ -73,6 +143,7 @@ public class SoundManager : MonoBehaviour
         }
 
         Instance = this;
+        soundConfig = YCConfig.Create();
         EnsureAudioSources();
     }
 
@@ -120,9 +191,9 @@ public class SoundManager : MonoBehaviour
         }
 
         EnsureAudioSources();
-        oneShotSource.Stop();
-        oneShotSource.pitch = 1f;
-        oneShotSource.PlayOneShot(victoryJingle, jingleVolume);
+        jingleSource.Stop();
+        jingleSource.PlayOneShot(victoryJingle, jingleVolume);
+        ApplySettings();
     }
 
     public void PlayVictoryChoiceMusic()
@@ -140,9 +211,9 @@ public class SoundManager : MonoBehaviour
         }
 
         EnsureAudioSources();
-        oneShotSource.Stop();
-        oneShotSource.pitch = 1f;
-        oneShotSource.PlayOneShot(loseJingle, jingleVolume);
+        jingleSource.Stop();
+        jingleSource.PlayOneShot(loseJingle, jingleVolume);
+        ApplySettings();
     }
 
     public void PlayDamageSound(DamageSoundType soundType, Vector3 position, float volume = 1f)
@@ -209,6 +280,7 @@ public class SoundManager : MonoBehaviour
         source.pitch = pitch;
         source.loop = loop;
         source.spatialBlend = 0f;
+        TrackSource(source, source.volume);
         source.Play();
 
         float destroyDelay = duration > 0f
@@ -254,6 +326,7 @@ public class SoundManager : MonoBehaviour
         source.pitch = pitch;
         source.loop = loop;
         source.spatialBlend = 0f;
+        TrackSource(source, source.volume);
         source.Play();
 
         float destroyDelay = duration > 0f
@@ -292,12 +365,14 @@ public class SoundManager : MonoBehaviour
 
     private void EnsureAudioSources()
     {
+        EnsureJingleSource();
         if (musicSource == null)
         {
             musicSource = GetOrCreateAudioSource("MusicSource");
             musicSource.playOnAwake = false;
             musicSource.loop = true;
             musicSource.spatialBlend = 0f;
+            TrackSource(musicSource, musicVolume, true);
         }
 
         if (oneShotSource == null)
@@ -306,7 +381,18 @@ public class SoundManager : MonoBehaviour
             oneShotSource.playOnAwake = false;
             oneShotSource.loop = false;
             oneShotSource.spatialBlend = 0f;
+            TrackSource(oneShotSource, 1f);
         }
+    }
+
+    private void EnsureJingleSource()
+    {
+        if (jingleSource != null) return;
+        jingleSource = GetOrCreateAudioSource("JingleSource");
+        jingleSource.playOnAwake = false;
+        jingleSource.loop = false;
+        jingleSource.spatialBlend = 0f;
+        TrackSource(jingleSource, 1f, true);
     }
 
     private void PlayMusic(AudioClip clip, bool loop, bool stopOneShot = true)
@@ -321,20 +407,21 @@ public class SoundManager : MonoBehaviour
         if (musicSource.isPlaying && musicSource.clip == clip)
         {
             musicSource.loop = loop;
-            musicSource.volume = musicVolume;
+            ApplySettings();
             return;
         }
 
         if (stopOneShot)
         {
             oneShotSource.Stop();
+            jingleSource.Stop();
         }
 
         musicSource.Stop();
         musicSource.clip = clip;
         musicSource.loop = loop;
-        musicSource.volume = musicVolume;
         musicSource.Play();
+        ApplySettings();
     }
 
     private Transform GetSoundAnchor()

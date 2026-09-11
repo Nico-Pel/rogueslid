@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dependencies>
+    <androidPackages>
+        <androidPackage spec="com.applovin.mediation:mobilefuse-adapter:1.12.0.0" />
+    </androidPackages>
+    <iosPods>
+        <iosPod name="AppLovinMediationMobileFuseAdapter" version="1.12.0.0" />
+    </iosPods>
+    <remoteSwiftPackage url="https://github.com/AppLovin/AppLovin-MAX-Swift-Package-MobileFuse.git"
+        version="1.12.0.0"
+        upToNextMajor="true">
+        <swiftPackage name="AppLovinMediationMobileFuseAdapter" replacesPod="AppLovinMediationMobileFuseAdapter"/>
+    </remoteSwiftPackage>
+</dependencies>

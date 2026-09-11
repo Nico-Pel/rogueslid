@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfcf417bceeba474b8d12501c906cef3, type: 3}
+  m_Name: YCConfigData
+  m_EditorClassIdentifier: 
+  gameYcId: dd3915
+  Vibration: 0
+  VibrationDebugLog: 0
+  SoundEffect: 1
+  SoundMusic: 1
+  InAppRemoveAds: 
+  InAppRemoveAdsCanRemoveInBanner: 0
+  InappDebug: 1
+  NotifAuthorizationAlert: 1
+  NotifAuthorizationBadge: 1
+  NotifAuthorizationSound: 1
+  NotificationsAuto: []
+  ABVersion: 1
+  ABForcedSample: 
+  ABSamples: []
+  ABDebugLog: 1
+  UseBanners: 0
+  UseBannersInEditor: 0
+  <TransparentBannerBackground>k__BackingField: 0
+  <displayBannerOnStart>k__BackingField: 1
+  InterstitialInterval: 20
+  rewardedResetDelay: 0
+  useCustomFirstInterDelay: 0
+  firstInterstitialDelay: 300
+  <SkipFirstInterCall>k__BackingField: 1
+  <PauseGameDuringAd>k__BackingField: 1
+  activeLogs: 0
+  overrideSettingsWindow: 0
+  newSettingsWindowPrefab: {fileID: 0}
+  Name: Rogue Slide
+  FbAppId: 1605583618020985
+  FbClientToken: 68c8ce4a56d2d428c0e892b06abb4085
+  appleId: 
+  MmpTenjin: 1
+  # Official Google test App ID. Replace with Rogue Slide's production AdMob App ID before release.
+  AdMobAndroidAppId: ca-app-pub-3940256099942544~3347511713
+  AdMobIosAppId: 
+  IosInterstitial: 
+  IosRewarded: 
+  IosBanner: 
+  AndroidInterstitial: 
+  AndroidRewarded: 
+  AndroidBanner: 
+  AmazonIosAppID: 
+  AmazonIosInterstitial: 
+  AmazonIosRewarded: 
+  AmazonIosBanner: 
+  AmazonAndroidAppID: 
+  AmazonAndroidInterstitial: 
+  AmazonAndroidRewarded: 
+  AmazonAndroidBanner: 

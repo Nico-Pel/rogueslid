@@ -112,21 +112,14 @@ public static class EquipmentBuildLibrary
 
     private static EquipmentBuildLibraryData LoadLibraryData()
     {
-        string rawJson = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
-        if (string.IsNullOrWhiteSpace(rawJson))
-        {
-            return new EquipmentBuildLibraryData();
-        }
-
-        EquipmentBuildLibraryData libraryData = JsonUtility.FromJson<EquipmentBuildLibraryData>(rawJson);
-        return libraryData ?? new EquipmentBuildLibraryData();
+        var data = GameSaveStore.Load<EquipmentBuildLibraryData>(PlayerPrefsKey);
+        data.Builds ??= new List<EquipmentBuildData>();
+        return data;
     }
 
     private static void SaveLibraryData(EquipmentBuildLibraryData libraryData)
     {
-        string json = JsonUtility.ToJson(libraryData ?? new EquipmentBuildLibraryData());
-        PlayerPrefs.SetString(PlayerPrefsKey, json);
-        PlayerPrefs.Save();
+        GameSaveStore.Save(PlayerPrefsKey, libraryData);
     }
 
     private static EquipmentBuildData CloneBuild(EquipmentBuildData source)

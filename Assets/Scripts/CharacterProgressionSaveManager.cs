@@ -35,8 +35,7 @@ public static class CharacterProgressionSaveManager
 
     public static void ClearSave()
     {
-        PlayerPrefs.DeleteKey(PlayerPrefsKey);
-        PlayerPrefs.Save();
+        GameSaveStore.Delete(PlayerPrefsKey);
     }
 
     public static int GetOrbCount(string characterId)
@@ -368,21 +367,22 @@ public static class CharacterProgressionSaveManager
 
     private static CharacterProgressLibraryData LoadLibraryData()
     {
-        string rawJson = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
-        if (string.IsNullOrWhiteSpace(rawJson))
+        var data = GameSaveStore.Load<CharacterProgressLibraryData>(PlayerPrefsKey);
+        data.Characters ??= new List<CharacterProgressEntry>();
+        data.GloballyUnlockedRewardIds ??= new List<string>();
+        data.UnlockedCharacterIds ??= new List<string>();
+        foreach (var character in data.Characters)
         {
-            return new CharacterProgressLibraryData();
+            if (character == null) continue;
+            character.Upgrades ??= new List<CharacterUpgradeProgressEntry>();
+            character.UnlockedRewardIds ??= new List<string>();
         }
-
-        CharacterProgressLibraryData libraryData = JsonUtility.FromJson<CharacterProgressLibraryData>(rawJson);
-        return libraryData ?? new CharacterProgressLibraryData();
+        return data;
     }
 
     private static void SaveLibraryData(CharacterProgressLibraryData libraryData)
     {
-        string json = JsonUtility.ToJson(libraryData ?? new CharacterProgressLibraryData());
-        PlayerPrefs.SetString(PlayerPrefsKey, json);
-        PlayerPrefs.Save();
+        GameSaveStore.Save(PlayerPrefsKey, libraryData);
     }
 
     private static string NormalizeKey(string rawValue)

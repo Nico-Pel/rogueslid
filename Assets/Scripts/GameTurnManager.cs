@@ -1390,6 +1390,7 @@ public class GameTurnManager : MonoBehaviour
 
     private void HandleReturnToHomeRequested()
     {
+        GameServices.FinishRun(false);
         StopAllCoroutines();
         isEnemyTurnRunning = false;
         isPointerTracking = false;

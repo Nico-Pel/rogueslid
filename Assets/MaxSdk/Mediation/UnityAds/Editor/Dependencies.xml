@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dependencies>
+    <androidPackages>
+        <androidPackage spec="com.applovin.mediation:unityads-adapter:4.20.0.0" />
+    </androidPackages>
+    <iosPods>
+        <iosPod name="AppLovinMediationUnityAdsAdapter" version="4.20.0.0" />
+    </iosPods>
+    <remoteSwiftPackage url="https://github.com/AppLovin/AppLovin-MAX-Swift-Package-UnityAds.git"
+        version="4.20.0.0"
+        upToNextMajor="true">
+        <swiftPackage name="AppLovinMediationUnityAdsAdapter" replacesPod="AppLovinMediationUnityAdsAdapter"/>
+    </remoteSwiftPackage>
+</dependencies>

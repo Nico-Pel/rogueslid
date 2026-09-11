@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dependencies>
+    <androidPackages>
+        <androidPackage spec="com.applovin.mediation:inmobi-adapter:11.4.1.2" />
+        <androidPackage spec="com.squareup.picasso:picasso:2.71828" />
+        <androidPackage spec="com.android.support:recyclerview-v7:28.+" />
+        <androidPackage spec="com.android.support:customtabs:28.+" />
+    </androidPackages>
+    <iosPods>
+        <iosPod name="AppLovinMediationInMobiAdapter" version="11.4.1.2" />
+    </iosPods>
+    <remoteSwiftPackage url="https://github.com/AppLovin/AppLovin-MAX-Swift-Package-InMobi.git"
+        version="11.4.1.2"
+        upToNextMajor="true">
+        <swiftPackage name="AppLovinMediationInMobiAdapter" replacesPod="AppLovinMediationInMobiAdapter"/>
+    </remoteSwiftPackage>
+</dependencies>

@@ -1,0 +1,52 @@
+<dependencies>
+  <packages>
+    <package>androidx.recyclerview:recyclerview:1.2.1</package>
+    <package>com.android.support:customtabs:28.+</package>
+    <package>com.android.support:recyclerview-v7:28.+</package>
+    <package>com.applovin.mediation:adjoeads-adapter:1.8.0.0-beta</package>
+    <package>com.applovin.mediation:bidmachine-adapter:3.7.1.0</package>
+    <package>com.applovin.mediation:bigoads-adapter:6.0.0.0</package>
+    <package>com.applovin.mediation:bytedance-adapter:8.2.0.4.0</package>
+    <package>com.applovin.mediation:facebook-adapter:[6.22.0.0]</package>
+    <package>com.applovin.mediation:fyber-adapter:8.4.7.0</package>
+    <package>com.applovin.mediation:google-adapter:[25.4.0.0]</package>
+    <package>com.applovin.mediation:google-ad-manager-adapter:[25.4.0.0]</package>
+    <package>com.applovin.mediation:inmobi-adapter:11.4.1.2</package>
+    <package>com.applovin.mediation:ironsource-adapter:9.6.0.0.0</package>
+    <package>com.applovin.mediation:line-adapter:3000.1.1.0</package>
+    <package>com.applovin.mediation:mintegral-adapter:17.1.81.0</package>
+    <package>com.applovin.mediation:mobilefuse-adapter:1.12.0.0</package>
+    <package>com.applovin.mediation:moloco-adapter:4.11.1.0</package>
+    <package>com.applovin.mediation:ogury-presage-adapter:6.3.1.0</package>
+    <package>com.applovin.mediation:smaato-adapter:23.2.1.0</package>
+    <package>com.applovin.mediation:unityads-adapter:4.20.0.0</package>
+    <package>com.applovin.mediation:verve-adapter:3.9.1.0</package>
+    <package>com.applovin.mediation:vungle-adapter:7.7.7.1</package>
+    <package>com.applovin.mediation:yandex-adapter:8.3.0.0</package>
+    <package>com.applovin.mediation:yso-network-adapter:1.3.9.0</package>
+    <package>com.applovin:applovin-sdk:13.6.4</package>
+    <package>com.google.android.gms:play-services-ads-identifier:18.1.0</package>
+    <package>com.squareup.picasso:picasso:2.71828</package>
+    <package>com.tenjin:android-sdk:1.16.7</package>
+    <package>io.adjoe:adjoe-wave:1.11.0</package>
+    <package>io.adn:adn-applovin-adapter:4.29.0.1</package>
+  </packages>
+  <files />
+  <settings>
+    <setting name="androidAbis" value="arm64-v8a,armeabi-v7a" />
+    <setting name="bundleId" value="com.YSOCorp.RogueSlide" />
+    <setting name="explodeAars" value="True" />
+    <setting name="gradleBuildEnabled" value="True" />
+    <setting name="gradlePropertiesTemplateEnabled" value="True" />
+    <setting name="gradleTemplateEnabled" value="True" />
+    <setting name="installAndroidPackages" value="True" />
+    <setting name="localMavenRepoDir" value="Assets/GeneratedLocalRepo" />
+    <setting name="packageDir" value="Assets/Plugins/Android" />
+    <setting name="patchAndroidManifest" value="True" />
+    <setting name="patchMainTemplateGradle" value="True" />
+    <setting name="projectExportEnabled" value="True" />
+    <setting name="useFullCustomMavenRepoPathWhenExport" value="True" />
+    <setting name="useFullCustomMavenRepoPathWhenNotExport" value="False" />
+    <setting name="useJetifier" value="True" />
+  </settings>
+</dependencies>

@@ -1,0 +1,18 @@
+{
+    "name": "GameUtils.Scripts",
+    "rootNamespace": "",
+    "references": [
+        "MaxSdk.Scripts",
+        "Lofelt.NiceVibrations",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [{ "name": "com.unity.nuget.newtonsoft-json", "expression": "3.0.0", "define": "YC_NEWTONSOFT" }],
+    "noEngineReferences": false
+}

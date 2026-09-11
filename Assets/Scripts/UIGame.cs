@@ -436,6 +436,7 @@ public class UIGame : MonoBehaviour
 
     public void ShowLoseMenu(string characterName, Sprite losePortrait, Action retryCallback, Action menuCallback, bool showRetryButton, string menuLabel)
     {
+        GameServices.FinishRun(false);
         CacheLoseMenu();
         HideStatsMenus();
         HideRewardCheck();
@@ -465,6 +466,7 @@ public class UIGame : MonoBehaviour
 
     public void ShowWinMenu(CharacterData characterData, TourmentData tourmentData, Action nextCallback)
     {
+        GameServices.FinishRun(true);
         CacheWinMenu();
         HideStatsMenus();
         HideRewardCheck();

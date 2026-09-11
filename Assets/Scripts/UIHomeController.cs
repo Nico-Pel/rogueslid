@@ -33,6 +33,8 @@ public class UIHomeController : MonoBehaviour
     [SerializeField] private MenuMain menuMain;
     [SerializeField] private MenuUpgrade menuUpgrade;
 
+    [SerializeField] private Button settingsButton;
+
     [Header("Tabs")]
     [SerializeField] private Button upgradeTabButton;
     [SerializeField] private Image upgradeTabImage;
@@ -173,6 +175,7 @@ public class UIHomeController : MonoBehaviour
 
     private void OnDestroy()
     {
+        BindButton(settingsButton, HandleSettingsClicked, false);
         BindButton(startButton, HandleStartClicked, false);
         BindButton(previousButton, HandlePreviousClicked, false);
         BindButton(nextButton, HandleNextClicked, false);
@@ -186,8 +189,16 @@ public class UIHomeController : MonoBehaviour
         BindButton(mainTabButton, HandleMainTabClicked, false);
     }
 
+    private void HandleSettingsClicked()
+    {
+        SoundManager.Instance?.PlayClick();
+        YsoCorp.GameUtils.YCManager.instance?.settingManager?.Show();
+    }
+
     private void Update()
     {
+        if (settingsButton != null)
+            settingsButton.interactable = YsoCorp.GameUtils.YCManager.instance?.settingManager != null;
 #if UNITY_EDITOR
         if (gameObject.activeInHierarchy && Input.GetKeyDown(DebugUnlockAllCharactersKey))
         {
@@ -225,6 +236,7 @@ public class UIHomeController : MonoBehaviour
         menuUpgrade?.CacheReferences();
         orbRoot ??= FindGameObjectByName(transform, "UIOrb");
 
+        settingsButton ??= FindButtonInParent("BSettings");
         upgradeTabButton ??= FindButtonInParent("BTab1");
         mainTabButton ??= FindButtonInParent("BTab2");
         thirdTabButton ??= FindButtonInParent("BTab3");
@@ -242,6 +254,7 @@ public class UIHomeController : MonoBehaviour
             storyDescriptionAlignmentCached = true;
         }
 
+        BindButton(settingsButton, HandleSettingsClicked);
         BindButton(startButton, HandleStartClicked);
         BindButton(previousButton, HandlePreviousClicked);
         BindButton(nextButton, HandleNextClicked);
@@ -459,15 +472,16 @@ public class UIHomeController : MonoBehaviour
             return;
         }
 
-        Hide();
-        if (uiGame != null)
+        int tourment = GetSelectedTourmentLevel(config.Data);
+        GameServices.PlayAfterInterstitial(() =>
         {
-            uiGame.gameObject.SetActive(true);
-        }
-
-        board.SetPlayerCharacterSetup(config.Prefab, config.Data, GetSelectedTourmentLevel(config.Data));
-        board.ResetArenaProgression();
-        board.GenerateBoard();
+            if (this == null || board == null) return;
+            Hide();
+            if (uiGame != null) uiGame.gameObject.SetActive(true);
+            board.SetPlayerCharacterSetup(config.Prefab, config.Data, tourment);
+            board.ResetArenaProgression();
+            board.GenerateBoard();
+        });
     }
 
     private void CycleCharacter(int delta)

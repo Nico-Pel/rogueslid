@@ -250,6 +250,7 @@ MonoBehaviour:
   themeTweenDuration: 0.5
   menuMain: {fileID: 1408865719}
   menuUpgrade: {fileID: 1969346546}
+  settingsButton: {fileID: 393237798}
   upgradeTabButton: {fileID: 1024568035}
   upgradeTabImage: {fileID: 1024568036}
   mainTabButton: {fileID: 1783264327}
@@ -35859,9 +35860,9 @@ MonoBehaviour:
   mirrorOnYAxisChance: 0.5
   playerCharacterPrefab: {fileID: 7052028393415067872, guid: 307fa2897e7c9410dbef01b61d9d6007, type: 3}
   selectedCharacterDataOverride: {fileID: 0}
-  useForcedDatas: 0
-  forcedBiome: {fileID: 11400000, guid: c84ec414647d94b18b541a817d55e4ac, type: 2}
-  forcedEnemyPoolDefinition: {fileID: 11400000, guid: 4857c47ca8edc4db9baf6af8ea39ed66, type: 2}
+  useForcedDatas: 1
+  forcedBiome: {fileID: 11400000, guid: ba67df266692b434495b5d7877704ae4, type: 2}
+  forcedEnemyPoolDefinition: {fileID: 0}
   cheatRewardsCount: 19
   useForcedRewards: 0
   forcedRewards:

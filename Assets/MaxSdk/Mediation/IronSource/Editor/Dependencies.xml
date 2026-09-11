@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dependencies>
+    <androidPackages>
+        <androidPackage spec="com.applovin.mediation:ironsource-adapter:9.6.0.0.0" />
+
+    </androidPackages>
+    <iosPods>
+        <iosPod name="AppLovinMediationIronSourceAdapter" version="9.6.0.0.0" />
+    </iosPods>
+    <remoteSwiftPackage url="https://github.com/AppLovin/AppLovin-MAX-Swift-Package-IronSource.git"
+        version="9.6.0.0.0"
+        upToNextMajor="true">
+        <swiftPackage name="AppLovinMediationIronSourceAdapter" replacesPod="AppLovinMediationIronSourceAdapter"/>
+    </remoteSwiftPackage>
+</dependencies>

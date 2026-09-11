@@ -1,0 +1,21 @@
+{
+    "name": "GameUtils.Scripts.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GameUtils.Scripts",
+        "MaxSdk.Scripts",
+        "MaxSdk.Scripts.IntegrationManager.Editor",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [{ "name": "com.unity.nuget.newtonsoft-json", "expression": "3.0.0", "define": "YC_NEWTONSOFT" }],
+    "noEngineReferences": false
+}

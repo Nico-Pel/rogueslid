@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dependencies>
+    <androidPackages>
+        <androidPackage spec="com.applovin.mediation:line-adapter:3000.1.1.0" />
+    </androidPackages>
+    <iosPods>
+        <iosPod name="AppLovinMediationLineAdapter" version="3.1.0.0" />
+    </iosPods>
+    <remoteSwiftPackage url="https://github.com/AppLovin/AppLovin-MAX-Swift-Package-Line.git"
+        version="3.1.0.0"
+        upToNextMajor="true">
+        <swiftPackage name="AppLovinMediationLineAdapter" replacesPod="AppLovinMediationLineAdapter"/>
+    </remoteSwiftPackage>
+</dependencies>

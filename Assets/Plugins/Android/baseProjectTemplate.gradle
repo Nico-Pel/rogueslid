@@ -1,0 +1,12 @@
+plugins {
+    id 'com.android.application' version '7.4.2' apply false
+    id 'com.android.library' version '7.4.2' apply false
+    **BUILD_SCRIPT_DEPS**
+}
+
+// Keep transitive AndroidX dependencies compatible with Unity 2022's Android toolchain.
+allprojects {
+    configurations.all {
+        resolutionStrategy.force 'androidx.browser:browser:1.8.0'
+    }
+}

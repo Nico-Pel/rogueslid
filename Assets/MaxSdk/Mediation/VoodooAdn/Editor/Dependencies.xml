@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dependencies>
+    <androidPackages>
+        <androidPackage spec="io.adn:adn-applovin-adapter:4.29.0.1">
+            <repositories>
+	            <repository>https://framework.voodoo-adn.com/android/release/apps</repository>
+            </repositories>
+        </androidPackage>
+    </androidPackages>
+    <iosPods>
+        <iosPod name="VoodooMaxAdapter" version="3.17.0.1">
+            <sources>
+			        <source>https://github.com/VoodooADN/ios-sdk-podspecs.git</source>
+			        <source>https://github.com/VoodooADN/ios-sdkextension-podspecs.git</source>
+			        <source>https://github.com/VoodooADN/ios-applovin-adapter-podspecs.git</source>			        
+			        <source>https://framework.voodoo-adn.com/podspecs</source>
+			      </sources>
+        </iosPod>
+    </iosPods>
+</dependencies>
